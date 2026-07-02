@@ -1,56 +1,50 @@
-# Welcome to your Expo app 👋
+# AIコーチ — 三日坊主で終わらせない目標達成アプリ
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+AIコーチが目標を毎日の小さな行動に分解し、朝のリマインドと夜の振り返り対話で達成まで伴走するiOSアプリ。データはすべて端末内(SQLite)に保存され、サーバーには残らない。
 
-## Get started
+## 構成
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+  app/            Expo Router 画面 ((tabs)/, onboarding/, paywall)
+  components/     UIコンポーネント (ui/ = Button, Card, Chip, Screen)
+  db/             expo-sqlite + Drizzle (schema / migrations / repo)
+  lib/            ドメインロジック (streak, quota, dates) と AIクライアント
+  stores/         Zustand (app = 永続設定, onboarding = 一時)
+proxy/            Cloudflare Workers AIプロキシ (Claude API, 別デプロイ)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- **AI接続**: アプリ → `proxy/`(APIキー隠蔽・プロンプト注入・レート制限)→ Claude API。`EXPO_PUBLIC_COACH_API_URL` 未設定時はモック応答で全機能が動く。
+- **モデル**: 対話 = claude-haiku-4-5 / 目標分解 = claude-sonnet-5(構造化JSON出力)
+- **課金**: フリーミアム(無料は AI対話 10回/日)。RevenueCat接続は TODO(`src/app/paywall.tsx`)。
 
-### Other setup steps
+## 開発
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```sh
+npm install
+npm start            # Expo Go (iPhoneのExpo Goアプリで開く)
+npm test             # ユニットテスト (streak / quota / dates)
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+```
 
-## Learn more
+AIを実際に動かす場合は [proxy/README.md](proxy/README.md) の手順でデプロイし、`.env` を作成([.env.example](.env.example) 参照)。
 
-To learn more about developing your project with Expo, look at the following resources:
+## リリース(EAS)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```sh
+npx eas init                 # 初回のみ (Expoアカウント必要)
+npx eas build --platform ios # TestFlight向けビルド
+npx eas submit --platform ios
+```
 
-## Join the community
+`app.json` の `ios.bundleIdentifier`(現在 `dev.shinji.aicoach`)は Apple Developer の App ID に合わせて変更すること。
 
-Join our community of developers creating universal apps.
+## 設計メモ
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- ストリークは「1日だけの抜けは救済(7日に1回まで)」ルール([src/lib/streak.ts](src/lib/streak.ts))。仕様はテストが正とする。
+- 日付はすべて端末ローカルの `YYYY-MM-DD` キー([src/lib/dates.ts](src/lib/dates.ts))。
+- DBマイグレーションは `PRAGMA user_version` 管理の手書きSQL([src/db/migrations.ts](src/db/migrations.ts))。スキーマ変更は配列末尾に追加。
+- 危機ワード検知・医療誘導はプロキシ側([proxy/src/prompts.ts](proxy/src/prompts.ts))。App Store審査対策も兼ねるため削除しないこと。
+
+開発計画の全体像(リサーチ〜1万DLグロース戦略)は `~/.claude/plans/ai-plan-react-snuggly-dragon.md` を参照。

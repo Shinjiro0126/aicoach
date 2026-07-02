@@ -1,14 +1,18 @@
 {
   "expo": {
-    "name": "mobileapp",
+    "name": "AIコーチ",
     "slug": "mobileapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobileapp",
+    "scheme": "aicoach",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "dev.shinji.aicoach",
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "ja"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,6 +29,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -32,7 +37,8 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

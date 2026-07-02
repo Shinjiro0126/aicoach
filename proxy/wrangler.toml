@@ -1,0 +1,14 @@
+# Cloudflare Workers 設定
+# デプロイ手順は proxy/README.md を参照
+name = "coach-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# 必須シークレット(wrangler secret put で設定):
+#   ANTHROPIC_API_KEY - Claude APIキー
+#   APP_TOKEN         - アプリと共有する簡易トークン(アプリ側 EXPO_PUBLIC_COACH_APP_TOKEN と一致させる)
+
+# レート制限用KV(任意。未設定でも動作するが、デバイス毎の日次上限が効かなくなる)
+# [[kv_namespaces]]
+# binding = "RATE_KV"
+# id = "<your-kv-namespace-id>"
