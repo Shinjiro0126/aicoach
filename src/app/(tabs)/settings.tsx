@@ -165,6 +165,13 @@ export default function SettingsScreen() {
         <Button title="すべてのデータを削除" variant="danger" onPress={confirmDeleteAll} />
       </Card>
 
+      <Card>
+        <ThemedText type="smallBold">品質改善へのご協力</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          匿名の診断データ(クラッシュ情報・利用状況)を送信して品質改善に役立てています。個人を特定する情報や会話内容は送信されません。
+        </ThemedText>
+      </Card>
+
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
         バージョン {Constants.expoConfig?.version ?? '1.0.0'}
       </ThemedText>

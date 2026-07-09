@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
 import { useTheme } from '@/hooks/use-theme';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 
 const BENEFITS = [
   ['♾️', 'AIコーチとの対話が無制限に'],
@@ -17,6 +19,10 @@ const BENEFITS = [
 
 export default function PaywallScreen() {
   const theme = useTheme();
+
+  useEffect(() => {
+    trackEvent(AnalyticsEvent.PaywallViewed);
+  }, []);
 
   return (
     <Screen scroll>

@@ -3,11 +3,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { initPostHog } from '@/lib/analytics/posthog';
+import { initSentry, wrapWithSentry } from '@/lib/observability/sentry';
 import { useAppStore } from '@/stores/app';
 
 SplashScreen.preventAutoHideAsync();
+initSentry();
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
   const goalLoaded = useAppStore((s) => s.goalLoaded);
   const loadGoal = useAppStore((s) => s.loadGoal);
@@ -19,6 +22,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (goalLoaded) SplashScreen.hideAsync();
   }, [goalLoaded]);
+
+  // 匿名の deviceId が確定(永続化ストアの復元完了)次第、行動分析を初期化する
+  useEffect(() => {
+    if (useAppStore.persist.hasHydrated()) {
+      initPostHog(useAppStore.getState().deviceId);
+      return;
+    }
+    return useAppStore.persist.onFinishHydration((state) => initPostHog(state.deviceId));
+  }, []);
 
   if (!goalLoaded) return null;
 
@@ -32,3 +44,5 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+export default wrapWithSentry(RootLayout);
