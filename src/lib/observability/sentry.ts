@@ -12,16 +12,16 @@ import type { Breadcrumb, ErrorEvent } from '@sentry/react-native';
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 
 /** コーチAPI(プロキシ)へのリクエストかどうかを判定する(会話内容が乗るエンドポイントのみ対象) */
-function isCoachApiUrl(url: string | undefined): boolean {
+export function isCoachApiUrl(url: string | undefined): boolean {
   if (!url) return false;
-  return /\/v1\/(coach|plan)(\?|$)/.test(url);
+  return /\/v1\/(coach|plan)(\?|\/|$)/.test(url);
 }
 
 /**
  * fetch/xhr のブレッドクラムから、コーチAPIへのリクエスト/レスポンス本文(会話テキスト)を除去する。
  * 通信が発生した事実・ステータスコードは診断に有用なため残す。
  */
-function sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
+export function sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   const isHttpBreadcrumb =
     breadcrumb.type === 'http' || breadcrumb.category === 'fetch' || breadcrumb.category === 'xhr';
   if (!isHttpBreadcrumb) return breadcrumb;
@@ -40,7 +40,7 @@ function sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 }
 
 /** イベント本体(request.data/headers等)からコーチAPIの会話ペイロードを除去する */
-function sanitizeEvent(event: ErrorEvent): ErrorEvent {
+export function sanitizeEvent(event: ErrorEvent): ErrorEvent {
   if (event.request && isCoachApiUrl(event.request.url)) {
     event.request = {
       ...event.request,

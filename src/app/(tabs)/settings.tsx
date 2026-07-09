@@ -158,7 +158,7 @@ export default function SettingsScreen() {
       <Card>
         <ThemedText type="smallBold">データ</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          すべてのデータはこの端末の中にだけ保存されています。サーバーには送信されません。
+          目標・行動記録・対話履歴などのデータはこの端末の中にだけ保存され、サーバーには送信されません(匿名の診断データについては下記「品質改善へのご協力」をご覧ください)。
         </ThemedText>
         <Button title="データをエクスポート (JSON)" variant="secondary" onPress={exportData} />
         <Button title="目標をリセット" variant="secondary" onPress={confirmArchiveGoal} />
