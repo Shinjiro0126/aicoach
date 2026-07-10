@@ -21,9 +21,10 @@ AIが目標達成に伴走するiOSアプリ。React Native + Expo SDK 57 + Type
 - **ドメインロジック**: `src/lib/` — streak(1日抜け救済ルール)/ quota(無料枠10回/日)/ dates(ローカルTZの YYYY-MM-DD キー)。すべて純関数でテスト済み。**仕様変更はテストとセットで**
 - **AI**: `src/lib/ai/client.ts` → `proxy/`(Workers)→ Claude API。`EXPO_PUBLIC_COACH_API_URL` 未設定ならモック(`mock.ts`)にフォールバック。システムプロンプトは**プロキシ側のみ**(`proxy/src/prompts.ts`)、クライアントに置かない
 - **状態**: `src/stores/app.ts`(Zustand + AsyncStorage永続。設定・無料枠・deviceId)。DBが正のデータ(目標等)はストアにキャッシュのみ
+- **可観測性**: `src/lib/observability/sentry.ts`(クラッシュ検知、`EXPO_PUBLIC_SENTRY_DSN` 未設定なら無効化)、`src/lib/analytics/posthog.ts`(行動分析、`EXPO_PUBLIC_POSTHOG_API_KEY` 未設定ならno-op)。両方とも `EXPO_PUBLIC_COACH_API_URL` 未設定時にモックへフォールバックするのと同じ思想
 
 ## 制約・注意
 
 - 危機ワード検知と相談窓口案内(`proxy/src/prompts.ts`)はApp Store審査対応を兼ねる。削除・迂回しない
-- 「データは端末内のみ」がプロダクトの訴求点。対話履歴等をサーバーに保存する変更はしない
+- 「データは端末内のみ」がプロダクトの訴求点。対話履歴等をサーバーに保存する変更はしない。ただし匿名のクラッシュ情報・利用状況データ(会話内容・PIIは含まない)のみ Sentry / PostHog に送信している。会話テキストを送る変更は厳禁(`sentry.ts` の `beforeBreadcrumb`/`beforeSend` でコーチAPIペイロードを除去、`posthog.ts` の `trackEvent` は決められたイベント名・プロパティのみ)
 - コーチ応答は3文以内ルール(プロンプトで制御)。UIもそれを前提に設計されている

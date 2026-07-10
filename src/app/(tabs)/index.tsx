@@ -15,6 +15,7 @@ import {
   upsertActionForDate,
 } from '@/db/repo';
 import type { DailyAction } from '@/db/schema';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { formatJP, todayKey } from '@/lib/dates';
 import { computeStreak } from '@/lib/streak';
 import { useTheme } from '@/hooks/use-theme';
@@ -41,7 +42,12 @@ export default function HomeScreen() {
 
   const toggleDone = () => {
     if (!action) return;
-    setActionDone(action.id, !action.done);
+    const newDone = !action.done;
+    setActionDone(action.id, newDone);
+    if (newDone) {
+      const result = computeStreak(listDoneDates(goal.id), today);
+      trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current });
+    }
     refresh();
   };
 

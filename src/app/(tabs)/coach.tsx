@@ -26,6 +26,7 @@ import type { CoachMessage } from '@/db/schema';
 import { chatWithCoach } from '@/lib/ai/client';
 import { OFFLINE_FALLBACK_MESSAGE } from '@/lib/ai/mock';
 import { AiError, type CoachContext } from '@/lib/ai/types';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { addDaysKey, todayKey } from '@/lib/dates';
 import { computeStreak } from '@/lib/streak';
 import { useTheme } from '@/hooks/use-theme';
@@ -68,6 +69,7 @@ export default function CoachScreen() {
   const send = async (text: string, mode: CoachContext['mode']) => {
     if (sending) return;
     if (!canSendAiMessage()) {
+      trackEvent(AnalyticsEvent.QuotaExceeded);
       router.push('/paywall');
       return;
     }
@@ -85,6 +87,8 @@ export default function CoachScreen() {
       consumeAiMessage();
       const assistantMessage = addCoachMessage(goal.id, 'assistant', reply);
       setMessages((prev) => [...prev, assistantMessage]);
+      // メッセージ本文は送らず、送信した事実(モード)のみ記録する
+      trackEvent(AnalyticsEvent.CoachMessageSent, { mode });
       if (mode === 'reflection' && !reflectionDone) {
         addCheckin(goal.id, todayKey(), null, text);
         setReflectionDone(true);

@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -7,6 +8,7 @@ import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { useOnboardingStore } from '@/stores/onboarding';
 
 const EXAMPLES = ['TOEICで800点を取る', '週3回ランニングする', '毎日30分 副業に取り組む', '5kg減量する'];
@@ -14,6 +16,10 @@ const EXAMPLES = ['TOEICで800点を取る', '週3回ランニングする', '�
 export default function GoalTitleScreen() {
   const theme = useTheme();
   const { title, setTitle } = useOnboardingStore();
+
+  useEffect(() => {
+    trackEvent(AnalyticsEvent.OnboardingStarted);
+  }, []);
 
   return (
     <Screen scroll>

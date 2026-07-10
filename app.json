@@ -38,7 +38,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "TODO-sentry-org",
+          "project": "TODO-sentry-project"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

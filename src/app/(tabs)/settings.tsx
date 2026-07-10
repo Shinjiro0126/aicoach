@@ -158,11 +158,18 @@ export default function SettingsScreen() {
       <Card>
         <ThemedText type="smallBold">データ</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          すべてのデータはこの端末の中にだけ保存されています。サーバーには送信されません。
+          目標・行動記録・対話履歴などのデータはこの端末の中にだけ保存され、サーバーには送信されません(匿名の診断データについては下記「品質改善へのご協力」をご覧ください)。
         </ThemedText>
         <Button title="データをエクスポート (JSON)" variant="secondary" onPress={exportData} />
         <Button title="目標をリセット" variant="secondary" onPress={confirmArchiveGoal} />
         <Button title="すべてのデータを削除" variant="danger" onPress={confirmDeleteAll} />
+      </Card>
+
+      <Card>
+        <ThemedText type="smallBold">品質改善へのご協力</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          匿名の診断データ(クラッシュ情報・利用状況)を送信して品質改善に役立てています。個人を特定する情報や会話内容は送信されません。
+        </ThemedText>
       </Card>
 
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>

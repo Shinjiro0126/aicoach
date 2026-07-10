@@ -15,6 +15,7 @@ import {
 } from '@/db/repo';
 import { generatePlan } from '@/lib/ai/client';
 import type { PlanResponse } from '@/lib/ai/types';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { addDaysKey, todayKey } from '@/lib/dates';
 import { scheduleDailyNotifications } from '@/lib/notifications';
 import { useTheme } from '@/hooks/use-theme';
@@ -35,7 +36,10 @@ export default function PlanScreen() {
     let cancelled = false;
     generatePlan({ goalTitle: title, why, startDate: todayKey() }, deviceId)
       .then((result) => {
-        if (!cancelled) setPlan(result);
+        if (!cancelled) {
+          setPlan(result);
+          trackEvent(AnalyticsEvent.AiPlanGenerated);
+        }
       })
       .catch(() => {
         if (!cancelled) setError(true);
@@ -68,6 +72,7 @@ export default function PlanScreen() {
       }
       setActiveGoal(goal);
       reset();
+      trackEvent(AnalyticsEvent.OnboardingCompleted);
       router.replace('/(tabs)');
     } finally {
       setSaving(false);
