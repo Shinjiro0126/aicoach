@@ -3,6 +3,10 @@
 export type PlanRequest = {
   goalTitle: string;
   why: string;
+  /** 目標カテゴリ(GoalCategory の enum値) */
+  category?: string;
+  /** 達成期間(月数)。週次ペース配分の逆算に使う */
+  durationMonths?: number;
   targetDate?: string;
   /** 開始日(YYYY-MM-DD)。初日の行動はこの日付から生成される */
   startDate: string;

@@ -48,6 +48,10 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX IF NOT EXISTS idx_coach_messages_goal ON coach_messages (goal_id, created_at);
   `,
+  // v2: 目標カテゴリを追加(target_date は v1 で作成済み)
+  `
+  ALTER TABLE goals ADD COLUMN category TEXT NOT NULL DEFAULT 'other';
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {
