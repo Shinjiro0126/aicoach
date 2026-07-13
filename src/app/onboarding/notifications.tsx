@@ -1,12 +1,15 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { StepDots } from '@/components/onboarding-steps';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { requestNotificationPermission } from '@/lib/notifications';
 import { useAppStore } from '@/stores/app';
 
@@ -14,6 +17,7 @@ const MORNING_OPTIONS = [6, 7, 8, 9];
 const EVENING_OPTIONS = [20, 21, 22, 23];
 
 export default function NotificationSetupScreen() {
+  const theme = useTheme();
   const { morningTime, eveningTime, setNotificationTimes, setNotificationsEnabled } = useAppStore();
   const [morning, setMorning] = useState(morningTime.hour);
   const [evening, setEvening] = useState(eveningTime.hour);
@@ -31,6 +35,8 @@ export default function NotificationSetupScreen() {
 
   return (
     <Screen scroll>
+      <StepDots current={4} />
+
       <View style={styles.header}>
         <ThemedText type="subtitle">リマインドの時間を{'\n'}決めましょう</ThemedText>
         <ThemedText themeColor="textSecondary">
@@ -39,7 +45,10 @@ export default function NotificationSetupScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText type="smallBold">🌅 朝のリマインド</ThemedText>
+        <View style={styles.sectionLabel}>
+          <SymbolView name="sun.horizon" size={16} tintColor={theme.warning} />
+          <ThemedText type="smallBold">朝のリマインド</ThemedText>
+        </View>
         <View style={styles.chips}>
           {MORNING_OPTIONS.map((h) => (
             <Chip key={h} label={`${h}:00`} selected={morning === h} onPress={() => setMorning(h)} />
@@ -48,7 +57,10 @@ export default function NotificationSetupScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText type="smallBold">🌙 夜の振り返り</ThemedText>
+        <View style={styles.sectionLabel}>
+          <SymbolView name="moon.stars" size={16} tintColor={theme.tint} />
+          <ThemedText type="smallBold">夜の振り返り</ThemedText>
+        </View>
         <View style={styles.chips}>
           {EVENING_OPTIONS.map((h) => (
             <Chip key={h} label={`${h}:30`} selected={evening === h} onPress={() => setEvening(h)} />
@@ -63,7 +75,8 @@ export default function NotificationSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: Spacing.two, marginTop: Spacing.five },
+  header: { gap: Spacing.two, marginTop: Spacing.three },
   section: { gap: Spacing.two },
+  sectionLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });
