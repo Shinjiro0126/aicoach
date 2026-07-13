@@ -1,4 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
 import {
   FlatList,
@@ -152,8 +153,9 @@ export default function CoachScreen() {
           accessibilityRole="button"
           onPress={() => send('今日の振り返りをお願いします。', 'reflection')}
           style={[styles.reflectionBanner, { backgroundColor: theme.tintSoft }]}>
+          <SymbolView name="moon.stars" size={16} tintColor={theme.tint} />
           <ThemedText type="smallBold" style={{ color: theme.tint }}>
-            🌙 今日の振り返りを始める(1分)
+            今日の振り返りを始める(1分)
           </ThemedText>
         </Pressable>
       )}
@@ -213,7 +215,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
     borderRadius: 12,
     padding: Spacing.three,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: Spacing.one,
   },
   inputRow: {
     flexDirection: 'row',

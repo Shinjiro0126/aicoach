@@ -31,7 +31,7 @@ export async function scheduleDailyNotifications(
   await Notifications.scheduleNotificationAsync({
     identifier: MORNING_ID,
     content: {
-      title: '今日の一歩 🌱',
+      title: '今日の一歩',
       body: `「${goalTitle}」— 今日の最小行動を確認しましょう`,
     },
     trigger: {

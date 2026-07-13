@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { Alert, Share, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
           deleteAllData();
           await cancelDailyNotifications();
           setActiveGoal(null);
-          router.replace('/onboarding');
+          router.replace('/onboarding/category');
         },
       },
     ]);
@@ -95,7 +96,7 @@ export default function SettingsScreen() {
         onPress: () => {
           archiveGoal(activeGoal.id);
           setActiveGoal(null);
-          router.replace('/onboarding');
+          router.replace('/onboarding/category');
         },
       },
     ]);
@@ -118,17 +119,23 @@ export default function SettingsScreen() {
         </View>
         {notificationsEnabled && (
           <>
-            <ThemedText type="small" themeColor="textSecondary">
-              🌅 朝のリマインド
-            </ThemedText>
+            <View style={styles.sectionLabel}>
+              <SymbolView name="sun.horizon" size={14} tintColor={theme.warning} />
+              <ThemedText type="small" themeColor="textSecondary">
+                朝のリマインド
+              </ThemedText>
+            </View>
             <View style={styles.chips}>
               {MORNING_OPTIONS.map((h) => (
                 <Chip key={h} label={`${h}:00`} selected={morningTime.hour === h} onPress={() => setMorning(h)} />
               ))}
             </View>
-            <ThemedText type="small" themeColor="textSecondary">
-              🌙 夜の振り返り
-            </ThemedText>
+            <View style={styles.sectionLabel}>
+              <SymbolView name="moon.stars" size={14} tintColor={theme.tint} />
+              <ThemedText type="small" themeColor="textSecondary">
+                夜の振り返り
+              </ThemedText>
+            </View>
             <View style={styles.chips}>
               {EVENING_OPTIONS.map((h) => (
                 <Chip key={h} label={`${h}:30`} selected={eveningTime.hour === h} onPress={() => setEvening(h)} />
@@ -181,5 +188,6 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });
