@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 
 const BENEFITS: { symbol: SFSymbol; text: string }[] = [
-  { symbol: 'infinity', text: 'AIコーチとの対話が無制限に' },
+  { symbol: 'infinity', text: 'ホトリとの対話が無制限に' },
   { symbol: 'chart.bar', text: '週次レビューで1週間をまとめて振り返り' },
   { symbol: 'target', text: '複数の目標を同時に進行(近日提供)' },
 ];
@@ -31,7 +31,7 @@ export default function PaywallScreen() {
         プレミアムで{'\n'}もっと深く伴走
       </ThemedText>
       <ThemedText themeColor="textSecondary">
-        無料プランではAIコーチとの対話は1日{Config.freeDailyMessageLimit}回までです。
+        無料プランではホトリとの対話は1日{Config.freeDailyMessageLimit}回までです。
       </ThemedText>
 
       <View style={{ gap: Spacing.two }}>

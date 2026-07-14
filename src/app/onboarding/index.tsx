@@ -41,7 +41,7 @@ export default function GoalTitleScreen() {
         </View>
         <ThemedText type="subtitle">具体的にどんな目標を{'\n'}達成したいですか?</ThemedText>
         <ThemedText themeColor="textSecondary">
-          AIコーチが毎日の小さな行動に分解して、達成まで伴走します。
+          AIコーチの「ホトリ」が毎日の小さな行動に分解して、達成まで伴走します。
         </ThemedText>
       </View>
 
