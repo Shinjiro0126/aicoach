@@ -21,11 +21,17 @@ export function getActiveGoal(): Goal | undefined {
   return db.select().from(goals).where(eq(goals.status, 'active')).limit(1).all()[0];
 }
 
-export function createGoal(input: { title: string; why: string; targetDate?: string }): Goal {
+export function createGoal(input: {
+  title: string;
+  why: string;
+  category?: string;
+  targetDate?: string;
+}): Goal {
   const goal: Goal = {
     id: makeId(),
     title: input.title,
     why: input.why,
+    category: input.category ?? 'other',
     targetDate: input.targetDate ?? null,
     status: 'active',
     createdAt: Date.now(),

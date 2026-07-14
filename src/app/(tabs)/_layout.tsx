@@ -5,6 +5,6 @@ import { useAppStore } from '@/stores/app';
 
 export default function TabLayout() {
   const activeGoal = useAppStore((s) => s.activeGoal);
-  if (!activeGoal) return <Redirect href="/onboarding" />;
+  if (!activeGoal) return <Redirect href="/onboarding/category" />;
   return <AppTabs />;
 }

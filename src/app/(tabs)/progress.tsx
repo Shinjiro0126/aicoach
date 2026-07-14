@@ -1,4 +1,5 @@
 import { useFocusEffect } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -54,9 +55,12 @@ export default function ProgressScreen() {
           <ThemedText type="title" style={{ color: theme.tint, fontSize: 36, lineHeight: 40 }}>
             {streak.current}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            連続日数 🔥
-          </ThemedText>
+          <View style={styles.statLabel}>
+            <SymbolView name="flame.fill" size={13} tintColor={theme.tint} />
+            <ThemedText type="small" themeColor="textSecondary">
+              連続日数
+            </ThemedText>
+          </View>
         </Card>
         <Card style={styles.statCard}>
           <ThemedText type="title" style={{ fontSize: 36, lineHeight: 40 }}>
@@ -77,9 +81,12 @@ export default function ProgressScreen() {
       </View>
 
       {streak.graceUsedOn.length > 0 && (
-        <ThemedText type="small" themeColor="textSecondary">
-          🍀 1日おやすみしましたが、ストリークは守られています
-        </ThemedText>
+        <View style={styles.graceRow}>
+          <SymbolView name="leaf" size={14} tintColor={theme.tint} />
+          <ThemedText type="small" themeColor="textSecondary">
+            1日おやすみしましたが、ストリークは守られています
+          </ThemedText>
+        </View>
       )}
 
       <Card>
@@ -135,6 +142,8 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: Spacing.two },
   statCard: { flex: 1, alignItems: 'center' },
+  statLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  graceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   weekRow: { flexDirection: 'row', marginTop: Spacing.two },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 6 },

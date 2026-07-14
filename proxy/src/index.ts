@@ -30,8 +30,22 @@ type CoachRequest = {
 type PlanRequest = {
   goalTitle: string;
   why: string;
+  /** 目標カテゴリ(クライアントの GoalCategory enum値) */
+  category?: string;
+  /** 達成期間(月数) */
+  durationMonths?: number;
   targetDate?: string;
   startDate: string;
+};
+
+/** クライアントの GoalCategory enum値 → プロンプト用の日本語ラベル */
+const CATEGORY_LABELS: Record<string, string> = {
+  health: '健康・生活習慣',
+  training: 'トレーニング',
+  career: 'ビジネス・キャリア',
+  learning: '学習・資格',
+  money: 'お金・貯蓄',
+  other: 'その他',
 };
 
 const PLAN_SCHEMA = {
@@ -119,10 +133,16 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
 }
 
 async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promise<Response> {
+  const categoryLabel = req.category ? CATEGORY_LABELS[req.category] : undefined;
+  const months = req.durationMonths;
   const prompt = [
     `以下の目標を計画に分解してください。`,
     `目標: ${req.goalTitle}`,
+    categoryLabel ? `カテゴリ: ${categoryLabel}` : '',
     `動機: ${req.why}`,
+    months
+      ? `達成期間: ${months}ヶ月(約${Math.round(months * 4.33)}週間)。この期間から逆算したペース配分で、最初の4週間のフォーカスを設計する`
+      : '',
     req.targetDate ? `目標期日: ${req.targetDate}` : '',
     `開始日: ${req.startDate}`,
   ]

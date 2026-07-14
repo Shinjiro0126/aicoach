@@ -17,6 +17,8 @@ const host = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 /** 送信を許可するイベント名。自由記述(目標名・動機・チャット本文等)はどのイベントにも含めない */
 export const AnalyticsEvent = {
   OnboardingStarted: 'onboarding_started',
+  /** プロパティ: category(src/constants/categories.ts の GoalCategory enum値のみ。自由入力は送らない) */
+  CategorySelected: 'category_selected',
   OnboardingCompleted: 'onboarding_completed',
   AiPlanGenerated: 'ai_plan_generated',
   CoachMessageSent: 'coach_message_sent',

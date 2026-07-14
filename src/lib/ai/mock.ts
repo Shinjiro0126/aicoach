@@ -20,7 +20,7 @@ export function mockPlan(req: PlanRequest): PlanResponse {
           ? `「${req.goalTitle}」に向けて、今日は5分だけ着手する`
           : `「${req.goalTitle}」のための行動を10分続ける`,
     })),
-    welcomeMessage: `「${req.goalTitle}」、一緒に始めましょう。最初の1週間は小さく続けることだけ考えれば大丈夫です。`,
+    welcomeMessage: `「${req.goalTitle}」、${req.durationMonths ?? 3}ヶ月かけて一緒に進めましょう。最初の1週間は小さく続けることだけ考えれば大丈夫です。`,
   };
 }
 

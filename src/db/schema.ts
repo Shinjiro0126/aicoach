@@ -6,6 +6,9 @@ export const goals = sqliteTable('goals', {
   title: text('title').notNull(),
   /** なぜ達成したいか(コーチのコンテキストに使う) */
   why: text('why').notNull().default(''),
+  /** 目標カテゴリ(src/constants/categories.ts の GoalCategory) */
+  category: text('category').notNull().default('other'),
+  /** 達成期日(YYYY-MM-DD、null許容) */
   targetDate: text('target_date'),
   status: text('status', { enum: ['active', 'archived', 'done'] })
     .notNull()
