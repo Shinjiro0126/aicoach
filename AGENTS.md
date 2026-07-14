@@ -2,9 +2,9 @@
 
 Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
 
-# AIコーチアプリ (このリポジトリについて)
+# ホトリ (このリポジトリについて)
 
-AIが目標達成に伴走するiOSアプリ。React Native + Expo SDK 57 + TypeScript + Expo Router。ローカル保存中心(DBサーバーなし)、AIはCloudflare Workersプロキシ経由でClaude APIを呼ぶ。
+AIコーチ「ホトリ」が目標達成に伴走するiOSアプリ(ブランド定義は `docs/brand.md`)。React Native + Expo SDK 57 + TypeScript + Expo Router。ローカル保存中心(DBサーバーなし)、AIはCloudflare Workersプロキシ経由でClaude APIを呼ぶ。
 
 ## コマンド
 
