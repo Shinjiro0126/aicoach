@@ -114,7 +114,7 @@ export default function CoachScreen() {
       style={{ flex: 1, backgroundColor: theme.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two, borderBottomColor: theme.border }]}>
-        <ThemedText type="smallBold">AIコーチ</ThemedText>
+        <ThemedText type="smallBold">ホトリ</ThemedText>
         {!premium && (
           <ThemedText type="small" themeColor="textSecondary">
             今日あと{remaining}回

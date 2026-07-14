@@ -152,7 +152,7 @@ export default function PlanScreen() {
     return (
       <Screen style={styles.center}>
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText type="smallBold">AIコーチが計画を作成中…</ThemedText>
+        <ThemedText type="smallBold">ホトリが計画を作成中…</ThemedText>
         <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
           「{title}」
         </ThemedText>
