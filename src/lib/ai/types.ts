@@ -1,12 +1,19 @@
 /** アプリ⇔プロキシ間のAPI型定義(proxy/src/index.ts と対応) */
 
+/** 現在地ヒアリングの回答1件(質問文と選んだチップの文言) */
+export type HearingPair = { question: string; answer: string };
+
 export type PlanRequest = {
   goalTitle: string;
   why: string;
   /** 目標カテゴリ(GoalCategory の enum値) */
   category?: string;
-  /** 達成期間(月数)。週次ペース配分の逆算に使う */
+  /** 達成期間(月数)。旧クライアント互換。durationWeeks があればそちらを優先 */
   durationMonths?: number;
+  /** 達成期間(週数)。週次ペース配分の逆算に使う */
+  durationWeeks?: number;
+  /** 現在地ヒアリングの回答。最初の週の負荷調整に使う(サーバーには保存されない) */
+  hearingAnswers?: HearingPair[];
   targetDate?: string;
   /** 開始日(YYYY-MM-DD)。初日の行動はこの日付から生成される */
   startDate: string;
@@ -41,6 +48,22 @@ export type CoachRequest = {
 
 export type CoachResponse = {
   reply: string;
+};
+
+/** 期間おすすめ(/v1/suggest)のリクエスト */
+export type SuggestRequest = {
+  goalTitle: string;
+  /** 目標カテゴリ(GoalCategory の enum値) */
+  category?: string;
+  /** 現在地ヒアリングの回答(サーバーには保存されない) */
+  hearingAnswers?: HearingPair[];
+};
+
+/** 期間おすすめのレスポンス。weeks は 2〜104 に丸め済み */
+export type SuggestResponse = {
+  weeks: number;
+  /** おすすめ理由(ホトリの口調・2文以内) */
+  reason: string;
 };
 
 export class AiError extends Error {

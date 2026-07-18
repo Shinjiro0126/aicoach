@@ -1,11 +1,13 @@
 import { Config } from '@/constants/config';
-import { mockCoach, mockPlan } from './mock';
+import { mockCoach, mockPlan, mockSuggest } from './mock';
 import {
   AiError,
   type CoachRequest,
   type CoachResponse,
   type PlanRequest,
   type PlanResponse,
+  type SuggestRequest,
+  type SuggestResponse,
 } from './types';
 
 function isMockMode(): boolean {
@@ -48,4 +50,14 @@ export async function generatePlan(req: PlanRequest, deviceId: string): Promise<
 export async function chatWithCoach(req: CoachRequest, deviceId: string): Promise<CoachResponse> {
   if (isMockMode()) return mockCoach(req);
   return post<CoachResponse>('/v1/coach', req, deviceId);
+}
+
+/**
+ * 達成期間のおすすめ(週数+理由)。
+ * 無料枠(1日10回の対話クォータ)のカウント対象にはしない(プロキシ側レート制限のみ)。
+ * 失敗時は呼び出し側でカードを出さない前提(ブロッキングにしない)。
+ */
+export async function suggestDuration(req: SuggestRequest, deviceId: string): Promise<SuggestResponse> {
+  if (isMockMode()) return mockSuggest(req);
+  return post<SuggestResponse>('/v1/suggest', req, deviceId);
 }

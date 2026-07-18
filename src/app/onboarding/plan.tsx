@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, StyleSheet, useAnimatedValue, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { RoadmapJourney } from '@/components/roadmap-journey';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
+import { toHearingPairs } from '@/constants/hearing';
 import { Spacing } from '@/constants/theme';
 import {
   addCoachMessage,
@@ -19,50 +20,43 @@ import { generatePlan } from '@/lib/ai/client';
 import type { PlanResponse } from '@/lib/ai/types';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { addDaysKey, todayKey } from '@/lib/dates';
-import { addMonthsKey } from '@/lib/roadmap';
+import { addWeeksKey, monthsToWeeks, weeksLabel } from '@/lib/roadmap';
 import { scheduleDailyNotifications } from '@/lib/notifications';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
 import { useOnboardingStore } from '@/stores/onboarding';
 
-/** 生成中に段階表示する進捗ステップ */
-const GENERATION_STEPS = ['目標を分析中', '週間フォーカスを設計中', '今日の行動を決定中'];
-
-/** 生成中の進捗ステップ1行。表示されるタイミングでフェードインする */
-function GenerationStep({ label, state }: { label: string; state: 'pending' | 'active' | 'done' }) {
+/**
+ * 生成中に表示する「専属サマリー」の1行。
+ * ヒアリングで聞いた内容がそのまま計画に使われている証拠を見せる。
+ */
+function RecapRow({ k, v, ai }: { k: string; v: ReactNode; ai?: boolean }) {
   const theme = useTheme();
-  const opacity = useAnimatedValue(0);
-
-  useEffect(() => {
-    if (state === 'pending') return;
-    const anim = Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true });
-    anim.start();
-    return () => anim.stop();
-  }, [state, opacity]);
-
   return (
-    <Animated.View style={[styles.genStep, { opacity }]}>
-      {state === 'done' ? (
-        <SymbolView name="checkmark.circle.fill" size={20} tintColor={theme.tint} />
-      ) : (
-        <ActivityIndicator size="small" color={theme.tint} />
-      )}
-      <ThemedText type="small" themeColor={state === 'done' ? 'textSecondary' : 'text'}>
-        {label}
+    <View style={[styles.recapRow, { backgroundColor: ai ? theme.tintSoft : theme.backgroundElement }]}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.recapKey}>
+        {k}
       </ThemedText>
-    </Animated.View>
+      <ThemedText type="small" style={styles.recapValue}>
+        {v}
+      </ThemedText>
+    </View>
   );
 }
 
 export default function PlanScreen() {
-  const { category, title, durationMonths, why, reset } = useOnboardingStore();
+  const theme = useTheme();
+  const { category, title, durationWeeks, why, hearingAnswers, reset } = useOnboardingStore();
   const { deviceId, morningTime, eveningTime, notificationsEnabled, setActiveGoal } = useAppStore();
+
+  // 期間画面で必ず確定されるが、念のためのフォールバック(3ヶ月相当)
+  const weeks = durationWeeks ?? monthsToWeeks(3);
+  const answers = toHearingPairs(category, hearingAnswers).map((p) => p.answer);
 
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [stage, setStage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,8 +65,9 @@ export default function PlanScreen() {
         goalTitle: title,
         why,
         category: category ?? 'other',
-        durationMonths,
-        targetDate: addMonthsKey(todayKey(), durationMonths),
+        durationWeeks: weeks,
+        hearingAnswers: toHearingPairs(category, hearingAnswers),
+        targetDate: addWeeksKey(todayKey(), weeks),
         startDate: todayKey(),
       },
       deviceId,
@@ -89,22 +84,11 @@ export default function PlanScreen() {
     return () => {
       cancelled = true;
     };
-  }, [title, why, category, durationMonths, deviceId, attempt]);
-
-  // 生成中の進捗演出をタイマーで進める
-  useEffect(() => {
-    const t1 = setTimeout(() => setStage(1), 1700);
-    const t2 = setTimeout(() => setStage(2), 3400);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [attempt]);
+  }, [title, why, category, weeks, hearingAnswers, deviceId, attempt]);
 
   const retry = () => {
     setPlan(null);
     setError(false);
-    setStage(0);
     setAttempt((n) => n + 1);
   };
 
@@ -113,11 +97,13 @@ export default function PlanScreen() {
     setSaving(true);
     try {
       const startDate = todayKey();
+      const pairs = toHearingPairs(category, hearingAnswers);
       const goal = createGoal({
         title,
         why,
         category: category ?? 'other',
-        targetDate: addMonthsKey(startDate, durationMonths),
+        targetDate: addWeeksKey(startDate, weeks),
+        hearingAnswers: pairs.length > 0 ? JSON.stringify(pairs) : undefined,
       });
       insertWeeklyPlans(goal.id, plan.weeklyFocus);
       insertDailyActions(
@@ -149,22 +135,46 @@ export default function PlanScreen() {
   }
 
   if (!plan) {
+    // 生成中: 「あなた専用」の証拠として、聞いた内容がどう計画に使われるかを見せる
     return (
-      <Screen style={styles.center}>
-        <Hotori pose="thinking" animate="thinking" size={120} />
-        <ThemedText type="smallBold">ホトリが計画を作成中…</ThemedText>
-        <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
-          「{title}」
-        </ThemedText>
-        <View style={styles.genSteps}>
-          {GENERATION_STEPS.map((label, i) => (
-            <GenerationStep
-              key={label}
-              label={label}
-              state={i < stage ? 'done' : i === stage ? 'active' : 'pending'}
-            />
-          ))}
+      <Screen scroll style={styles.generating}>
+        <View style={styles.hotoriCenter}>
+          <Hotori pose="thinking" animate="thinking" size={120} />
         </View>
+        <ThemedText type="subtitle" style={{ textAlign: 'center' }}>
+          あなた専用の計画を{'\n'}仕立てています…
+        </ThemedText>
+        <View style={styles.recap}>
+          <RecapRow k="目標" v={title} />
+          {answers.length > 0 && (
+            <RecapRow
+              ai
+              k="現在地"
+              v={
+                <>
+                  {answers.join('・')} →{' '}
+                  <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                    最初の週は軽めに始めます
+                  </ThemedText>
+                </>
+              }
+            />
+          )}
+          <RecapRow
+            ai
+            k="期間"
+            v={
+              <>
+                <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                  {weeksLabel(weeks)}({weeks}週間)
+                </ThemedText>{' '}
+                → 週ごとのペース配分に反映します
+              </>
+            }
+          />
+          <RecapRow k="動機" v={why} />
+        </View>
+        <PrivacyBadge text="この内容が端末の外に保存されることはありません" style={styles.privacy} />
       </Screen>
     );
   }
@@ -185,7 +195,7 @@ export default function PlanScreen() {
         todayStep={plan.dailyActions[0]?.description ?? ''}
         weeklyFocus={plan.weeklyFocus}
         goalTitle={title}
-        goalLabel={`${durationMonths === 12 ? '1年' : `${durationMonths}ヶ月`}後のゴール`}
+        goalLabel={`${weeksLabel(weeks)}後のゴール`}
         animateIn
       />
 
@@ -197,7 +207,19 @@ export default function PlanScreen() {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
-  genSteps: { gap: Spacing.two, marginTop: Spacing.three, alignItems: 'flex-start' },
-  genStep: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 24 },
+  generating: { paddingTop: Spacing.six },
+  hotoriCenter: { alignItems: 'center' },
+  recap: { gap: Spacing.two, marginTop: Spacing.two },
+  recapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 2,
+    borderRadius: 14,
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.three - 4,
+  },
+  recapKey: { width: 52, fontWeight: '700' },
+  recapValue: { flex: 1, lineHeight: 20 },
+  privacy: { alignItems: 'center', marginTop: Spacing.two },
   hero: { alignItems: 'center', gap: Spacing.two, marginTop: Spacing.four },
 });

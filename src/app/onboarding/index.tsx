@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { StepDots } from '@/components/onboarding-steps';
+import { OnboardingNav } from '@/components/onboarding-steps';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -30,7 +30,7 @@ export default function GoalTitleScreen() {
 
   return (
     <Screen scroll>
-      <StepDots current={1} />
+      <OnboardingNav current={1} />
 
       <View style={styles.header}>
         <View style={[styles.categoryPill, { backgroundColor: theme.tintSoft }]}>
@@ -81,7 +81,7 @@ export default function GoalTitleScreen() {
       <Button
         title="次へ"
         disabled={title.trim().length === 0}
-        onPress={() => router.push('/onboarding/duration')}
+        onPress={() => router.push('/onboarding/hearing')}
       />
     </Screen>
   );

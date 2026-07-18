@@ -10,6 +10,8 @@ export const goals = sqliteTable('goals', {
   category: text('category').notNull().default('other'),
   /** 達成期日(YYYY-MM-DD、null許容) */
   targetDate: text('target_date'),
+  /** 現在地ヒアリングの回答({question, answer}[] のJSON文字列、null許容)。端末内にのみ保存 */
+  hearingAnswers: text('hearing_answers'),
   status: text('status', { enum: ['active', 'archived', 'done'] })
     .notNull()
     .default('active'),
