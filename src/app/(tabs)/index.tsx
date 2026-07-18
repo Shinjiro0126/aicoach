@@ -1,234 +1,450 @@
 import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Fragment, useCallback, useState } from 'react';
-import { Animated, Pressable, StyleSheet, useAnimatedValue, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Celebration } from '@/components/celebration';
 import { Hotori } from '@/components/hotori';
-import { RoadmapJourney } from '@/components/roadmap-journey';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import {
+  addCustomTask,
+  deleteCustomTask,
+  ensureTasksForDate,
   getActionForDate,
-  getLatestAction,
+  getReportForDate,
   getWeeklyPlans,
-  listDoneDates,
-  setActionDone,
-  upsertActionForDate,
+  listReportDates,
+  refreshReportCounts,
+  setTaskDone,
+  submitReport,
 } from '@/db/repo';
-import type { DailyAction, WeeklyPlan } from '@/db/schema';
+import type { DailyReport, DailyTask } from '@/db/schema';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
-import { formatJP, toDateKey, todayKey } from '@/lib/dates';
-import { currentWeekNo, durationMonthsBetween, ROADMAP_WEEKS } from '@/lib/roadmap';
+import { addDaysKey, formatJP, toDateKey, todayKey } from '@/lib/dates';
+import { progressSummary, weekFlagInfo, weekSegments } from '@/lib/progress';
+import { addWeeksKey, currentWeekNo, ROADMAP_WEEKS } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
 
+/** タスクの種別ラベル(デザイン01のt-label) */
+const KIND_LABELS: Record<DailyTask['kind'], string> = {
+  main: '最小行動',
+  plus: '今週のテーマから',
+  custom: '自分で追加',
+};
+
+/** チェック可能なタスク1行(今日の一歩はtint枠線で強調)。custom タスクは長押しで削除できる */
+function TaskRow({ task, onToggle, onDelete }: { task: DailyTask; onToggle: () => void; onDelete?: () => void }) {
+  const theme = useTheme();
+  const isMain = task.kind === 'main';
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: task.done }}
+      accessibilityHint={onDelete ? '長押しで削除できます' : undefined}
+      onPress={onToggle}
+      onLongPress={onDelete}
+      style={({ pressed }) => [
+        styles.task,
+        isMain
+          ? { backgroundColor: theme.background, borderWidth: 1.5, borderColor: theme.tint }
+          : { backgroundColor: theme.backgroundElement },
+        pressed && { opacity: 0.85 },
+      ]}>
+      <View
+        style={[
+          styles.cbox,
+          task.done
+            ? { backgroundColor: theme.tint, borderColor: theme.tint }
+            : { borderColor: theme.backgroundSelected },
+        ]}>
+        {task.done && <SymbolView name="checkmark" size={14} tintColor={theme.onTint} weight="bold" />}
+      </View>
+      <View style={styles.taskBody}>
+        <ThemedText
+          type="small"
+          style={{ fontSize: 11, fontWeight: '700', color: isMain ? theme.tintDeep : theme.textSecondary }}>
+          {KIND_LABELS[task.kind]}
+        </ThemedText>
+        <ThemedText
+          style={
+            task.done
+              ? { color: theme.textSecondary, textDecorationLine: 'line-through' }
+              : undefined
+          }>
+          {task.title}
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
+/** 提出内容プレビューの1行(確認シート・提出後サマリーで共用) */
+function ReportRow({ task, onToggle }: { task: DailyTask; onToggle?: () => void }) {
+  const theme = useTheme();
+  const inner = (
+    <>
+      <SymbolView
+        name={task.done ? 'checkmark.circle.fill' : 'circle'}
+        size={18}
+        tintColor={task.done ? theme.tint : theme.textSecondary}
+      />
+      <ThemedText
+        type="small"
+        style={{ flex: 1, color: task.done ? theme.text : theme.textSecondary }}>
+        {task.title}
+      </ThemedText>
+    </>
+  );
+  if (!onToggle) return <View style={styles.reportRow}>{inner}</View>;
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: task.done }}
+      onPress={onToggle}
+      style={({ pressed }) => [styles.reportRow, pressed && { opacity: 0.7 }]}>
+      {inner}
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const goal = useAppStore((s) => s.activeGoal);
-  const [action, setAction] = useState<DailyAction | null>(null);
+
+  const [tasks, setTasks] = useState<DailyTask[]>([]);
+  const [report, setReport] = useState<DailyReport | null>(null);
+  const [reportDates, setReportDates] = useState<string[]>([]);
   const [streak, setStreak] = useState({ current: 0, best: 0 });
-  const [plans, setPlans] = useState<WeeklyPlan[]>([]);
-  const [roadmapExpanded, setRoadmapExpanded] = useState(false);
-  const chevronRotation = useAnimatedValue(0);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [celebrating, setCelebrating] = useState<{ streak: number; isBest: boolean } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [customTitle, setCustomTitle] = useState('');
 
   const today = todayKey();
 
   const refresh = useCallback(() => {
     if (!goal) return;
-    setAction(getActionForDate(goal.id, today) ?? null);
-    const result = computeStreak(listDoneDates(goal.id), today);
+    const planList = getWeeklyPlans(goal.id);
+    const startKey = toDateKey(new Date(goal.createdAt));
+    const weekNo = currentWeekNo(startKey, today, planList.length || ROADMAP_WEEKS);
+    setTasks(
+      ensureTasksForDate(goal.id, today, {
+        goalTitle: goal.title,
+        weekFocus: planList[weekNo - 1]?.focus,
+      }),
+    );
+    setReport(getReportForDate(goal.id, today) ?? null);
+    const dates = listReportDates(goal.id);
+    setReportDates(dates);
+    const result = computeStreak(dates, today);
     setStreak({ current: result.current, best: result.best });
-    setPlans(getWeeklyPlans(goal.id));
   }, [goal, today]);
 
   useFocusEffect(refresh);
 
   if (!goal) return null;
 
-  const toggleDone = () => {
-    if (!action) return;
-    const newDone = !action.done;
-    setActionDone(action.id, newDone);
-    if (newDone) {
-      const result = computeStreak(listDoneDates(goal.id), today);
-      trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current });
-    }
-    refresh();
-  };
-
-  const createTodayAction = () => {
-    const latest = getLatestAction(goal.id);
-    const description = latest?.description ?? `「${goal.title}」のために10分取り組む`;
-    upsertActionForDate(goal.id, today, description);
-    refresh();
-  };
-
-  const toggleRoadmap = () => {
-    Animated.timing(chevronRotation, {
-      toValue: roadmapExpanded ? 0 : 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    setRoadmapExpanded((v) => !v);
-  };
-
   const startKey = toDateKey(new Date(goal.createdAt));
-  const totalWeeks = plans.length || ROADMAP_WEEKS;
-  const week = currentWeekNo(startKey, today, totalWeeks);
-  const currentFocus = plans[week - 1]?.focus ?? '';
-  const goalLabel = goal.targetDate
-    ? (() => {
-        const months = durationMonthsBetween(startKey, goal.targetDate);
-        return `${months === 12 ? '1年' : `${months}ヶ月`}後のゴール`;
-      })()
-    : 'ゴール';
+  const targetKey = goal.targetDate ?? addWeeksKey(startKey, 13);
+  const summary = progressSummary(startKey, targetKey, today);
+  const week = weekFlagInfo(startKey, today, reportDates);
+  const segments = weekSegments(startKey, targetKey, today);
+  const submitted = report !== null;
 
-  return (
-    <Screen scroll withTabInset>
-      <View style={styles.header}>
-        <ThemedText type="small" themeColor="textSecondary">
-          {formatJP(today)}
-        </ThemedText>
-        <ThemedText type="subtitle">{goal.title}</ThemedText>
-        <View style={styles.streakRow}>
-          <View style={styles.streakBadge}>
-            <SymbolView name="flame.fill" size={16} tintColor={theme.tintDeep} />
+  const mainTask = tasks.find((t) => t.kind === 'main');
+  const extraTasks = tasks.filter((t) => t.kind !== 'main');
+  const checkedCount = tasks.filter((t) => t.done).length;
+
+  const toggleTask = (task: DailyTask) => {
+    setTaskDone(task.id, !task.done);
+    // 提出後の追記でも件数は最新に保つ(再演出はしない)
+    if (submitted) refreshReportCounts(goal.id, today);
+    refresh();
+  };
+
+  /** custom タスクの削除(長押し→確認)。誤入力タイトルが一日中残らないようにする */
+  const removeCustomTask = (task: DailyTask) => {
+    Alert.alert('このタスクを削除しますか?', `「${task.title}」を今日のリストから外します。`, [
+      { text: 'やめる', style: 'cancel' },
+      {
+        text: '削除する',
+        style: 'destructive',
+        onPress: () => {
+          deleteCustomTask(task.id);
+          if (submitted) refreshReportCounts(goal.id, today);
+          refresh();
+        },
+      },
+    ]);
+  };
+
+  const confirmAddTask = () => {
+    const title = customTitle.trim();
+    if (title.length > 0) addCustomTask(goal.id, today, title);
+    setCustomTitle('');
+    setAdding(false);
+    refresh();
+  };
+
+  const submit = () => {
+    const prevBest = streak.best;
+    submitReport(goal.id, today);
+    const dates = listReportDates(goal.id);
+    const result = computeStreak(dates, today);
+    // 連続日数・達成件数(いずれも数値)のみ送信する。タスク名などの自由テキストは送らない。
+    // v2から発火タイミングが「達成」でなく「提出」になったため、doneCount で0件提出と達成を区別できるようにする
+    trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current, doneCount: checkedCount });
+    setSheetVisible(false);
+    // 「自己ベスト更新」は2日連続以上で初めて出す(初提出の1日連続で出すと演出の重みが薄れるため)。
+    // 祝いは全画面Modal: 確認シート(Modal)の閉じ処理と表示が競合しないよう、閉じ切ってから開く
+    // (デザイン00「提出→0.5秒で祝い演出」の間にもなる)
+    const isBest = result.current > prevBest && result.current > 1;
+    setTimeout(() => setCelebrating({ streak: result.current, isBest }), 450);
+    refresh();
+  };
+
+  const hour = new Date().getHours();
+  const greeting = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
+
+  // ---- 祝い演出(提出直後)----
+  // デザイン03はタブバー非表示の全画面演出のため、タブ内表示でなくフルスクリーンModalで重ねる
+  const celebrationModal = (
+    <Modal
+      visible={celebrating !== null}
+      animationType={reduceMotion ? 'none' : 'fade'}
+      onRequestClose={() => setCelebrating(null)}>
+      <View
+        style={[
+          styles.celebrationRoot,
+          {
+            backgroundColor: theme.background,
+            paddingTop: insets.top + Spacing.two,
+            paddingBottom: insets.bottom + Spacing.two,
+          },
+        ]}>
+        {celebrating && (
+          <Celebration
+            streak={celebrating.streak}
+            isBest={celebrating.isBest}
+            week={week}
+            segments={segments}
+            copyMain={summary.copyMain}
+            copySub={summary.copySub}
+            onListen={() => {
+              setCelebrating(null);
+              router.push({ pathname: '/coach', params: { autoReport: today } });
+            }}
+            onClose={() => setCelebrating(null)}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+
+  // ---- 提出後のホーム(同日再訪。チェック追記可・再演出なし)----
+  if (submitted) {
+    const restDays = week.daysToFlag - 1;
+    const tomorrowAction = getActionForDate(goal.id, addDaysKey(today, 1));
+    return (
+      <Screen scroll withTabInset>
+        <View style={styles.header}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {formatJP(today)}
+          </ThemedText>
+          <ThemedText type="subtitle">{goal.title}</ThemedText>
+        </View>
+
+        <View style={styles.doneHero}>
+          <Hotori pose="applaud" size={110} animate={reduceMotion ? undefined : 'idle'} />
+          <ThemedText style={styles.doneTitle}>今日の分、受け取りました</ThemedText>
+          <View style={[styles.streakUp, { backgroundColor: theme.tintSoft }]}>
+            <SymbolView name="flame.fill" size={14} tintColor={theme.tintDeep} />
             <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
-              {streak.current}日連続
+              {streak.current}日連続になりました
             </ThemedText>
           </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            ベスト {streak.best}日
+          <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+            {/* 期日到達後は週の旗でなくゴール到達を語る(「第N週の旗まで」が増え続けないように) */}
+            {summary.reached
+              ? 'ゴールまで、歩き切りました。'
+              : restDays > 0
+                ? `第${week.weekNo}週の旗まで、あと${restDays}日。`
+                : `第${week.weekNo}週の旗に、たどり着きました。`}
+            {'\n'}ここまで続く人は多くありません。
           </ThemedText>
         </View>
-      </View>
 
-      {action ? (
-        <Card>
+        <View style={[styles.summaryCard, { backgroundColor: theme.backgroundElement }]}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            今日の記録 {checkedCount}/{tasks.length}
+          </ThemedText>
+          {tasks.map((task) => (
+            <ReportRow key={task.id} task={task} onToggle={() => toggleTask(task)} />
+          ))}
           <ThemedText type="small" themeColor="textSecondary">
-            今日の最小行動
+            今日中なら、チェックを追記できます
           </ThemedText>
-          <ThemedText type="default" style={{ fontSize: 18 }}>
-            {action.description}
-          </ThemedText>
+        </View>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={toggleDone}
-            style={({ pressed }) => [
-              styles.checkButton,
-              {
-                backgroundColor: action.done ? theme.tintSoft : theme.tint,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}>
-            {action.done && <SymbolView name="checkmark" size={16} tintColor={theme.tint} weight="bold" />}
-            <ThemedText
-              style={{
-                color: action.done ? theme.tint : theme.onTint,
-                fontWeight: '700',
-                fontSize: 17,
-              }}>
-              {action.done ? '達成しました' : 'できた!'}
-            </ThemedText>
-          </Pressable>
-        </Card>
-      ) : (
-        <Card>
+        {/* ジャーニーカードは祝い演出(週1回のご褒美)専用。ホームには常時表示しない(デザイン原本00-⑤/06) */}
+        <View style={[styles.tomorrowCard, { backgroundColor: theme.sand }]}>
+          <ThemedText type="small" style={{ fontWeight: '700', color: theme.sandText }}>
+            明日の一歩(予告)
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.sandText, lineHeight: 21 }}>
+            {tomorrowAction
+              ? `明日は「${tomorrowAction.description}」から始めます。起きたらまずこの画面を開いてください。`
+              : '明日も、今日と同じ歩幅で十分です。起きたらまずこの画面を開いてください。'}
+          </ThemedText>
+        </View>
+
+        {celebrationModal}
+      </Screen>
+    );
+  }
+
+  // ---- 朝のホーム(未提出)----
+  return (
+    <>
+      <Screen scroll withTabInset>
+        <View style={styles.header}>
           <ThemedText type="small" themeColor="textSecondary">
-            今日の行動がまだ決まっていません
+            {formatJP(today)}
           </ThemedText>
-          <Button title="今日の行動を決める" onPress={createTodayAction} />
-          <Button title="コーチに相談する" variant="secondary" onPress={() => router.push('/coach')} />
-        </Card>
-      )}
-
-      {action?.done && (
-        <Card style={{ backgroundColor: theme.tintSoft }}>
-          <View style={styles.coachHint}>
-            <Hotori variant="bust" size={32} />
-            <ThemedText style={{ flex: 1 }}>
-              おつかれさまでした。夜にコーチと1分だけ振り返ると、明日がもっと楽になります。
+          <ThemedText type="subtitle">{goal.title}</ThemedText>
+          <View style={styles.streakRow}>
+            <View style={styles.streakBadge}>
+              <SymbolView name="flame.fill" size={16} tintColor={theme.tintDeep} />
+              <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                {streak.current}日連続
+              </ThemedText>
+            </View>
+            <ThemedText type="small" themeColor="textSecondary">
+              ベスト {streak.best}日
             </ThemedText>
           </View>
-          <Button title="コーチと振り返る" variant="secondary" onPress={() => router.push('/coach')} />
-        </Card>
-      )}
+        </View>
 
-      {plans.length > 0 && (
-        <Card>
-          <Pressable accessibilityRole="button" onPress={toggleRoadmap} style={styles.roadmapHeader}>
-            <ThemedText type="smallBold">ロードマップ</ThemedText>
-            <Animated.View
-              style={{
-                transform: [
-                  {
-                    rotate: chevronRotation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0deg', '180deg'],
-                    }),
-                  },
-                ],
-              }}>
-              <SymbolView name="chevron.down" size={14} tintColor={theme.textSecondary} weight="semibold" />
-            </Animated.View>
-          </Pressable>
-
-          {roadmapExpanded ? (
-            <RoadmapJourney
-              weeklyFocus={plans.map((p) => p.focus)}
-              goalTitle={goal.title}
-              goalLabel={goalLabel}
-              currentWeek={week}
-              animateIn
-            />
-          ) : (
-            <>
-              <View style={styles.miniBar}>
-                {Array.from({ length: totalWeeks + 1 }, (_, i) => {
-                  // i=0 はスタート地点、i>=1 は第i週。経過した週(現在週まで)をtintで塗る
-                  const filled = i <= week;
-                  return (
-                    <Fragment key={i}>
-                      {i > 0 && (
-                        <View
-                          style={[
-                            styles.miniLine,
-                            { backgroundColor: filled ? theme.tint : theme.backgroundSelected },
-                          ]}
-                        />
-                      )}
-                      <View
-                        style={[
-                          styles.miniDot,
-                          { backgroundColor: filled ? theme.tint : theme.backgroundSelected },
-                        ]}
-                      />
-                    </Fragment>
-                  );
-                })}
-                <View style={[styles.miniLine, { backgroundColor: theme.backgroundSelected }]} />
-                <SymbolView name="flag.fill" size={14} tintColor={theme.textSecondary} />
-              </View>
-              <ThemedText type="small" themeColor="textSecondary">
-                いま: 第{week}週 {currentFocus}
+        <View style={[styles.kickoff, { backgroundColor: theme.tintSoft }]}>
+          {/* デザイン01の朝ひとことは円形・水辺グラデのアバター(bust) */}
+          <Hotori variant="bust" size={40} />
+          <View style={styles.kickoffBody}>
+            <ThemedText type="small" style={{ lineHeight: 22 }}>
+              {greeting}。{summary.elapsedDays}日目の今日は、
+              <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                「{goal.why}」への一歩
               </ThemedText>
-            </>
-          )}
-        </Card>
-      )}
+              を積む日です。
+            </ThemedText>
+            <View style={[styles.flagCount, { backgroundColor: theme.background }]}>
+              <SymbolView name="flag.fill" size={12} tintColor={theme.tintDeep} />
+              <ThemedText type="small" style={{ fontSize: 12, fontWeight: '700', color: theme.tintDeep }}>
+                {/* 期日到達後は週の旗でなくゴール到達を語る */}
+                {summary.reached ? 'ゴールまで、歩き切りました' : `第${week.weekNo}週の旗まで、あと${week.daysToFlag}日`}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
 
-      <Card style={{ backgroundColor: theme.sand }}>
-        <ThemedText type="small" style={{ color: theme.sandText }}>
-          あなたの動機
-        </ThemedText>
-        <ThemedText>{goal.why}</ThemedText>
-      </Card>
-    </Screen>
+        <View style={styles.secHead}>
+          <ThemedText type="smallBold">今日の一歩</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            これだけで今日は合格
+          </ThemedText>
+        </View>
+        {mainTask && <TaskRow task={mainTask} onToggle={() => toggleTask(mainTask)} />}
+
+        <View style={styles.secHead}>
+          <ThemedText type="smallBold">プラスワン</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            やる気が乗った日だけでいい
+          </ThemedText>
+        </View>
+        {extraTasks.map((task) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            onToggle={() => toggleTask(task)}
+            onDelete={task.kind === 'custom' ? () => removeCustomTask(task) : undefined}
+          />
+        ))}
+
+        {adding ? (
+          <View style={[styles.addInputRow, { borderColor: theme.backgroundSelected }]}>
+            <TextInput
+              value={customTitle}
+              onChangeText={setCustomTitle}
+              placeholder="自分のタスクを入力"
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.addInput, { color: theme.text }]}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={confirmAddTask}
+            />
+            <Pressable accessibilityRole="button" onPress={confirmAddTask} hitSlop={8}>
+              <SymbolView name="checkmark.circle.fill" size={24} tintColor={theme.tint} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setAdding(true)}
+            style={({ pressed }) => [
+              styles.addRow,
+              { borderColor: theme.backgroundSelected },
+              pressed && { opacity: 0.7 },
+            ]}>
+            <SymbolView name="plus" size={14} tintColor={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary" style={{ fontWeight: '600' }}>
+              自分のタスクを追加
+            </ThemedText>
+          </Pressable>
+        )}
+
+        {/* ジャーニーカードは祝い演出(週1回のご褒美)専用。朝ホームには常時表示しない(デザイン原本00-⑤/01) */}
+        <View style={styles.bottomArea}>
+          <Button
+            title={checkedCount > 0 ? `今日の記録をホトリに見せる(${checkedCount}件)` : '今日の記録をホトリに見せる'}
+            onPress={() => setSheetVisible(true)}
+          />
+          <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+            {checkedCount > 0
+              ? 'できなかった分があっても大丈夫。ホトリは責めません'
+              : 'チェックがなくても提出できます。動けなかった日の報告も、大切な記録です'}
+          </ThemedText>
+        </View>
+      </Screen>
+
+      {/* 提出確認シート(誤タップしても戻れる) */}
+      <Modal visible={sheetVisible} transparent animationType="slide" onRequestClose={() => setSheetVisible(false)}>
+        <View style={styles.sheetRoot}>
+          <Pressable style={styles.sheetDim} onPress={() => setSheetVisible(false)} />
+          <View style={[styles.sheet, { backgroundColor: theme.background }]}>
+            <View style={[styles.grab, { backgroundColor: theme.backgroundSelected }]} />
+            <ThemedText style={styles.sheetTitle}>今日の記録を見せますか?</ThemedText>
+            {tasks.map((task) => (
+              <ReportRow key={task.id} task={task} />
+            ))}
+            <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+              提出したあとも、今日中ならチェックを追記できます
+            </ThemedText>
+            <Button title="見せる" onPress={submit} />
+            <Button title="まだ見せない" variant="ghost" onPress={() => setSheetVisible(false)} />
+          </View>
+        </View>
+      </Modal>
+
+      {celebrationModal}
+    </>
   );
 }
 
@@ -236,18 +452,90 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.one, marginTop: Spacing.two },
   streakRow: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
   streakBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  checkButton: {
-    minHeight: 64,
+  kickoff: {
     borderRadius: 16,
+    padding: Spacing.three,
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: Spacing.three,
+    alignItems: 'flex-start',
+  },
+  kickoffBody: { flex: 1, gap: Spacing.two },
+  flagCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.two + 1,
+    paddingVertical: 3,
+  },
+  secHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: -Spacing.two,
+  },
+  task: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4, borderRadius: 16, padding: Spacing.three },
+  cbox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.two,
   },
-  coachHint: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  roadmapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  miniBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginTop: Spacing.one },
-  miniDot: { width: 10, height: 10, borderRadius: 999 },
-  miniLine: { flex: 1, height: 2, borderRadius: 1 },
+  taskBody: { flex: 1, gap: 2 },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two + 2,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+  addInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  addInput: { flex: 1, fontSize: 15, minHeight: 40 },
+  bottomArea: { gap: Spacing.two, marginTop: Spacing.two },
+  doneHero: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.two },
+  doneTitle: { fontSize: 18, fontWeight: '700' },
+  streakUp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.three - 4,
+    paddingVertical: Spacing.one + 2,
+  },
+  summaryCard: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  reportRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  tomorrowCard: { borderRadius: 16, padding: Spacing.three, gap: Spacing.one },
+  sheetRoot: { flex: 1, justifyContent: 'flex-end' },
+  sheetDim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(8,18,24,0.45)',
+  },
+  sheet: {
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: Spacing.three,
+    paddingBottom: Spacing.five,
+    gap: Spacing.two + 2,
+  },
+  grab: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center' },
+  sheetTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  celebrationRoot: { flex: 1, paddingHorizontal: Spacing.three },
 });

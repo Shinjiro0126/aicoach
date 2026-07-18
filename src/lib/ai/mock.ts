@@ -45,6 +45,16 @@ const REFLECTION = [
 ];
 
 export function mockCoach(req: CoachRequest): CoachResponse {
+  // 振り返りモードの実績カード(今日の記録)には、本番プロンプトと同じ「褒め+受領で完結」の応答を返す
+  const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
+  if (req.context.mode === 'reflection' && lastUser?.content.startsWith('今日の記録を見せます')) {
+    const zeroDay = lastUser.content.includes('(0/');
+    return {
+      reply: zeroDay
+        ? '動けなかった日に、それを言いに来てくれました。それができる人が最後まで歩き切ると、私は経験で知っています。今日の分も記録しておきますので、明日の一歩は今日より軽くして、何かあったなら聞かせてください。'
+        : '今日の一歩、確かに受け取りました。この積み重ねが最後に効くことを、私は経験で知っています。今日の分は記録しておきますので、話したいことがあれば聞かせてください、なければこのまま休んでください。',
+    };
+  }
   const pool = req.context.mode === 'reflection' ? REFLECTION : ENCOURAGE;
   const index = req.messages.length % pool.length;
   return { reply: pool[index] };

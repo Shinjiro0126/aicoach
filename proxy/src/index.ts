@@ -128,7 +128,9 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
     `動機: ${context.why}`,
     `現在のストリーク: ${context.streak}日`,
     `直近の記録:\n${recent || '(まだ記録なし)'}`,
-    context.mode === 'reflection' ? `モード: 夜の振り返り(簡略GROWで対話する)` : `モード: 通常対話`,
+    context.mode === 'reflection'
+      ? `モード: 振り返り(「今日の記録」への1言目は褒め+受領で完結し、質問で返さない)`
+      : `モード: 通常対話`,
   ].join('\n');
 
   const history: Anthropic.MessageParam[] = req.messages.slice(-12).map((m) => ({
