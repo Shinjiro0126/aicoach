@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { StepDots } from '@/components/onboarding-steps';
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
@@ -35,6 +36,12 @@ export default function GoalWhyScreen() {
         autoFocus
       />
 
+      {/* 入力欄の直下に添えるプライバシーの一言。Screenのgap(16)を詰めて入力欄に寄せる */}
+      <PrivacyBadge
+        text="本音でどうぞ。この内容は、端末の外に保存されません"
+        style={styles.privacy}
+      />
+
       <Button
         title="次へ"
         disabled={why.trim().length === 0}
@@ -46,6 +53,7 @@ export default function GoalWhyScreen() {
 
 const styles = StyleSheet.create({
   header: { gap: Spacing.two, marginTop: Spacing.three },
+  privacy: { marginTop: -Spacing.two, paddingHorizontal: Spacing.one },
   input: {
     borderRadius: 14,
     padding: Spacing.three,

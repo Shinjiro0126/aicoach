@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Alert, Share, StyleSheet, Switch, View } from 'react-native';
 
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -164,8 +165,9 @@ export default function SettingsScreen() {
 
       <Card>
         <ThemedText type="smallBold">データ</ThemedText>
+        <PrivacyBadge text="あなたの記録の置き場所: この iPhone の中だけ" />
         <ThemedText type="small" themeColor="textSecondary">
-          目標・行動記録・対話履歴などのデータはこの端末の中にだけ保存され、サーバーには送信されません(匿名の診断データについては下記「品質改善へのご協力」をご覧ください)。
+          目標・行動記録・対話履歴は、すべてこの端末の中だけに保存されます。AI応答の生成時にのみ必要なメッセージが中継されますが、サーバーには保存されません(匿名の診断データについては下記「品質改善へのご協力」をご覧ください)。
         </ThemedText>
         <Button title="データをエクスポート (JSON)" variant="secondary" onPress={exportData} />
         <Button title="目標をリセット" variant="secondary" onPress={confirmArchiveGoal} />
