@@ -23,6 +23,8 @@ type OnboardingState = {
   setDurationWeeks: (durationWeeks: number) => void;
   setWhy: (why: string) => void;
   setHearingAnswer: (questionId: string, answer: string) => void;
+  /** 指定した質問idの回答をまとめて削除する(回答の選び直し用。以降の質問も含めて渡す) */
+  clearHearingAnswers: (questionIds: string[]) => void;
   reset: () => void;
 };
 
@@ -41,5 +43,13 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setWhy: (why) => set({ why }),
   setHearingAnswer: (questionId, answer) =>
     set((state) => ({ hearingAnswers: { ...state.hearingAnswers, [questionId]: answer } })),
+  // ヒアリングは「先頭から連続回答済みの数」で表示位置を決めるため、
+  // 選び直す質問"以降"のidを呼び出し側でまとめて渡し、その質問からやり直せるようにする
+  clearHearingAnswers: (questionIds) =>
+    set((state) => {
+      const next = { ...state.hearingAnswers };
+      for (const id of questionIds) delete next[id];
+      return { hearingAnswers: next };
+    }),
   reset: () => set({ category: null, title: '', durationWeeks: null, why: '', hearingAnswers: {} }),
 }));

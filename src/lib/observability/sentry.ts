@@ -1,6 +1,8 @@
 import * as Sentry from '@sentry/react-native';
 import type { Breadcrumb, ErrorEvent } from '@sentry/react-native';
 
+import { Config } from '@/constants/config';
+
 /**
  * クラッシュ検知(Sentry)。
  *
@@ -11,10 +13,17 @@ import type { Breadcrumb, ErrorEvent } from '@sentry/react-native';
 
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 
-/** コーチAPI(プロキシ)へのリクエストかどうかを判定する(会話内容が乗るエンドポイントのみ対象) */
+/**
+ * コーチAPI(プロキシ)へのリクエストかどうかを判定する。
+ * 会話テキスト・ヒアリング回答等が乗るため、該当リクエストはペイロードを除去する。
+ * エンドポイント追加時の漏れを防ぐため、ベースURL設定時はその配下を一律で対象にする。
+ */
 export function isCoachApiUrl(url: string | undefined): boolean {
   if (!url) return false;
-  return /\/v1\/(coach|plan)(\?|\/|$)/.test(url);
+  // ベースURLが設定されていれば、コーチAPI配下の全エンドポイントを対象にする
+  if (Config.coachApiUrl && url.startsWith(Config.coachApiUrl)) return true;
+  // フォールバック: 既知のエンドポイントをパスパターンで判定する
+  return /\/v1\/(coach|plan|suggest)(\?|\/|$)/.test(url);
 }
 
 /**

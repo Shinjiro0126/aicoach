@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
 import { OnboardingNav } from '@/components/onboarding-steps';
@@ -31,16 +32,31 @@ function CoachBubble({ text }: { text: string }) {
   );
 }
 
-/** ユーザーの回答の吹き出し(右寄せ) */
-function MeBubble({ text }: { text: string }) {
+/**
+ * ユーザーの回答の吹き出し(右寄せ)。
+ * タップでその質問から回答を選び直せる(誤タップの復旧手段。Issue #17)
+ */
+function MeBubble({ text, onEdit }: { text: string; onEdit: () => void }) {
   const theme = useTheme();
   return (
     <View style={styles.meRow}>
-      <View style={[styles.bubble, styles.meBubble, { backgroundColor: theme.tint }]}>
-        <ThemedText type="small" style={[styles.bubbleText, { color: theme.onTint }]}>
-          {text}
-        </ThemedText>
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`回答「${text}」を選び直す`}
+        accessibilityHint="この質問からもう一度答え直します"
+        onPress={onEdit}
+        style={({ pressed }) => [
+          styles.bubble,
+          styles.meBubble,
+          { backgroundColor: theme.tint, opacity: pressed ? 0.7 : 1 },
+        ]}>
+        <View style={styles.meBubbleInner}>
+          <ThemedText type="small" style={[styles.bubbleText, { color: theme.onTint }]}>
+            {text}
+          </ThemedText>
+          <SymbolView name="pencil" size={12} tintColor={theme.onTint} />
+        </View>
+      </Pressable>
     </View>
   );
 }
@@ -52,7 +68,7 @@ function MeBubble({ text }: { text: string }) {
  */
 export default function HearingScreen() {
   const theme = useTheme();
-  const { category, hearingAnswers, setHearingAnswer } = useOnboardingStore();
+  const { category, hearingAnswers, setHearingAnswer, clearHearingAnswers } = useOnboardingStore();
 
   const questions = getHearingQuestions(category);
   // 先頭から連続して答え終わった数 = いま表示する質問のindex(ストア由来なので戻っても消えない)
@@ -64,6 +80,10 @@ export default function HearingScreen() {
   const remaining = questions.length - answeredCount;
 
   const next = () => router.push('/onboarding/duration');
+
+  // index番目の質問から回答を選び直す(表示位置は「先頭から連続回答済みの数」で
+  // 決まるため、その質問"以降"の回答をまとめて消してチップ選択に戻す)
+  const editFrom = (index: number) => clearHearingAnswers(questions.slice(index).map((q) => q.id));
 
   return (
     <Screen scroll>
@@ -79,13 +99,13 @@ export default function HearingScreen() {
       </View>
 
       <View style={styles.chat}>
-        {questions.slice(0, Math.min(answeredCount + 1, questions.length)).map((q) => {
+        {questions.slice(0, Math.min(answeredCount + 1, questions.length)).map((q, index) => {
           const answer = hearingAnswers[q.id];
           return (
             <View key={q.id} style={styles.chat}>
               <CoachBubble text={q.text} />
               {answer ? (
-                <MeBubble text={answer} />
+                <MeBubble text={answer} onEdit={() => editFrom(index)} />
               ) : (
                 <View style={styles.chips}>
                   {q.options.map((option) => (
@@ -125,6 +145,7 @@ const styles = StyleSheet.create({
   },
   coachBubble: { borderBottomLeftRadius: 5 },
   meBubble: { borderBottomRightRadius: 5 },
+  meBubbleInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   bubbleText: { lineHeight: 20 },
   chips: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { OnboardingNav } from '@/components/onboarding-steps';
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -78,11 +79,14 @@ export default function GoalTitleScreen() {
         ))}
       </View>
 
-      <Button
-        title="次へ"
-        disabled={title.trim().length === 0}
-        onPress={() => router.push('/onboarding/hearing')}
-      />
+      <View style={styles.bottomArea}>
+        <PrivacyBadge />
+        <Button
+          title="次へ"
+          disabled={title.trim().length === 0}
+          onPress={() => router.push('/onboarding/hearing')}
+        />
+      </View>
     </Screen>
   );
 }
@@ -106,4 +110,5 @@ const styles = StyleSheet.create({
   suggestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   suggestLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  bottomArea: { gap: Spacing.two + Spacing.one, marginTop: Spacing.two },
 });
