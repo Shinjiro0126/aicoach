@@ -35,7 +35,7 @@ type CelebrationProps = {
   segments: WeekSegments;
   copyMain: string;
   copySub: string;
-  /** 「ホトリのひとことを聞く」→ コーチタブへ */
+  /** 「ホトリからひとこと」→ コーチタブへ */
   onListen: () => void;
   onClose: () => void;
 };
@@ -46,12 +46,16 @@ function PopIn({ delay, children }: { delay: number; children: ReactNode }) {
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
-    if (!reduceMotion) {
-      progress.value = withDelay(
-        delay,
-        withTiming(1, { duration: 550, easing: Easing.out(Easing.back(2)) }),
-      );
+    if (reduceMotion) {
+      // reduce motion は非同期に検出されるため、アニメーション開始後に有効化が反映されることがある。
+      // その場合も途中値で固まらないよう、最終値を明示的にセットして静止表示にする
+      progress.value = 1;
+      return;
     }
+    progress.value = withDelay(
+      delay,
+      withTiming(1, { duration: 550, easing: Easing.out(Easing.back(2)) }),
+    );
     return () => cancelAnimation(progress);
   }, [delay, reduceMotion, progress]);
 
@@ -99,15 +103,18 @@ function Sparkle({ top, left, size, delay }: { top: number; left: number; size: 
   const opacity = useSharedValue(reduceMotion ? 0.8 : 0.15);
 
   useEffect(() => {
-    if (!reduceMotion) {
-      opacity.value = withDelay(
-        delay,
-        withRepeat(
-          withSequence(withTiming(1, { duration: 900 }), withTiming(0.15, { duration: 900 })),
-          -1,
-        ),
-      );
+    if (reduceMotion) {
+      // 非同期のreduce motion反映で明滅途中の値のまま固まらないよう、静止表示の意図値をセットする
+      opacity.value = 0.8;
+      return;
     }
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(withTiming(1, { duration: 900 }), withTiming(0.15, { duration: 900 })),
+        -1,
+      ),
+    );
     return () => cancelAnimation(opacity);
   }, [delay, reduceMotion, opacity]);
 
@@ -171,7 +178,7 @@ export function Celebration({ streak, isBest, week, segments, copyMain, copySub,
       </View>
 
       <View style={styles.bottom}>
-        <Button title="ホトリのひとことを聞く" onPress={onListen} />
+        <Button title="ホトリからひとこと" onPress={onListen} />
         <Button title="そのまま閉じる" variant="ghost" onPress={onClose} />
       </View>
     </View>

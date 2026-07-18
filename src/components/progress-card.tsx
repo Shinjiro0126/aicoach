@@ -35,7 +35,14 @@ function TodayDot({ done, pop, color }: { done: boolean; pop: boolean; color: st
   const opacity = useSharedValue(pop && !reduceMotion ? 0 : 1);
 
   useEffect(() => {
-    if (pop && !reduceMotion) {
+    if (reduceMotion) {
+      // reduce motion は非同期に検出されるため、アニメーション開始後に有効化が反映されることがある。
+      // その場合も途中値で不可視のまま固まらないよう、最終値を明示的にセットして静止表示にする
+      scale.value = 1;
+      opacity.value = 1;
+      return;
+    }
+    if (pop) {
       scale.value = withDelay(1100, withTiming(1, { duration: 550, easing: Easing.out(Easing.back(2.2)) }));
       opacity.value = withDelay(1100, withTiming(1, { duration: 250 }));
     }

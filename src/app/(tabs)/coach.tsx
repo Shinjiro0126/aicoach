@@ -80,23 +80,30 @@ export default function CoachScreen() {
     };
   };
 
-  const send = async (text: string, mode: CoachContext['mode']) => {
-    if (!goal || sending) return;
+  /** 実際にメッセージを投稿できた場合のみ true を返す(送信中・無料枠切れの早期returnは false) */
+  const send = async (text: string, mode: CoachContext['mode']): Promise<boolean> => {
+    if (!goal || sending) return false;
     if (!canSendAiMessage()) {
       trackEvent(AnalyticsEvent.QuotaExceeded);
       router.push('/paywall');
-      return;
+      return false;
     }
     setSending(true);
     setInput('');
+    // 自由入力からの送信でも振り返りチップを畳む(送信後に古いチップが再表示されないように)
+    setChips(null);
     const userMessage = addCoachMessage(goal.id, 'user', text);
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const history = [...messages, userMessage].slice(-Config.coachHistoryLimit).map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      // 履歴はDBから直接組み立てる(未マウント時の自動報告で stale な messages state に依存しないため)。
+      // userMessage は直前に addCoachMessage 済みなので、この一覧に含まれる
+      const history = listCoachMessages(goal.id)
+        .slice(-Config.coachHistoryLimit)
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
       const { reply } = await chatWithCoach({ context: buildContext(mode), messages: history }, deviceId);
       consumeAiMessage();
       const assistantMessage = addCoachMessage(goal.id, 'assistant', reply);
@@ -118,6 +125,8 @@ export default function CoachScreen() {
       setSending(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
+    // オフライン等の失敗時もユーザーの投稿自体は保存済みのため true(投稿できたか)を返す
+    return true;
   };
 
   // 祝い演出の「ホトリのひとことを聞く」から遷移: 実績カード(今日のチェック結果)を自動投稿する
@@ -130,8 +139,13 @@ export default function CoachScreen() {
       const doneCount = tasks.filter((t) => t.done).length;
       const lines = tasks.map((t) => `・${t.done ? 'できた' : 'まだ'}:${t.title}`).join('\n');
       const text = `今日の記録を見せます(${doneCount}/${tasks.length})\n${lines}`;
-      void send(text, 'reflection').then(() => {
-        setChips(doneCount > 0 ? REFLECT_CHIPS : REFLECT_CHIPS_ZERO);
+      void send(text, 'reflection').then((posted) => {
+        if (posted) {
+          setChips(doneCount > 0 ? REFLECT_CHIPS : REFLECT_CHIPS_ZERO);
+        } else {
+          // 無料枠切れ等で投稿できなかった場合は未処理に戻す(プレミアム移行後の再訪で改めて投稿するため)
+          autoReportHandled.current = null;
+        }
       });
       // send は毎レンダーで再生成されるため依存に含めない(二重投稿は autoReportHandled で防ぐ)
       // eslint-disable-next-line react-hooks/exhaustive-deps

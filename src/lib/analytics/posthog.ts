@@ -22,6 +22,10 @@ export const AnalyticsEvent = {
   OnboardingCompleted: 'onboarding_completed',
   AiPlanGenerated: 'ai_plan_generated',
   CoachMessageSent: 'coach_message_sent',
+  /**
+   * プロパティ: streakCount, doneCount(いずれも数値のみ)。
+   * ホームv2以降は「提出」時に発火する(doneCount=0 の提出でも発火)。分析側は doneCount で達成/0件提出を区別する
+   */
   StreakAchieved: 'streak_achieved',
   PaywallViewed: 'paywall_viewed',
   QuotaExceeded: 'quota_exceeded',

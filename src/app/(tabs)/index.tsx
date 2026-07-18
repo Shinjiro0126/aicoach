@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Celebration } from '@/components/celebration';
 import { Hotori } from '@/components/hotori';
@@ -12,6 +12,7 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import {
   addCustomTask,
+  deleteCustomTask,
   ensureTasksForDate,
   getActionForDate,
   getReportForDate,
@@ -38,15 +39,17 @@ const KIND_LABELS: Record<DailyTask['kind'], string> = {
   custom: '自分で追加',
 };
 
-/** チェック可能なタスク1行(今日の一歩はtint枠線で強調) */
-function TaskRow({ task, onToggle }: { task: DailyTask; onToggle: () => void }) {
+/** チェック可能なタスク1行(今日の一歩はtint枠線で強調)。custom タスクは長押しで削除できる */
+function TaskRow({ task, onToggle, onDelete }: { task: DailyTask; onToggle: () => void; onDelete?: () => void }) {
   const theme = useTheme();
   const isMain = task.kind === 'main';
   return (
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked: task.done }}
+      accessibilityHint={onDelete ? '長押しで削除できます' : undefined}
       onPress={onToggle}
+      onLongPress={onDelete}
       style={({ pressed }) => [
         styles.task,
         isMain
@@ -167,6 +170,22 @@ export default function HomeScreen() {
     refresh();
   };
 
+  /** custom タスクの削除(長押し→確認)。誤入力タイトルが一日中残らないようにする */
+  const removeCustomTask = (task: DailyTask) => {
+    Alert.alert('このタスクを削除しますか?', `「${task.title}」を今日のリストから外します。`, [
+      { text: 'やめる', style: 'cancel' },
+      {
+        text: '削除する',
+        style: 'destructive',
+        onPress: () => {
+          deleteCustomTask(task.id);
+          if (submitted) refreshReportCounts(goal.id, today);
+          refresh();
+        },
+      },
+    ]);
+  };
+
   const confirmAddTask = () => {
     const title = customTitle.trim();
     if (title.length > 0) addCustomTask(goal.id, today, title);
@@ -180,8 +199,9 @@ export default function HomeScreen() {
     submitReport(goal.id, today);
     const dates = listReportDates(goal.id);
     const result = computeStreak(dates, today);
-    // 連続日数(数値)のみ送信する。タスク名などの自由テキストは送らない
-    trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current });
+    // 連続日数・達成件数(いずれも数値)のみ送信する。タスク名などの自由テキストは送らない。
+    // v2から発火タイミングが「達成」でなく「提出」になったため、doneCount で0件提出と達成を区別できるようにする
+    trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current, doneCount: checkedCount });
     setSheetVisible(false);
     setCelebrating({ streak: result.current, isBest: result.current > prevBest });
     refresh();
@@ -323,7 +343,12 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
         {extraTasks.map((task) => (
-          <TaskRow key={task.id} task={task} onToggle={() => toggleTask(task)} />
+          <TaskRow
+            key={task.id}
+            task={task}
+            onToggle={() => toggleTask(task)}
+            onDelete={task.kind === 'custom' ? () => removeCustomTask(task) : undefined}
+          />
         ))}
 
         {adding ? (

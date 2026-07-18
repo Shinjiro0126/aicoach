@@ -165,8 +165,14 @@ export function ensureTasksForDate(
   const existing = getTasksForDate(goalId, dateKey);
   if (existing.length > 0) return existing;
 
-  const action = getActionForDate(goalId, dateKey) ?? getLatestAction(goalId);
+  const todayAction = getActionForDate(goalId, dateKey);
+  const action = todayAction ?? getLatestAction(goalId);
   const mainTitle = action?.description ?? `「${opts.goalTitle}」のために10分取り組む`;
+  // 当日の daily_actions が達成済みなら done を引き継ぐ。
+  // v4マイグレーションは達成済み daily_actions を当日分も含めて daily_reports にバックフィルするため、
+  // ここで引き継がないと「提出済み(done_count=1)なのに全行未チェック」という矛盾表示になる。
+  // getLatestAction による過去日からのフォールバック時は引き継がない(今日はまだ達成していないため)
+  const mainDone = todayAction?.done ?? false;
   const plusTitles = [
     opts.weekFocus
       ? `「${opts.weekFocus}」を意識して、もう5分だけ進める`
@@ -176,7 +182,7 @@ export function ensureTasksForDate(
 
   const now = Date.now();
   const rows: DailyTask[] = [
-    { id: makeId(), goalId, dateKey, title: mainTitle, kind: 'main', done: false, sortOrder: 0, createdAt: now },
+    { id: makeId(), goalId, dateKey, title: mainTitle, kind: 'main', done: mainDone, sortOrder: 0, createdAt: now },
     ...plusTitles.map<DailyTask>((title, i) => ({
       id: makeId(),
       goalId,
@@ -207,6 +213,13 @@ export function addCustomTask(goalId: string, dateKey: string, title: string): D
   };
   db.insert(dailyTasks).values(row).run();
   return row;
+}
+
+/** ユーザー追加タスク(kind='custom')のみ削除する。計画由来の main / plus は削除できない */
+export function deleteCustomTask(taskId: string): void {
+  const task = db.select().from(dailyTasks).where(eq(dailyTasks.id, taskId)).limit(1).all()[0];
+  if (!task || task.kind !== 'custom') return;
+  db.delete(dailyTasks).where(eq(dailyTasks.id, taskId)).run();
 }
 
 /**
