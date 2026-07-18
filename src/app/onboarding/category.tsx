@@ -33,6 +33,19 @@ export default function CategoryScreen() {
     <Screen scroll>
       <StepDots current={0} />
 
+      {/* ブランドメッセージ(タグライン)。画面を圧迫しない控えめなトーンで置く */}
+      <View style={styles.brandNote}>
+        <View style={styles.brandTaglineRow}>
+          <SymbolView name="lock.fill" size={12} tintColor={theme.textSecondary} />
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            あなたの目標は、この端末から出ない。
+          </ThemedText>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          記録も対話も、この iPhone の中だけに保存されます
+        </ThemedText>
+      </View>
+
       <View style={styles.header}>
         <ThemedText type="subtitle">どんな分野で{'\n'}伴走しましょうか?</ThemedText>
         <ThemedText themeColor="textSecondary">
@@ -84,6 +97,8 @@ export default function CategoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  brandNote: { gap: Spacing.half, marginTop: Spacing.three },
+  brandTaglineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   header: { gap: Spacing.two, marginTop: Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   card: {
