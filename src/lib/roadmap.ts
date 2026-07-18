@@ -1,4 +1,4 @@
-import { diffDays, toDateKey } from './dates';
+import { addDaysKey, diffDays, toDateKey } from './dates';
 
 /**
  * ロードマップ(ジャーニー表示)用の週計算。
@@ -47,4 +47,40 @@ export function addMonthsKey(key: string, months: number): string {
 export function durationMonthsBetween(startKey: string, targetKey: string): number {
   const days = diffDays(startKey, targetKey);
   return Math.max(1, Math.round(days / 30.44));
+}
+
+// ===== 達成期間(週数)の換算・整形 =====
+// オンボーディングv2から期間は「週数」で一元管理する(プリセットは月→週に換算)
+
+/** カスタム期間の下限(2週間) */
+export const MIN_DURATION_WEEKS = 2;
+/** カスタム期間の上限(2年 = 104週) */
+export const MAX_DURATION_WEEKS = 104;
+
+/** 月数 → 週数の換算(1年=52週基準で四捨五入。1ヶ月=4週、3ヶ月=13週、6ヶ月=26週、12ヶ月=52週) */
+export function monthsToWeeks(months: number): number {
+  return Math.round((months * 52) / 12);
+}
+
+/** 週数を 2〜104週 の範囲に丸める(AIおすすめ・ステッパーの安全弁) */
+export function clampWeeks(weeks: number): number {
+  if (!Number.isFinite(weeks)) return monthsToWeeks(3);
+  return Math.min(MAX_DURATION_WEEKS, Math.max(MIN_DURATION_WEEKS, Math.round(weeks)));
+}
+
+/**
+ * 週数の表示ラベル。プリセット(1/3/6ヶ月/1年)に一致すればその表記、
+ * それ以外は「N週間」(カスタム指定)。
+ */
+export function weeksLabel(weeks: number): string {
+  if (weeks === monthsToWeeks(12)) return '1年';
+  for (const months of [1, 3, 6]) {
+    if (weeks === monthsToWeeks(months)) return `${months}ヶ月`;
+  }
+  return `${weeks}週間`;
+}
+
+/** key の weeks 週間後の日付キー(目標期日の計算用) */
+export function addWeeksKey(key: string, weeks: number): string {
+  return addDaysKey(key, weeks * 7);
 }

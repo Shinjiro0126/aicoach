@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { StepDots } from '@/components/onboarding-steps';
+import { OnboardingNav } from '@/components/onboarding-steps';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -35,7 +35,7 @@ export default function NotificationSetupScreen() {
 
   return (
     <Screen scroll>
-      <StepDots current={4} />
+      <OnboardingNav current={5} />
 
       <View style={styles.header}>
         <ThemedText type="subtitle">リマインドの時間を{'\n'}決めましょう</ThemedText>

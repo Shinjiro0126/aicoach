@@ -26,6 +26,8 @@ export function createGoal(input: {
   why: string;
   category?: string;
   targetDate?: string;
+  /** 現在地ヒアリングの回答({question, answer}[] のJSON文字列) */
+  hearingAnswers?: string;
 }): Goal {
   const goal: Goal = {
     id: makeId(),
@@ -33,6 +35,7 @@ export function createGoal(input: {
     why: input.why,
     category: input.category ?? 'other',
     targetDate: input.targetDate ?? null,
+    hearingAnswers: input.hearingAnswers ?? null,
     status: 'active',
     createdAt: Date.now(),
   };

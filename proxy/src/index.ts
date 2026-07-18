@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { COACH_SYSTEM, CRISIS_KEYWORDS, CRISIS_RESPONSE, PLAN_SYSTEM } from './prompts';
+import { COACH_SYSTEM, CRISIS_KEYWORDS, CRISIS_RESPONSE, PLAN_SYSTEM, SUGGEST_SYSTEM } from './prompts';
 
 export interface Env {
   ANTHROPIC_API_KEY: string;
@@ -11,6 +11,11 @@ export interface Env {
 
 const COACH_MODEL = 'claude-haiku-4-5';
 const PLAN_MODEL = 'claude-sonnet-5';
+/** 期間おすすめは軽量な提案なので高速・低コストのモデルを使う */
+const SUGGEST_MODEL = 'claude-haiku-4-5';
+/** 期間おすすめの週数の許容範囲(クライアントのステッパーと同じ 2週〜2年) */
+const MIN_SUGGEST_WEEKS = 2;
+const MAX_SUGGEST_WEEKS = 104;
 /** 不正利用対策のサーバー側ハードリミット(デバイス毎/日)。クライアント側の無料枠とは別 */
 const HARD_DAILY_LIMIT = 200;
 
@@ -27,15 +32,28 @@ type CoachRequest = {
   messages: ChatMessage[];
 };
 
+/** 現在地ヒアリングの回答1件。中継のみでどこにも保存しない */
+type HearingPair = { question: string; answer: string };
+
 type PlanRequest = {
   goalTitle: string;
   why: string;
   /** 目標カテゴリ(クライアントの GoalCategory enum値) */
   category?: string;
-  /** 達成期間(月数) */
+  /** 達成期間(月数)。旧クライアント互換 */
   durationMonths?: number;
+  /** 達成期間(週数)。あれば月数より優先 */
+  durationWeeks?: number;
+  /** 現在地ヒアリングの回答 */
+  hearingAnswers?: HearingPair[];
   targetDate?: string;
   startDate: string;
+};
+
+type SuggestRequest = {
+  goalTitle: string;
+  category?: string;
+  hearingAnswers?: HearingPair[];
 };
 
 /** クライアントの GoalCategory enum値 → プロンプト用の日本語ラベル */
@@ -132,17 +150,28 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
   return json({ reply: extractText(message).trim() });
 }
 
+/** ヒアリング回答をプロンプト用のブロックに整形する(なければ空文字) */
+function hearingBlock(pairs: HearingPair[] | undefined): string {
+  if (!pairs || pairs.length === 0) return '';
+  const lines = pairs.map((p) => `- ${p.question} → ${p.answer}`).join('\n');
+  return `現在地(本人へのヒアリング回答):\n${lines}\nこの現在地に合わせて、最初の週の行動を確実に続けられる軽さに調整する`;
+}
+
 async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promise<Response> {
   const categoryLabel = req.category ? CATEGORY_LABELS[req.category] : undefined;
+  const weeks = req.durationWeeks;
   const months = req.durationMonths;
   const prompt = [
     `以下の目標を計画に分解してください。`,
     `目標: ${req.goalTitle}`,
     categoryLabel ? `カテゴリ: ${categoryLabel}` : '',
     `動機: ${req.why}`,
-    months
-      ? `達成期間: ${months}ヶ月(約${Math.round(months * 4.33)}週間)。この期間から逆算したペース配分で、最初の4週間のフォーカスを設計する`
-      : '',
+    weeks
+      ? `達成期間: ${weeks}週間。この期間から逆算したペース配分で、最初の4週間のフォーカスを設計する`
+      : months
+        ? `達成期間: ${months}ヶ月(約${Math.round(months * 4.33)}週間)。この期間から逆算したペース配分で、最初の4週間のフォーカスを設計する`
+        : '',
+    hearingBlock(req.hearingAnswers),
     req.targetDate ? `目標期日: ${req.targetDate}` : '',
     `開始日: ${req.startDate}`,
   ]
@@ -163,6 +192,47 @@ async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promis
   return new Response(extractText(message), {
     headers: { 'content-type': 'application/json' },
   });
+}
+
+const SUGGEST_SCHEMA = {
+  type: 'object',
+  properties: {
+    weeks: { type: 'integer' },
+    reason: { type: 'string' },
+  },
+  required: ['weeks', 'reason'],
+  additionalProperties: false,
+} as const;
+
+/** 目標+ヒアリング回答から達成期間(週数)と理由を提案する */
+async function handleSuggest(env: Env, client: Anthropic, req: SuggestRequest): Promise<Response> {
+  const categoryLabel = req.category ? CATEGORY_LABELS[req.category] : undefined;
+  const prompt = [
+    `以下の目標に対して、おすすめの達成期間(週数)と理由を提案してください。`,
+    `目標: ${req.goalTitle}`,
+    categoryLabel ? `カテゴリ: ${categoryLabel}` : '',
+    hearingBlock(req.hearingAnswers),
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const message = await client.messages.create({
+    model: SUGGEST_MODEL,
+    max_tokens: 512,
+    system: SUGGEST_SYSTEM,
+    output_config: { format: { type: 'json_schema', schema: SUGGEST_SCHEMA } },
+    messages: [{ role: 'user', content: prompt }],
+  });
+  if (message.stop_reason === 'refusal') {
+    return json({ error: 'suggest_refused' }, 422);
+  }
+  const parsed = JSON.parse(extractText(message)) as { weeks: number; reason: string };
+  // 週数はクライアントのステッパー範囲(2〜104週)に丸めてから返す
+  const weeks = Math.min(
+    MAX_SUGGEST_WEEKS,
+    Math.max(MIN_SUGGEST_WEEKS, Math.round(Number(parsed.weeks) || 0)),
+  );
+  return json({ weeks, reason: parsed.reason });
 }
 
 export default {
@@ -186,6 +256,9 @@ export default {
       }
       if (url.pathname === '/v1/plan') {
         return await handlePlan(env, client, (await request.json()) as PlanRequest);
+      }
+      if (url.pathname === '/v1/suggest') {
+        return await handleSuggest(env, client, (await request.json()) as SuggestRequest);
       }
       return json({ error: 'not_found' }, 404);
     } catch (e) {

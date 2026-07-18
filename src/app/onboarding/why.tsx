@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { StepDots } from '@/components/onboarding-steps';
+import { OnboardingNav } from '@/components/onboarding-steps';
 import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ export default function GoalWhyScreen() {
 
   return (
     <Screen scroll>
-      <StepDots current={3} />
+      <OnboardingNav current={4} />
 
       <View style={styles.header}>
         <ThemedText type="subtitle">それを達成したいのは{'\n'}なぜですか?</ThemedText>

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
-import { StepDots } from '@/components/onboarding-steps';
+import { OnboardingNav } from '@/components/onboarding-steps';
 import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ export default function CategoryScreen() {
 
   return (
     <Screen scroll>
-      <StepDots current={0} />
+      {/* 最初の画面なので戻るは表示しない */}
+      <OnboardingNav current={0} showBack={false} />
 
       {/* ブランドメッセージ(タグライン)。画面を圧迫しない控えめなトーンで置く */}
       <PrivacyBadge

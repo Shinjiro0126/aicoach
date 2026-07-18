@@ -52,6 +52,10 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE goals ADD COLUMN category TEXT NOT NULL DEFAULT 'other';
   `,
+  // v3: 現在地ヒアリングの回答(質問と回答のペア配列のJSON文字列)。端末内にのみ保存する
+  `
+  ALTER TABLE goals ADD COLUMN hearing_answers TEXT;
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {

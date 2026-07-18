@@ -1,9 +1,15 @@
 import {
   addMonthsKey,
+  addWeeksKey,
+  clampWeeks,
   currentWeekNo,
   durationMonthsBetween,
   isWeekDone,
+  MAX_DURATION_WEEKS,
+  MIN_DURATION_WEEKS,
+  monthsToWeeks,
   weekIndex,
+  weeksLabel,
 } from '../roadmap';
 
 describe('roadmap', () => {
@@ -86,6 +92,59 @@ describe('roadmap', () => {
 
     it('期間が極端に短くても最低1を返す', () => {
       expect(durationMonthsBetween('2026-07-14', '2026-07-15')).toBe(1);
+    });
+  });
+
+  describe('monthsToWeeks', () => {
+    it('プリセットの月数を週数に換算する', () => {
+      expect(monthsToWeeks(1)).toBe(4);
+      expect(monthsToWeeks(3)).toBe(13);
+      expect(monthsToWeeks(6)).toBe(26);
+      expect(monthsToWeeks(12)).toBe(52);
+    });
+  });
+
+  describe('clampWeeks', () => {
+    it('範囲内の週数はそのまま(端数は四捨五入)', () => {
+      expect(clampWeeks(13)).toBe(13);
+      expect(clampWeeks(12.6)).toBe(13);
+    });
+
+    it('2週未満は2週、104週超は104週に丸める', () => {
+      expect(clampWeeks(0)).toBe(MIN_DURATION_WEEKS);
+      expect(clampWeeks(1)).toBe(2);
+      expect(clampWeeks(500)).toBe(MAX_DURATION_WEEKS);
+    });
+
+    it('数値でない入力は3ヶ月相当(13週)にフォールバックする', () => {
+      expect(clampWeeks(Number.NaN)).toBe(13);
+      expect(clampWeeks(Number.POSITIVE_INFINITY)).toBe(13);
+    });
+  });
+
+  describe('weeksLabel', () => {
+    it('プリセットに一致する週数は月・年表記', () => {
+      expect(weeksLabel(4)).toBe('1ヶ月');
+      expect(weeksLabel(13)).toBe('3ヶ月');
+      expect(weeksLabel(26)).toBe('6ヶ月');
+      expect(weeksLabel(52)).toBe('1年');
+    });
+
+    it('カスタム週数は「N週間」表記', () => {
+      expect(weeksLabel(2)).toBe('2週間');
+      expect(weeksLabel(10)).toBe('10週間');
+      expect(weeksLabel(104)).toBe('104週間');
+    });
+  });
+
+  describe('addWeeksKey', () => {
+    it('週数×7日を加算する', () => {
+      expect(addWeeksKey('2026-07-01', 1)).toBe('2026-07-08');
+      expect(addWeeksKey('2026-07-01', 13)).toBe('2026-09-30');
+    });
+
+    it('年を跨いでも正しい', () => {
+      expect(addWeeksKey('2026-12-25', 2)).toBe('2027-01-08');
     });
   });
 });
