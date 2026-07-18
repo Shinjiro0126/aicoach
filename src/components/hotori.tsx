@@ -52,7 +52,7 @@ export type HotoriProps = {
   pose?: HotoriPose;
   /** 表示幅(px)。full は高さが size × 150/120 になる */
   size?: number;
-  /** idle=瞬き+呼吸 / celebrate=跳ね+波紋 / thinking=泡。reduce motion 時は無効 */
+  /** idle=瞬き+呼吸 / celebrate=跳ね+波紋(達成の瞬間に1回再生) / thinking=泡。reduce motion 時は無効 */
   animate?: HotoriAnimation;
   /** full=全身 / bust=チャットアバター用の頭部+スカーフ(円形・グラデ背景つき) */
   variant?: 'full' | 'bust';
@@ -321,7 +321,8 @@ const AnimatedG = Animated.createAnimatedComponent(G);
 function CelebrateRipple({ scale }: { scale: number }) {
   const progress = useSharedValue(0);
   useEffect(() => {
-    progress.value = withRepeat(withTiming(1, { duration: 1700, easing: Easing.linear }), -1);
+    // 達成の瞬間の演出なので1回だけ再生する(終了時は opacity 0 で自然に消える)
+    progress.value = withTiming(1, { duration: 1700, easing: Easing.linear });
     return () => cancelAnimation(progress);
   }, [progress]);
 
@@ -408,19 +409,20 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
   const translateY = useSharedValue(0);
   // 瞬き: 0=開き目, 1=閉じ目
   const blink = useSharedValue(0);
+  // celebrate の着地後に静止ポーズのキラキラをフェードインさせる不透明度
+  const sparkle = useSharedValue(0);
 
   useEffect(() => {
     if (anim === 'celebrate') {
-      // 跳ね(しゃがむ→跳ぶ→着地→ひと呼吸)。プロトタイプの hb-jump 相当
-      translateY.value = withRepeat(
-        withSequence(
-          withTiming(3, { duration: 310, easing: Easing.inOut(Easing.quad) }),
-          withTiming(-15, { duration: 410, easing: Easing.out(Easing.quad) }),
-          withTiming(0, { duration: 440, easing: Easing.in(Easing.quad) }),
-          withDelay(540, withTiming(0, { duration: 1 })),
-        ),
-        -1,
+      // 跳ね(しゃがむ→跳ぶ→着地)。プロトタイプの hb-jump 相当。
+      // 達成の瞬間の演出なので1回だけ再生し、着地後は静止ポーズ(キラキラつき)に戻る
+      translateY.value = withSequence(
+        withTiming(3, { duration: 310, easing: Easing.inOut(Easing.quad) }),
+        withTiming(-15, { duration: 410, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 440, easing: Easing.in(Easing.quad) }),
       );
+      sparkle.value = 0;
+      sparkle.value = withDelay(1160, withTiming(1, { duration: 400 }));
     } else if (anim === 'idle' || anim === 'thinking') {
       // ゆったりした呼吸
       translateY.value = withRepeat(
@@ -433,8 +435,11 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
     } else {
       translateY.value = 0;
     }
-    return () => cancelAnimation(translateY);
-  }, [anim, translateY]);
+    return () => {
+      cancelAnimation(translateY);
+      cancelAnimation(sparkle);
+    };
+  }, [anim, translateY, sparkle]);
 
   useEffect(() => {
     if (anim === 'idle') {
@@ -455,6 +460,7 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
   const bobStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
   const eyesOpenProps = useAnimatedProps(() => ({ opacity: 1 - blink.value }));
   const eyesClosedProps = useAnimatedProps(() => ({ opacity: blink.value }));
+  const sparkleProps = useAnimatedProps(() => ({ opacity: sparkle.value }));
 
   if (variant === 'bust') {
     // チャットアバター用: 頭部+スカーフのみ、円形・水辺グラデ背景
@@ -520,6 +526,12 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
           )}
           <Mouth kind={def.mouth} />
           {Extra && <Extra />}
+          {/* celebrate 1回再生の締め: 着地後にキラキラを出して静止ポーズと同じ見た目にする */}
+          {anim === 'celebrate' && def.extra === 'sparkles' && (
+            <AnimatedG animatedProps={sparkleProps}>
+              <Sparkles />
+            </AnimatedG>
+          )}
         </Svg>
       </Animated.View>
       {anim === 'thinking' && (
