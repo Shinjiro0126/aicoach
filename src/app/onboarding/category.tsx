@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
 import { StepDots } from '@/components/onboarding-steps';
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
@@ -35,17 +36,12 @@ export default function CategoryScreen() {
       <StepDots current={0} />
 
       {/* ブランドメッセージ(タグライン)。画面を圧迫しない控えめなトーンで置く */}
-      <View style={styles.brandNote}>
-        <View style={styles.brandTaglineRow}>
-          <SymbolView name="lock.fill" size={12} tintColor={theme.textSecondary} />
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            あなたの目標は、この端末から出ない。
-          </ThemedText>
-        </View>
-        <ThemedText type="small" themeColor="textSecondary">
-          記録も対話も、この iPhone の中だけに保存されます
-        </ThemedText>
-      </View>
+      <PrivacyBadge
+        text="あなたの目標は、この端末から出ない。"
+        bold
+        sub="記録も対話も、この iPhone の中だけに保存されます"
+        style={styles.brandNote}
+      />
 
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -103,8 +99,7 @@ export default function CategoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  brandNote: { gap: Spacing.half, marginTop: Spacing.three },
-  brandTaglineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  brandNote: { marginTop: Spacing.three },
   header: { gap: Spacing.two, marginTop: Spacing.three },
   headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Hotori } from '@/components/hotori';
+import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
@@ -133,6 +134,11 @@ export default function CoachScreen() {
         )}
       </View>
 
+      {/* 対話が端末内にとどまることを、話すその場で伝える控えめな一行 */}
+      <View style={styles.privacyRow}>
+        <PrivacyBadge text="対話の履歴は、この端末の中だけに保存されます" />
+      </View>
+
       <FlatList
         ref={listRef}
         data={messages}
@@ -214,6 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexShrink: 1 },
+  privacyRow: { alignItems: 'center', paddingTop: Spacing.two, paddingHorizontal: Spacing.three },
   list: { padding: Spacing.three, gap: Spacing.two },
   bubble: {
     maxWidth: '82%',
