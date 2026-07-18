@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { getWeeklyPlans, listDoneDates } from '@/db/repo';
+import { getWeeklyPlans, listReportDates } from '@/db/repo';
 import type { WeeklyPlan } from '@/db/schema';
 import { monthMeta, todayKey } from '@/lib/dates';
 import { computeStreak, type StreakResult } from '@/lib/streak';
@@ -28,7 +28,8 @@ export default function ProgressScreen() {
 
   const refresh = useCallback(() => {
     if (!goal) return;
-    const dates = listDoneDates(goal.id);
+    // 提出=その日の記録(ホームv2)。カレンダー・ストリークは提出日で数える
+    const dates = listReportDates(goal.id);
     setDoneDates(new Set(dates));
     setStreak(computeStreak(dates, todayKey()));
     setPlans(getWeeklyPlans(goal.id));

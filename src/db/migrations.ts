@@ -56,6 +56,34 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE goals ADD COLUMN hearing_answers TEXT;
   `,
+  // v4: ホームv2 — デイリータスク(今日の一歩+プラスワン+ユーザー追加)と日次提出記録。
+  // 提出(daily_reports)が「その日の記録」の単位になり、ストリークは提出日で数える。
+  // 既存の達成済み daily_actions は提出記録として引き継ぐ(ストリークを切らさないため)
+  `
+  CREATE TABLE IF NOT EXISTS daily_tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL,
+    date_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'main',
+    done INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_daily_tasks_goal_date ON daily_tasks (goal_id, date_key);
+  CREATE TABLE IF NOT EXISTS daily_reports (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL,
+    date_key TEXT NOT NULL,
+    submitted_at INTEGER NOT NULL,
+    done_count INTEGER NOT NULL DEFAULT 0,
+    total_count INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_reports_goal_date ON daily_reports (goal_id, date_key);
+  INSERT INTO daily_reports (id, goal_id, date_key, submitted_at, done_count, total_count)
+    SELECT lower(hex(randomblob(16))), goal_id, date, COALESCE(MAX(done_at), 0), 1, 1
+    FROM daily_actions WHERE done = 1 GROUP BY goal_id, date;
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {
