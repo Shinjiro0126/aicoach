@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    ホトリ アプリアイコン(原本)
+    水辺ブルーのグラデーション背景に、頭部+スカーフのみのクロップ(胴体は見せない)。
+    キャラクターのパスデータはブランドプロトタイプの #otter シンボル(viewBox 16 16 88 88 で切り出し)。
+    ライト/ダーク/ティント各バリアントは同構図で背景のみ変える。
+  -->
+  <defs>
+    <!-- CSS linear-gradient(160deg, #46B1E2 0%, #2E9FD6 55%, #1B7AB0 100%) 相当 -->
+    <linearGradient id="bg" x1="0.18" y1="0" x2="0.82" y2="1">
+      <stop offset="0" stop-color="#46B1E2"/>
+      <stop offset="0.55" stop-color="#2E9FD6"/>
+      <stop offset="1" stop-color="#1B7AB0"/>
+    </linearGradient>
+    <!-- 頭部+スカーフのクロップ領域(otter座標 16..104 → キャンバス 128..896) -->
+    <clipPath id="crop">
+      <rect x="128" y="128" width="768" height="768"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <g clip-path="url(#crop)">
+    <g transform="translate(128 128) scale(8.727272) translate(-16 -16)">
+      <!-- 耳 -->
+      <circle cx="30" cy="34" r="9" fill="#8B6B54"/>
+      <circle cx="30" cy="34" r="4" fill="#6E523E"/>
+      <circle cx="90" cy="34" r="9" fill="#8B6B54"/>
+      <circle cx="90" cy="34" r="4" fill="#6E523E"/>
+      <!-- 頭 -->
+      <ellipse cx="60" cy="56" rx="36" ry="32" fill="#8B6B54"/>
+      <!-- 頬〜口元(明るい毛色) -->
+      <ellipse cx="60" cy="68" rx="23" ry="17" fill="#F0E4D2"/>
+      <!-- 眉(太く水平気味=威厳) -->
+      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(6 42 43)"/>
+      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-6 78 43)"/>
+      <!-- 目(落ち着いた眼差し) -->
+      <circle cx="45" cy="53" r="3.6" fill="#241A14"/>
+      <circle cx="46.3" cy="51.8" r="1.1" fill="#fff"/>
+      <circle cx="75" cy="53" r="3.6" fill="#241A14"/>
+      <circle cx="76.3" cy="51.8" r="1.1" fill="#fff"/>
+      <!-- 鼻 -->
+      <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="#41302A"/>
+      <!-- 口(結んだ口元) -->
+      <path d="M60 68 v3 M53 74 q7 4 14 0" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <!-- ひげ -->
+      <g stroke="#C9B79C" stroke-width="1.4" stroke-linecap="round">
+        <line x1="34" y1="63" x2="20" y2="60"/>
+        <line x1="34" y1="68" x2="20" y2="68"/>
+        <line x1="86" y1="63" x2="100" y2="60"/>
+        <line x1="86" y1="68" x2="100" y2="68"/>
+      </g>
+      <!-- 首(頭と体をつなぐ・短め) -->
+      <path d="M42 78 q18 12 36 0 v12 h-36 Z" fill="#8B6B54"/>
+      <!-- 体の示唆(丸いシルエット・胸元のみ見せる) -->
+      <ellipse cx="60" cy="119" rx="29" ry="28" fill="#7A5C47"/>
+      <!-- スカーフ(コーチの証・水辺ブルー) -->
+      <path d="M38 88 q22 -10 44 0 l-2.2 8.5 q-20 -8 -39.6 0 Z" fill="#1E7FB4"/>
+      <path d="M63 93 l10 3 -3 13 -9 -2.5 Z" fill="#2E9FD6"/>
+    </g>
+  </g>
+</svg>

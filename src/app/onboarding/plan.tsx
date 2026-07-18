@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, useAnimatedValue, View } from 'react-native';
 
+import { Hotori } from '@/components/hotori';
 import { RoadmapJourney } from '@/components/roadmap-journey';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,6 @@ function GenerationStep({ label, state }: { label: string; state: 'pending' | 'a
 }
 
 export default function PlanScreen() {
-  const theme = useTheme();
   const { category, title, durationMonths, why, reset } = useOnboardingStore();
   const { deviceId, morningTime, eveningTime, notificationsEnabled, setActiveGoal } = useAppStore();
 
@@ -151,7 +151,7 @@ export default function PlanScreen() {
   if (!plan) {
     return (
       <Screen style={styles.center}>
-        <ActivityIndicator size="large" color={theme.tint} />
+        <Hotori pose="thinking" animate="thinking" size={120} />
         <ThemedText type="smallBold">ホトリが計画を作成中…</ThemedText>
         <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
           「{title}」
@@ -172,9 +172,7 @@ export default function PlanScreen() {
   return (
     <Screen scroll>
       <View style={styles.hero}>
-        <View style={[styles.heroCheck, { backgroundColor: theme.tint }]}>
-          <SymbolView name="checkmark" size={26} tintColor={theme.onTint} weight="bold" />
-        </View>
+        <Hotori pose="celebrate" size={104} />
         <ThemedText type="subtitle" style={{ textAlign: 'center' }}>
           ゴールまでの{'\n'}道のりができました
         </ThemedText>
@@ -202,12 +200,4 @@ const styles = StyleSheet.create({
   genSteps: { gap: Spacing.two, marginTop: Spacing.three, alignItems: 'flex-start' },
   genStep: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 24 },
   hero: { alignItems: 'center', gap: Spacing.two, marginTop: Spacing.four },
-  heroCheck: {
-    width: 56,
-    height: 56,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.one,
-  },
 });

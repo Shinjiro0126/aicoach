@@ -1,9 +1,10 @@
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, useAnimatedValue, View } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { Animated, StyleSheet, useAnimatedValue, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -25,21 +26,6 @@ export type RoadmapJourneyProps = {
 };
 
 const NODE_SIZE = 36;
-
-/** OSの「視差効果を減らす」設定を尊重する */
-function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted && enabled) setReduce(true);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-  return reduce;
-}
 
 /** 現在地ノードの後ろで広がるパルスアニメーション */
 function PulseRing({ color, animate }: { color: string; animate: boolean }) {
