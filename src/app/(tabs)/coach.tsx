@@ -54,6 +54,8 @@ export default function CoachScreen() {
   const [sending, setSending] = useState(false);
   const [reflectionDone, setReflectionDone] = useState(true);
   const [chips, setChips] = useState<string[] | null>(null);
+  /** 無料枠切れで自動報告をスキップしたときの控えめな案内(Issue #22) */
+  const [quotaNotice, setQuotaNotice] = useState(false);
   const listRef = useRef<FlatList<CoachMessage>>(null);
   /** 同じ日の実績カードを二重投稿しないためのガード */
   const autoReportHandled = useRef<string | null>(null);
@@ -80,12 +82,23 @@ export default function CoachScreen() {
     };
   };
 
-  /** 実際にメッセージを投稿できた場合のみ true を返す(送信中・無料枠切れの早期returnは false) */
-  const send = async (text: string, mode: CoachContext['mode']): Promise<boolean> => {
+  /**
+   * 実際にメッセージを投稿できた場合のみ true を返す(送信中・無料枠切れの早期returnは false)。
+   * quotaSilent: エフェクト起点の自動投稿用。無料枠切れでも paywall へ push せず静かに false を返す
+   * (Issue #22: フォーカスエフェクトからの push はモーダルを閉じるたびに再実行され無限ループになるため)
+   */
+  const send = async (
+    text: string,
+    mode: CoachContext['mode'],
+    opts?: { quotaSilent?: boolean },
+  ): Promise<boolean> => {
     if (!goal || sending) return false;
     if (!canSendAiMessage()) {
-      trackEvent(AnalyticsEvent.QuotaExceeded);
-      router.push('/paywall');
+      // paywall 誘導と QuotaExceeded 計測はユーザー操作起点の送信に限る
+      if (!opts?.quotaSilent) {
+        trackEvent(AnalyticsEvent.QuotaExceeded);
+        router.push('/paywall');
+      }
       return false;
     }
     setSending(true);
@@ -139,12 +152,17 @@ export default function CoachScreen() {
       const doneCount = tasks.filter((t) => t.done).length;
       const lines = tasks.map((t) => `・${t.done ? 'できた' : 'まだ'}:${t.title}`).join('\n');
       const text = `今日の記録を見せます(${doneCount}/${tasks.length})\n${lines}`;
-      void send(text, 'reflection').then((posted) => {
+      // 自動投稿は quotaSilent で送る: 枠切れでも paywall へ push しない(閉じる→再フォーカス→再push の
+      // 無限ループ防止)。案内は下の控えめなバナーにとどめ、paywall への遷移はユーザーのタップに委ねる
+      void send(text, 'reflection', { quotaSilent: true }).then((posted) => {
         if (posted) {
+          setQuotaNotice(false);
           setChips(doneCount > 0 ? REFLECT_CHIPS : REFLECT_CHIPS_ZERO);
         } else {
-          // 無料枠切れ等で投稿できなかった場合は未処理に戻す(プレミアム移行後の再訪で改めて投稿するため)
+          // 無料枠切れ等で投稿できなかった場合は未処理に戻す(プレミアム移行後の再訪で改めて投稿するため)。
+          // paywall へは push しないので、再フォーカスしてもループはしない
           autoReportHandled.current = null;
+          if (!canSendAiMessage()) setQuotaNotice(true);
         }
       });
       // send は毎レンダーで再生成されるため依存に含めない(二重投稿は autoReportHandled で防ぐ)
@@ -227,6 +245,25 @@ export default function CoachScreen() {
         }
       />
 
+      {/* 無料枠切れで自動報告できなかったときの控えめな案内。paywall へはユーザーのタップでのみ遷移する */}
+      {quotaNotice && !sending && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/paywall')}
+          style={({ pressed }) => [
+            styles.quotaNotice,
+            { backgroundColor: theme.backgroundElement },
+            pressed && { opacity: 0.8 },
+          ]}>
+          <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', lineHeight: 20 }}>
+            今日の無料枠を使い切ったため、ホトリのひとことは明日お伝えします。今日の記録は保存済みです
+          </ThemedText>
+          <ThemedText type="smallBold" style={{ color: theme.tint, textAlign: 'center' }}>
+            プレミアムの案内を見る
+          </ThemedText>
+        </Pressable>
+      )}
+
       {chips && !sending && (
         <View style={styles.chipsWrap}>
           <View style={styles.chipsRow}>
@@ -306,6 +343,13 @@ const styles = StyleSheet.create({
   assistantRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
   assistantBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 4, flexShrink: 1 },
   chipsWrap: { paddingHorizontal: Spacing.three, marginBottom: Spacing.two, gap: Spacing.two },
+  quotaNotice: {
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    borderRadius: 12,
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   reflectionBanner: {
     marginHorizontal: Spacing.three,

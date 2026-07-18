@@ -2,10 +2,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Celebration } from '@/components/celebration';
 import { Hotori } from '@/components/hotori';
-import { ProgressCard } from '@/components/progress-card';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
@@ -116,6 +116,7 @@ function ReportRow({ task, onToggle }: { task: DailyTask; onToggle?: () => void 
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const goal = useAppStore((s) => s.activeGoal);
 
@@ -203,33 +204,51 @@ export default function HomeScreen() {
     // v2から発火タイミングが「達成」でなく「提出」になったため、doneCount で0件提出と達成を区別できるようにする
     trackEvent(AnalyticsEvent.StreakAchieved, { streakCount: result.current, doneCount: checkedCount });
     setSheetVisible(false);
-    setCelebrating({ streak: result.current, isBest: result.current > prevBest });
+    // 「自己ベスト更新」は2日連続以上で初めて出す(初提出の1日連続で出すと演出の重みが薄れるため)。
+    // 祝いは全画面Modal: 確認シート(Modal)の閉じ処理と表示が競合しないよう、閉じ切ってから開く
+    // (デザイン00「提出→0.5秒で祝い演出」の間にもなる)
+    const isBest = result.current > prevBest && result.current > 1;
+    setTimeout(() => setCelebrating({ streak: result.current, isBest }), 450);
     refresh();
   };
 
   const hour = new Date().getHours();
   const greeting = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
 
-  // ---- 祝い演出(提出直後の全画面)----
-  if (celebrating) {
-    return (
-      <Screen withTabInset>
-        <Celebration
-          streak={celebrating.streak}
-          isBest={celebrating.isBest}
-          week={week}
-          segments={segments}
-          copyMain={summary.copyMain}
-          copySub={summary.copySub}
-          onListen={() => {
-            setCelebrating(null);
-            router.push({ pathname: '/coach', params: { autoReport: today } });
-          }}
-          onClose={() => setCelebrating(null)}
-        />
-      </Screen>
-    );
-  }
+  // ---- 祝い演出(提出直後)----
+  // デザイン03はタブバー非表示の全画面演出のため、タブ内表示でなくフルスクリーンModalで重ねる
+  const celebrationModal = (
+    <Modal
+      visible={celebrating !== null}
+      animationType={reduceMotion ? 'none' : 'fade'}
+      onRequestClose={() => setCelebrating(null)}>
+      <View
+        style={[
+          styles.celebrationRoot,
+          {
+            backgroundColor: theme.background,
+            paddingTop: insets.top + Spacing.two,
+            paddingBottom: insets.bottom + Spacing.two,
+          },
+        ]}>
+        {celebrating && (
+          <Celebration
+            streak={celebrating.streak}
+            isBest={celebrating.isBest}
+            week={week}
+            segments={segments}
+            copyMain={summary.copyMain}
+            copySub={summary.copySub}
+            onListen={() => {
+              setCelebrating(null);
+              router.push({ pathname: '/coach', params: { autoReport: today } });
+            }}
+            onClose={() => setCelebrating(null)}
+          />
+        )}
+      </View>
+    </Modal>
+  );
 
   // ---- 提出後のホーム(同日再訪。チェック追記可・再演出なし)----
   if (submitted) {
@@ -254,7 +273,12 @@ export default function HomeScreen() {
             </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-            {restDays > 0 ? `第${week.weekNo}週の旗まで、あと${restDays}日。` : `第${week.weekNo}週の旗に、たどり着きました。`}
+            {/* 期日到達後は週の旗でなくゴール到達を語る(「第N週の旗まで」が増え続けないように) */}
+            {summary.reached
+              ? 'ゴールまで、歩き切りました。'
+              : restDays > 0
+                ? `第${week.weekNo}週の旗まで、あと${restDays}日。`
+                : `第${week.weekNo}週の旗に、たどり着きました。`}
             {'\n'}ここまで続く人は多くありません。
           </ThemedText>
         </View>
@@ -271,8 +295,7 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
 
-        <ProgressCard week={week} segments={segments} copyMain={summary.copyMain} copySub={summary.copySub} />
-
+        {/* ジャーニーカードは祝い演出(週1回のご褒美)専用。ホームには常時表示しない(デザイン原本00-⑤/06) */}
         <View style={[styles.tomorrowCard, { backgroundColor: theme.sand }]}>
           <ThemedText type="small" style={{ fontWeight: '700', color: theme.sandText }}>
             明日の一歩(予告)
@@ -283,6 +306,8 @@ export default function HomeScreen() {
               : '明日も、今日と同じ歩幅で十分です。起きたらまずこの画面を開いてください。'}
           </ThemedText>
         </View>
+
+        {celebrationModal}
       </Screen>
     );
   }
@@ -310,7 +335,8 @@ export default function HomeScreen() {
         </View>
 
         <View style={[styles.kickoff, { backgroundColor: theme.tintSoft }]}>
-          <Hotori pose="normal" size={52} animate={reduceMotion ? undefined : 'idle'} />
+          {/* デザイン01の朝ひとことは円形・水辺グラデのアバター(bust) */}
+          <Hotori variant="bust" size={40} />
           <View style={styles.kickoffBody}>
             <ThemedText type="small" style={{ lineHeight: 22 }}>
               {greeting}。{summary.elapsedDays}日目の今日は、
@@ -322,7 +348,8 @@ export default function HomeScreen() {
             <View style={[styles.flagCount, { backgroundColor: theme.background }]}>
               <SymbolView name="flag.fill" size={12} tintColor={theme.tintDeep} />
               <ThemedText type="small" style={{ fontSize: 12, fontWeight: '700', color: theme.tintDeep }}>
-                第{week.weekNo}週の旗まで、あと{week.daysToFlag}日
+                {/* 期日到達後は週の旗でなくゴール到達を語る */}
+                {summary.reached ? 'ゴールまで、歩き切りました' : `第${week.weekNo}週の旗まで、あと${week.daysToFlag}日`}
               </ThemedText>
             </View>
           </View>
@@ -383,8 +410,7 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        <ProgressCard week={week} segments={segments} copyMain={summary.copyMain} copySub={summary.copySub} />
-
+        {/* ジャーニーカードは祝い演出(週1回のご褒美)専用。朝ホームには常時表示しない(デザイン原本00-⑤/01) */}
         <View style={styles.bottomArea}>
           <Button
             title={checkedCount > 0 ? `今日の記録をホトリに見せる(${checkedCount}件)` : '今日の記録をホトリに見せる'}
@@ -416,6 +442,8 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {celebrationModal}
     </>
   );
 }
@@ -509,4 +537,5 @@ const styles = StyleSheet.create({
   },
   grab: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center' },
   sheetTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  celebrationRoot: { flex: 1, paddingHorizontal: Spacing.three },
 });

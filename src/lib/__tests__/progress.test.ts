@@ -11,14 +11,19 @@ describe('progressSummary', () => {
     expect(s.elapsedDays).toBe(1);
   });
 
-  it('ゴール日は100%', () => {
+  it('ゴール日は100%で、「あと0日」でなく到達コピーを出す', () => {
     const s = progressSummary(START, TARGET, TARGET);
     expect(s.percent).toBe(100);
     expect(s.remainingDays).toBe(0);
+    expect(s.reached).toBe(true);
+    expect(s.copyMain).toBe('ゴールまで、歩き切りました');
   });
 
-  it('ゴールを過ぎても100%を超えない', () => {
-    expect(progressSummary(START, TARGET, '2026-10-15').percent).toBe(100);
+  it('ゴールを過ぎても100%を超えず、到達コピーのまま(日数が増え続けない)', () => {
+    const s = progressSummary(START, TARGET, '2026-10-15');
+    expect(s.percent).toBe(100);
+    expect(s.reached).toBe(true);
+    expect(s.copyMain).toBe('ゴールまで、歩き切りました');
   });
 
   it('開始前でも5%を下回らない', () => {
@@ -28,19 +33,22 @@ describe('progressSummary', () => {
   });
 
   it('序盤(50%未満)は「ここまで歩いた」を語る', () => {
-    // 13日目: 5 + 12/91*95 ≈ 18%
+    // 13日目: 5 + 12/91*95 = 17.5… → 18%(計算値そのものを固定値で検証する)
     const s = progressSummary(START, TARGET, '2026-07-13');
     expect(s.phase).toBe('early');
+    expect(s.percent).toBe(18);
     expect(s.copyMain).toBe('ここまで13日分、歩きました');
-    expect(s.copySub).toBe(`全体の${s.percent}%地点`);
+    expect(s.copySub).toBe('全体の18%地点');
   });
 
   it('終盤(50%以上)は「残り」を語る', () => {
-    // 82日目: 5 + 81/91*95 ≈ 90%
+    // 82日目: 5 + 81/91*95 = 89.5… → 90%、残り10日(計算値そのものを固定値で検証する)
     const s = progressSummary(START, TARGET, '2026-09-20');
     expect(s.phase).toBe('late');
-    expect(s.copyMain).toBe(`ゴールまで、あと${s.remainingDays}日`);
-    expect(s.copySub).toBe(`${s.percent}%地点`);
+    expect(s.percent).toBe(90);
+    expect(s.remainingDays).toBe(10);
+    expect(s.copyMain).toBe('ゴールまで、あと10日');
+    expect(s.copySub).toBe('90%地点');
   });
 
   it('ちょうど50%は終盤扱い', () => {

@@ -23,7 +23,9 @@ export type ProgressSummary = {
   remainingDays: number;
   /** 序盤(50%未満)か終盤(50%以上)か */
   phase: 'early' | 'late';
-  /** 主コピー: 序盤「ここまでN日分、歩きました」/ 終盤「ゴールまで、あとN日」 */
+  /** 目標期日に到達済みか(最終日・超過日)。「あと0日」を見せないための専用コピーに切り替える */
+  reached: boolean;
+  /** 主コピー: 序盤「ここまでN日分、歩きました」/ 終盤「ゴールまで、あとN日」/ 到達後「ゴールまで、歩き切りました」 */
   copyMain: string;
   /** 副コピー: 序盤「全体のX%地点」/ 終盤「X%地点」 */
   copySub: string;
@@ -32,6 +34,7 @@ export type ProgressSummary = {
 /**
  * 全体進捗のサマリー。percent は +5% の授かり進捗込み。
  * today が期間外でも 5〜100 にクランプする。
+ * 期日到達後(remainingDays=0)は「あと0日」でなく到達の専用コピーを返す。
  */
 export function progressSummary(startKey: string, targetKey: string, today: string): ProgressSummary {
   const totalDays = Math.max(1, diffDays(startKey, targetKey));
@@ -40,12 +43,18 @@ export function progressSummary(startKey: string, targetKey: string, today: stri
   const elapsedDays = walked + 1;
   const remainingDays = Math.max(0, totalDays - walked);
   const phase: ProgressSummary['phase'] = percent < 50 ? 'early' : 'late';
+  const reached = remainingDays === 0;
   return {
     percent,
     elapsedDays,
     remainingDays,
     phase,
-    copyMain: phase === 'early' ? `ここまで${elapsedDays}日分、歩きました` : `ゴールまで、あと${remainingDays}日`,
+    reached,
+    copyMain: reached
+      ? 'ゴールまで、歩き切りました'
+      : phase === 'early'
+        ? `ここまで${elapsedDays}日分、歩きました`
+        : `ゴールまで、あと${remainingDays}日`,
     copySub: phase === 'early' ? `全体の${percent}%地点` : `${percent}%地点`,
   };
 }
