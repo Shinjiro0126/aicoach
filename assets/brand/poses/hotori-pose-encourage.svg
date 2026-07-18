@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="240" height="300">
+  <!-- ホトリ: encourage ポーズ(自動生成: プロトタイプ hotori-brand-redesign.html が原本) -->
+  <defs>
+<g id="p-head">
+      <circle cx="30" cy="34" r="9" fill="#8B6B54"/><circle cx="30" cy="34" r="4" fill="#6E523E"/>
+      <circle cx="90" cy="34" r="9" fill="#8B6B54"/><circle cx="90" cy="34" r="4" fill="#6E523E"/>
+      <ellipse cx="60" cy="56" rx="36" ry="32" fill="#8B6B54"/>
+      <ellipse cx="60" cy="68" rx="23" ry="17" fill="#F0E4D2"/>
+      <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="#41302A"/>
+      <g stroke="#C9B79C" stroke-width="1.4" stroke-linecap="round">
+        <line x1="34" y1="63" x2="20" y2="60"/><line x1="34" y1="68" x2="20" y2="68"/>
+        <line x1="86" y1="63" x2="100" y2="60"/><line x1="86" y1="68" x2="100" y2="68"/>
+      </g>
+    </g>
+<g id="p-body">
+      <ellipse cx="97" cy="131" rx="14" ry="6" fill="#6E523E" transform="rotate(-24 97 131)"/>
+      <path d="M42 78 q18 12 36 0 v14 h-36 Z" fill="#8B6B54"/>
+      <ellipse cx="60" cy="112" rx="28" ry="26" fill="#7A5C47"/>
+      <ellipse cx="60" cy="119" rx="15" ry="14" fill="#F0E4D2"/>
+      <ellipse cx="46" cy="139" rx="8" ry="4.5" fill="#6E523E"/>
+      <ellipse cx="74" cy="139" rx="8" ry="4.5" fill="#6E523E"/>
+      <path d="M38 89 q22 -10 44 0 l-2.2 8.5 q-20 -8 -39.6 0 Z" fill="#1E7FB4"/>
+      <path d="M63 95 l10 3 -3 13 -9 -2.5 Z" fill="#2E9FD6"/>
+    </g>
+<g id="p-brows">
+      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(6 42 43)"/>
+      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-6 78 43)"/>
+    </g>
+<g id="p-brows-worry">
+      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-9 42 43)"/>
+      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(9 78 43)"/>
+    </g>
+<g id="p-eyes-open">
+      <circle cx="45" cy="53" r="3.6" fill="#241A14"/><circle cx="46.3" cy="51.8" r="1.1" fill="#fff"/>
+      <circle cx="75" cy="53" r="3.6" fill="#241A14"/><circle cx="76.3" cy="51.8" r="1.1" fill="#fff"/>
+    </g>
+<g id="p-eyes-happy" stroke="#241A14" stroke-width="2.4" fill="none" stroke-linecap="round">
+      <path d="M41 54 q4 -5 8 0"/><path d="M71 54 q4 -5 8 0"/>
+    </g>
+<g id="p-eyes-closed" stroke="#241A14" stroke-width="2.2" fill="none" stroke-linecap="round">
+      <path d="M41 53 q4 3.5 8 0"/><path d="M71 53 q4 3.5 8 0"/>
+    </g>
+<g id="p-mouth-neutral" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
+      <path d="M60 68 v3"/><path d="M53 74 q7 4 14 0"/>
+    </g>
+<g id="p-mouth-smile" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
+      <path d="M60 68 v3"/><path d="M51 73 q9 6.5 18 0"/>
+    </g>
+<g id="p-mouth-open">
+      <path d="M60 68 v2" stroke="#41302A" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="60" cy="76.5" rx="5.5" ry="4.2" fill="#41302A"/>
+    </g>
+<g id="p-mouth-worry" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
+      <path d="M60 68 v3"/><path d="M55 75 q5 -3.5 10 0"/>
+    </g>
+<g id="p-arms-down" stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+      <path d="M40 102 q-4 8 -3 15"/><path d="M80 102 q4 8 3 15"/>
+    </g>
+<g id="p-arms-up">
+      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+        <path d="M40 101 q-11 -7 -14 -18"/><path d="M80 101 q11 -7 14 -18"/>
+      </g>
+      <circle cx="25" cy="81" r="5.6" fill="#8B6B54"/><circle cx="95" cy="81" r="5.6" fill="#8B6B54"/>
+    </g>
+<g id="p-arm-point">
+      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+        <path d="M40 102 q-4 8 -3 15"/><path d="M78 102 q14 -5 22 -13"/>
+      </g>
+      <circle cx="102" cy="87" r="5.6" fill="#8B6B54"/>
+    </g>
+<g id="p-arm-cheer">
+      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+        <path d="M40 102 q-4 8 -3 15"/><path d="M78 103 q10 -1 15 -7"/>
+      </g>
+      <circle cx="95" cy="94" r="6" fill="#8B6B54"/>
+    </g>
+<g id="p-arms-crossed">
+      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+        <path d="M41 105 q19 11 37 -1"/><path d="M79 105 q-19 11 -37 -1"/>
+      </g>
+    </g>
+<g id="p-paws-together">
+      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
+        <path d="M41 103 q6 6 13 7"/><path d="M79 103 q-6 6 -13 7"/>
+      </g>
+      <circle cx="55" cy="111" r="5.6" fill="#8B6B54"/><circle cx="65" cy="111" r="5.6" fill="#8B6B54"/>
+    </g>
+<g id="p-zzz" fill="#5B87A3" font-weight="700">
+      <text x="94" y="40" font-size="10">z</text><text x="101" y="31" font-size="13">z</text><text x="110" y="21" font-size="16">z</text>
+    </g>
+<g id="p-bubbles" fill="#9DC3D9">
+      <circle cx="97" cy="45" r="3"/><circle cx="105" cy="36" r="4.6"/>
+    </g>
+<g id="p-sparkles" fill="#2E9FD6">
+      <path d="M18 66 l1.8 4.6 4.6 1.8 -4.6 1.8 -1.8 4.6 -1.8 -4.6 -4.6 -1.8 4.6 -1.8 Z"/>
+      <path d="M100 60 l1.5 3.8 3.8 1.5 -3.8 1.5 -1.5 3.8 -1.5 -3.8 -3.8 -1.5 3.8 -1.5 Z"/>
+    </g>
+<g id="p-clap-arcs" stroke="#2E9FD6" stroke-width="2" fill="none" stroke-linecap="round">
+      <path d="M45 100 q-4 5 -3 10"/><path d="M75 100 q4 5 3 10"/>
+    </g>
+  </defs>
+<use xlink:href="#p-head" href="#p-head"/><use xlink:href="#p-body" href="#p-body"/><use xlink:href="#p-arm-cheer" href="#p-arm-cheer"/>
+      <use xlink:href="#p-brows" href="#p-brows"/><use xlink:href="#p-eyes-open" href="#p-eyes-open"/><use xlink:href="#p-mouth-smile" href="#p-mouth-smile"/>
+</svg>

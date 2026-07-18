@@ -93,6 +93,15 @@ iOS本体アイコン(`assets/expo.icon`)は Icon Composer 形式のため手動
 3. レイヤー画像を、`assets/brand/hotori-icon.svg` から背景グラデーションを除いたキャラクター部分(頭部+スカーフのクロップ)に差し替える
 4. 保存後 `npx eas build --platform ios` でビルドに反映される(`app.json` の `ios.icon` 設定は変更不要)
 
+## キャラクターSVGアセット(デザインツール用)
+
+`assets/brand/poses/` に、外部デザインツール(Claude Design / Figma 等)にそのまま読み込める自己完結SVGを書き出し済み:
+
+- `hotori-pose-{normal|guide|thinking|celebrate|encourage|sleep|concern|applaud}.svg` — 全身ポーズ8種(viewBox 0 0 120 150)
+- `hotori-bust.svg` — バストアップ(チャットアバター用、viewBox 0 0 120 120)
+
+アプリ内での描画原本は `src/components/hotori.tsx`(react-native-svg)。キャラクターの形状を変更する場合は hotori.tsx とこれらのSVGの両方を更新すること。
+
 ## ブランドコンセプト
 
 誰にも見せない目標を、AIとふたりだけで一歩ずつ進める **「シークレット・ジャーニー」**。
