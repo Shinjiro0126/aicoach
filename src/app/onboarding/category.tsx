@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Hotori } from '@/components/hotori';
 import { StepDots } from '@/components/onboarding-steps';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,12 @@ export default function CategoryScreen() {
       </View>
 
       <View style={styles.header}>
-        <ThemedText type="subtitle">どんな分野で{'\n'}伴走しましょうか?</ThemedText>
+        <View style={styles.headerRow}>
+          <Hotori pose="guide" size={64} />
+          <ThemedText type="subtitle" style={{ flex: 1 }}>
+            どんな分野で{'\n'}伴走しましょうか?
+          </ThemedText>
+        </View>
         <ThemedText themeColor="textSecondary">
           カテゴリに合わせて、コーチの視点や質問が変わります。
         </ThemedText>
@@ -100,6 +106,7 @@ const styles = StyleSheet.create({
   brandNote: { gap: Spacing.half, marginTop: Spacing.three },
   brandTaglineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   header: { gap: Spacing.two, marginTop: Spacing.three },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   card: {
     width: '48%',

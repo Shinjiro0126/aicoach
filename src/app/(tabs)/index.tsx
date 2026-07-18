@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Fragment, useCallback, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useAnimatedValue, View } from 'react-native';
 
+import { Hotori } from '@/components/hotori';
 import { RoadmapJourney } from '@/components/roadmap-journey';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -95,8 +96,8 @@ export default function HomeScreen() {
         <ThemedText type="subtitle">{goal.title}</ThemedText>
         <View style={styles.streakRow}>
           <View style={styles.streakBadge}>
-            <SymbolView name="flame.fill" size={16} tintColor={theme.tint} />
-            <ThemedText type="smallBold" style={{ color: theme.tint }}>
+            <SymbolView name="flame.fill" size={16} tintColor={theme.tintDeep} />
+            <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
               {streak.current}日連続
             </ThemedText>
           </View>
@@ -148,9 +149,12 @@ export default function HomeScreen() {
 
       {action?.done && (
         <Card style={{ backgroundColor: theme.tintSoft }}>
-          <ThemedText>
-            おつかれさまでした!夜にコーチと1分だけ振り返ると、明日がもっと楽になります。
-          </ThemedText>
+          <View style={styles.coachHint}>
+            <Hotori variant="bust" size={32} />
+            <ThemedText style={{ flex: 1 }}>
+              おつかれさまでした。夜にコーチと1分だけ振り返ると、明日がもっと楽になります。
+            </ThemedText>
+          </View>
           <Button title="コーチと振り返る" variant="secondary" onPress={() => router.push('/coach')} />
         </Card>
       )}
@@ -218,8 +222,8 @@ export default function HomeScreen() {
         </Card>
       )}
 
-      <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+      <Card style={{ backgroundColor: theme.sand }}>
+        <ThemedText type="small" style={{ color: theme.sandText }}>
           あなたの動機
         </ThemedText>
         <ThemedText>{goal.why}</ThemedText>
@@ -241,6 +245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Spacing.two,
   },
+  coachHint: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   roadmapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   miniBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginTop: Spacing.one },
   miniDot: { width: 10, height: 10, borderRadius: 999 },

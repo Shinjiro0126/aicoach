@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
@@ -114,7 +115,17 @@ export default function CoachScreen() {
       style={{ flex: 1, backgroundColor: theme.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two, borderBottomColor: theme.border }]}>
-        <ThemedText type="smallBold">ホトリ</ThemedText>
+        <View style={styles.headerLeft}>
+          <Hotori variant="bust" size={40} />
+          <View>
+            <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+              ホトリ
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              あなたの目標の、先を歩いてきたコーチ
+            </ThemedText>
+          </View>
+        </View>
         {!premium && (
           <ThemedText type="small" themeColor="textSecondary">
             今日あと{remaining}回
@@ -128,19 +139,20 @@ export default function CoachScreen() {
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.list}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubble,
-              item.role === 'user'
-                ? [styles.userBubble, { backgroundColor: theme.tint }]
-                : [styles.assistantBubble, { backgroundColor: theme.backgroundElement }],
-            ]}>
-            <ThemedText style={{ color: item.role === 'user' ? theme.onTint : theme.text }}>
-              {item.content}
-            </ThemedText>
-          </View>
-        )}
+        renderItem={({ item }) =>
+          item.role === 'user' ? (
+            <View style={[styles.bubble, styles.userBubble, { backgroundColor: theme.tint }]}>
+              <ThemedText style={{ color: theme.onTint }}>{item.content}</ThemedText>
+            </View>
+          ) : (
+            <View style={styles.assistantRow}>
+              <Hotori variant="bust" size={28} />
+              <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.tintSoft }]}>
+                <ThemedText style={{ color: theme.text }}>{item.content}</ThemedText>
+              </View>
+            </View>
+          )
+        }
         ListEmptyComponent={
           <ThemedText themeColor="textSecondary" style={{ textAlign: 'center', marginTop: Spacing.six }}>
             今日の気分や困っていることを、気軽に話しかけてみてください。
@@ -199,8 +211,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexShrink: 1 },
   list: { padding: Spacing.three, gap: Spacing.two },
   bubble: {
     maxWidth: '82%',
@@ -209,7 +222,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   userBubble: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  assistantBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  assistantRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
+  assistantBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 4, flexShrink: 1 },
   reflectionBanner: {
     marginHorizontal: Spacing.three,
     marginBottom: Spacing.two,
