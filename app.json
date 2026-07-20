@@ -11,7 +11,8 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "dev.shinji.aicoach",
       "infoPlist": {
-        "CFBundleDevelopmentRegion": "ja"
+        "CFBundleDevelopmentRegion": "ja",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
