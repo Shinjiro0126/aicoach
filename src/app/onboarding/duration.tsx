@@ -96,6 +96,56 @@ function ThinkingDot({ delay, color, reduceMotion }: { delay: number; color: str
 }
 
 /** 考えの広がりを表す波紋1輪(2.6秒周期で広がって消える) */
+/** 折りたたみ表示する行数(カードの高さを3状態で共通に保つための初期値) */
+const REASON_COLLAPSED_LINES = 3;
+
+/**
+ * ホトリの理由文。通常は3行で表示し、収まらない場合だけ「すべて読む」で全文に展開できる。
+ * 展開はユーザーのタップ起点なので、カードが伸びてもレイアウトジャンプにはならない。
+ * reason が変わったら親側で key を変えて状態をリセットする。
+ */
+function ExpandableReason({ reason }: { reason: string }) {
+  const theme = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  // 全文の実際の行数。不可視の計測用コピーで一度だけ数える(表示側は clamp されるため測れない)
+  const [fullLines, setFullLines] = useState<number | null>(null);
+  const truncatable = (fullLines ?? 0) > REASON_COLLAPSED_LINES;
+
+  return (
+    <View>
+      {/* 展開時以外は常にclamp(計測完了前に全文がレイアウトされてカードが一瞬跳ねるのを防ぐ。3行以下の文には影響なし) */}
+      <ThemedText
+        type="small"
+        style={styles.recoReason}
+        numberOfLines={expanded ? undefined : REASON_COLLAPSED_LINES}>
+        {reason}
+      </ThemedText>
+      {fullLines === null && (
+        <ThemedText
+          type="small"
+          style={[styles.recoReason, styles.reasonMeasure]}
+          onTextLayout={(e) => setFullLines(e.nativeEvent.lines.length)}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants">
+          {reason}
+        </ThemedText>
+      )}
+      {truncatable && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? '理由文を閉じる' : '理由文をすべて読む'}
+          hitSlop={8}
+          onPress={() => setExpanded((v) => !v)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, alignSelf: 'flex-start' })}>
+          <ThemedText type="smallBold" style={{ color: theme.tint, fontSize: 12, lineHeight: 18 }}>
+            {expanded ? '閉じる' : 'すべて読む'}
+          </ThemedText>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 function RippleRing({ delay, color }: { delay: number; color: string }) {
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -225,10 +275,8 @@ export default function DurationScreen() {
                   ホトリのおすすめ: {weeksLabel(suggestion.weeks)}
                 </ThemedText>
               </Animated.View>
-              {/* 理由文は3行まで(カードの高さを3状態で共通に保つ。文字数上限はプロキシ側プロンプトでも制約) */}
-              <ThemedText type="small" style={styles.recoReason} numberOfLines={3}>
-                {suggestion.reason}
-              </ThemedText>
+              {/* 理由文: 通常3行、収まらない時だけ「すべて読む」で全文展開(keyで文言変更時に状態リセット) */}
+              <ExpandableReason key={suggestion.reason} reason={suggestion.reason} />
             </View>
           </Animated.View>
         )}
@@ -399,6 +447,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   recoReason: { lineHeight: 21 },
+  /** 全文の行数を数えるための不可視コピー。視覚・読み上げの両方から隠す */
+  reasonMeasure: { position: 'absolute', top: 0, left: 0, right: 0, opacity: 0 },
   grid: { flexDirection: 'row', gap: Spacing.two },
   cell: {
     flex: 1,
