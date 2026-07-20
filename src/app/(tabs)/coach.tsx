@@ -1,8 +1,9 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +17,7 @@ import { Hotori } from '@/components/hotori';
 import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
 import {
   addCheckin,
@@ -56,6 +57,17 @@ export default function CoachScreen() {
   const [chips, setChips] = useState<string[] | null>(null);
   /** 無料枠切れで自動報告をスキップしたときの控えめな案内(Issue #22) */
   const [quotaNotice, setQuotaNotice] = useState(false);
+  /** キーボード表示中はタブバー分の下余白が不要になる(タブバーはキーボードの下に隠れるため) */
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const listRef = useRef<FlatList<CoachMessage>>(null);
   /** 同じ日の実績カードを二重投稿しないためのガード */
   const autoReportHandled = useRef<string | null>(null);
@@ -292,7 +304,9 @@ export default function CoachScreen() {
       <View
         style={[
           styles.inputRow,
-          { paddingBottom: insets.bottom + BottomTabInset + Spacing.two, borderTopColor: theme.border },
+          // NativeTabs配下ではsafe areaのbottomにタブバー分が含まれるため、BottomTabInsetを足すと二重計上になる。
+          // キーボード表示中はタブバーが隠れるため最小限の余白に切り替える
+          { paddingBottom: keyboardOpen ? Spacing.two : insets.bottom + Spacing.two, borderTopColor: theme.border },
         ]}>
         <TextInput
           value={input}
