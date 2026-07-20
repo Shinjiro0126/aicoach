@@ -15,7 +15,8 @@ export default function GoalWhyScreen() {
   const { why, setWhy } = useOnboardingStore();
 
   return (
-    <Screen scroll>
+    // keyboardAvoiding: autoFocusでキーボードが出ても「次へ」に到達できるようにする(indexと同じ対応)
+    <Screen scroll keyboardAvoiding>
       <OnboardingNav current={4} />
 
       <View style={styles.header}>

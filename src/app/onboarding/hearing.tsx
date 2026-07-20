@@ -79,7 +79,8 @@ export default function HearingScreen() {
   const done = answeredCount >= questions.length;
   const remaining = questions.length - answeredCount;
 
-  const next = () => router.push('/onboarding/duration');
+  // 完了・スキップとも褒め+橋渡しページへ(そこで期間おすすめの先読みが始まる)
+  const next = () => router.push('/onboarding/bridge');
 
   // index番目の質問から回答を選び直す(表示位置は「先頭から連続回答済みの数」で
   // 決まるため、その質問"以降"の回答をまとめて消してチップ選択に戻す)
