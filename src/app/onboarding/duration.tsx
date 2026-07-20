@@ -2,19 +2,27 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Hotori } from '@/components/hotori';
 import { OnboardingNav } from '@/components/onboarding-steps';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
-import { toHearingPairs } from '@/constants/hearing';
 import { Spacing } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { useSuggestPrefetch } from '@/hooks/use-suggest-prefetch';
 import { useTheme } from '@/hooks/use-theme';
-import { suggestDuration } from '@/lib/ai/client';
-import type { SuggestResponse } from '@/lib/ai/types';
 import { clampWeeks, MAX_DURATION_WEEKS, MIN_DURATION_WEEKS, monthsToWeeks, weeksLabel } from '@/lib/roadmap';
-import { useAppStore } from '@/stores/app';
 import { useOnboardingStore } from '@/stores/onboarding';
 
 /** プリセット4種(月数)。選択状態は週数に換算して一元管理する */
@@ -24,6 +32,13 @@ const PRESETS: { months: number; big: string; unit: string }[] = [
   { months: 6, big: '6', unit: 'ヶ月' },
   { months: 12, big: '1', unit: '年' },
 ];
+
+/** 考え中カードの最低表示時間(一度見せたらこの時間は保つ。チラつき防止) */
+const MIN_THINKING_MS = 600;
+/** 考え中→結果のクロスフェード時間 */
+const FADE_MS = 450;
+/** おすすめバッジのpop(弾み)。プロトタイプの cubic-bezier(0.2, 1.5, 0.4, 1) 相当 */
+const POP_EASING = Easing.bezier(0.2, 1.5, 0.4, 1);
 
 /** ステッパーの丸ボタン(44ptタップ領域) */
 function StepperButton({
@@ -54,38 +69,121 @@ function StepperButton({
   );
 }
 
+/** 考え中のドット1粒(1.4秒周期の明滅。位相をずらして3粒並べる) */
+function ThinkingDot({ delay, color, reduceMotion }: { delay: number; color: string; reduceMotion: boolean }) {
+  const opacity = useSharedValue(0.25);
+  useEffect(() => {
+    if (reduceMotion) {
+      // reduce motion時は明滅させず静止表示
+      opacity.value = 0.6;
+      return;
+    }
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 420 }),
+          withTiming(0.25, { duration: 420 }),
+          withTiming(0.25, { duration: 560 }),
+        ),
+        -1,
+      ),
+    );
+    return () => cancelAnimation(opacity);
+  }, [delay, reduceMotion, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View style={[styles.thinkDot, { backgroundColor: color }, style]} />;
+}
+
+/** 考えの広がりを表す波紋1輪(2.6秒周期で広がって消える) */
+function RippleRing({ delay, color }: { delay: number; color: string }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(
+      delay,
+      withRepeat(withTiming(1, { duration: 2600, easing: Easing.out(Easing.quad) }), -1),
+    );
+    return () => cancelAnimation(progress);
+  }, [delay, progress]);
+  const style = useAnimatedStyle(() => {
+    const p = Math.min(progress.value / 0.8, 1);
+    const scale = 0.35 + 0.65 * p;
+    return { opacity: 0.5 * (1 - p), transform: [{ scaleX: scale }, { scaleY: scale }] };
+  });
+  return <Animated.View style={[styles.rippleRing, { borderColor: color }, style]} />;
+}
+
 export default function DurationScreen() {
   const theme = useTheme();
-  const { title, category, hearingAnswers, durationWeeks, setDurationWeeks } = useOnboardingStore();
-  const { deviceId } = useAppStore();
+  const reduceMotion = useReduceMotion();
+  const { title, durationWeeks, setDurationWeeks } = useOnboardingStore();
 
-  // AIの期間おすすめ。取得失敗時はカードを出さず通常フローにする(ブロッキングしない)
-  const [suggestion, setSuggestion] = useState<SuggestResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // 見立て(橋渡しページで先読み済みならここで即座に得られる)。
+  // フォールバック保証つきなので、時間はかかっても必ず結果が届く
+  const { suggestion } = useSuggestPrefetch();
 
+  // マウント時点で先読みが解決済みなら、考え中を経由せず最初から結果を表示する。
+  // 未解決なら考え中カードを出し、一度見せたら最低 MIN_THINKING_MS は保つ(チラつき防止)
+  const [minWaitDone, setMinWaitDone] = useState(() => suggestion != null);
   useEffect(() => {
-    let cancelled = false;
-    suggestDuration(
-      {
-        goalTitle: title,
-        category: category ?? undefined,
-        hearingAnswers: toHearingPairs(category, hearingAnswers),
-      },
-      deviceId,
-    )
-      .then((res) => {
-        if (!cancelled) setSuggestion({ weeks: clampWeeks(res.weeks), reason: res.reason });
-      })
-      .catch(() => {
-        // 失敗してもおすすめカードを出さないだけ(選択フローは通常どおり)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    if (minWaitDone) return;
+    const timer = setTimeout(() => setMinWaitDone(true), MIN_THINKING_MS);
+    return () => clearTimeout(timer);
+  }, [minWaitDone]);
+
+  const showResult = suggestion != null && minWaitDone;
+
+  // クロスフェード完了後は考え中をアンマウントする(泡・波紋のループを止める)
+  const [thinkingGone, setThinkingGone] = useState(() => suggestion != null);
+  useEffect(() => {
+    if (!showResult || thinkingGone) return;
+    const timer = setTimeout(() => setThinkingGone(true), reduceMotion ? 0 : FADE_MS);
+    return () => clearTimeout(timer);
+  }, [showResult, thinkingGone, reduceMotion]);
+
+  // 考え中(1 - fade)→ 結果(fade)のクロスフェード。reduce motion時は即時切り替え
+  const fade = useSharedValue(showResult ? 1 : 0);
+  useEffect(() => {
+    if (reduceMotion) {
+      fade.value = showResult ? 1 : 0;
+      return;
+    }
+    fade.value = withTiming(showResult ? 1 : 0, { duration: FADE_MS, easing: Easing.inOut(Easing.quad) });
+    return () => cancelAnimation(fade);
+  }, [showResult, reduceMotion, fade]);
+
+  // おすすめバッジのpop(カード内バッジ→少し遅れてグリッドのミニバッジ)
+  const pop = useSharedValue(0);
+  const miniPop = useSharedValue(0);
+  useEffect(() => {
+    if (!showResult) {
+      pop.value = 0;
+      miniPop.value = 0;
+      return;
+    }
+    if (reduceMotion) {
+      pop.value = 1;
+      miniPop.value = 1;
+      return;
+    }
+    pop.value = withTiming(1, { duration: 500, easing: POP_EASING });
+    miniPop.value = withDelay(250, withTiming(1, { duration: 500, easing: POP_EASING }));
     return () => {
-      cancelled = true;
+      cancelAnimation(pop);
+      cancelAnimation(miniPop);
     };
-  }, [title, category, hearingAnswers, deviceId]);
+  }, [showResult, reduceMotion, pop, miniPop]);
+
+  const thinkingStyle = useAnimatedStyle(() => ({ opacity: 1 - fade.value }));
+  const resultStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const badgeStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, pop.value),
+    transform: [{ scale: 0.6 + 0.4 * pop.value }],
+  }));
+  const miniBadgeStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, miniPop.value),
+    transform: [{ scale: 0.6 + 0.4 * miniPop.value }],
+  }));
 
   // ユーザー未選択の間は、AIおすすめ(なければ3ヶ月相当)を初期選択として表示する
   const selectedWeeks = durationWeeks ?? suggestion?.weeks ?? monthsToWeeks(3);
@@ -109,29 +207,57 @@ export default function DurationScreen() {
         </ThemedText>
       </View>
 
-      {loading && <View style={[styles.recoSkeleton, { backgroundColor: theme.backgroundElement }]} />}
-      {!loading && suggestion && (
-        <View style={[styles.recoCard, { backgroundColor: theme.tintSoft }]}>
-          <Hotori variant="bust" size={40} />
-          <View style={styles.recoBody}>
-            <View style={[styles.recoBadge, { backgroundColor: theme.tint }]}>
-              <SymbolView name="sparkles" size={11} tintColor={theme.onTint} />
-              <ThemedText type="small" style={{ color: theme.onTint, fontWeight: '700', fontSize: 11, lineHeight: 14 }}>
-                ホトリのおすすめ: {weeksLabel(suggestion.weeks)}
+      {/* おすすめカード: 考え中/結果で高さ共通(minHeight)のままクロスフェードする */}
+      <View style={[styles.recoCard, { backgroundColor: theme.tintSoft }]}>
+        {suggestion && (
+          <Animated.View style={[styles.recoContent, resultStyle]}>
+            <Hotori variant="bust" size={40} />
+            <View style={styles.recoBody}>
+              <Animated.View style={[styles.recoBadge, { backgroundColor: theme.tint }, badgeStyle]}>
+                <SymbolView name="sparkles" size={11} tintColor={theme.onTint} />
+                <ThemedText type="small" style={{ color: theme.onTint, fontWeight: '700', fontSize: 11, lineHeight: 14 }}>
+                  ホトリのおすすめ: {weeksLabel(suggestion.weeks)}
+                </ThemedText>
+              </Animated.View>
+              <ThemedText type="small" style={styles.recoReason}>
+                {suggestion.reason}
               </ThemedText>
             </View>
-            <ThemedText type="small" style={styles.recoReason}>
-              {suggestion.reason}
-            </ThemedText>
-          </View>
-        </View>
-      )}
+          </Animated.View>
+        )}
+        {!thinkingGone && (
+          <Animated.View style={[styles.thinkingOverlay, thinkingStyle]} pointerEvents="none">
+            <Hotori pose="thinking" size={56} animate="thinking" />
+            <View style={styles.recoBody}>
+              <View style={styles.thinkLineRow}>
+                <ThemedText type="smallBold" style={{ color: theme.tintDeep, fontSize: 13, lineHeight: 18 }}>
+                  ホトリが道のりを考えています
+                </ThemedText>
+                <View style={styles.thinkDots}>
+                  <ThinkingDot delay={0} color={theme.tintDeep} reduceMotion={reduceMotion} />
+                  <ThinkingDot delay={200} color={theme.tintDeep} reduceMotion={reduceMotion} />
+                  <ThinkingDot delay={400} color={theme.tintDeep} reduceMotion={reduceMotion} />
+                </View>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.thinkSub}>
+                現在地の答えをもとに、ちょうどいい歩幅を見立てています
+              </ThemedText>
+            </View>
+            {!reduceMotion && (
+              <View style={styles.ripple} pointerEvents="none">
+                <RippleRing delay={0} color={theme.tint} />
+                <RippleRing delay={1300} color={theme.tint} />
+              </View>
+            )}
+          </Animated.View>
+        )}
+      </View>
 
       <View style={styles.grid}>
         {PRESETS.map((p) => {
           const weeks = monthsToWeeks(p.months);
           const selected = selectedWeeks === weeks;
-          const recommended = suggestion?.weeks === weeks;
+          const recommended = showResult && suggestion?.weeks === weeks;
           return (
             <Pressable
               key={p.months}
@@ -148,11 +274,11 @@ export default function DurationScreen() {
                 },
               ]}>
               {recommended && (
-                <View style={[styles.miniBadge, { backgroundColor: theme.tint }]}>
+                <Animated.View style={[styles.miniBadge, { backgroundColor: theme.tint }, miniBadgeStyle]}>
                   <ThemedText type="small" style={{ color: theme.onTint, fontSize: 9, lineHeight: 12, fontWeight: '700' }}>
                     おすすめ
                   </ThemedText>
-                </View>
+                </Animated.View>
               )}
               <ThemedText type="smallBold" style={styles.cellBig}>
                 {p.big}
@@ -213,13 +339,42 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     maxWidth: '100%',
   },
-  recoSkeleton: { borderRadius: 16, height: 88, opacity: 0.6 },
   recoCard: {
+    borderRadius: 16,
+    minHeight: 120,
+    padding: Spacing.three - 2,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  recoContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.three - 4,
-    borderRadius: 16,
+  },
+  thinkingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     padding: Spacing.three - 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - 4,
+  },
+  thinkLineRow: { flexDirection: 'row', alignItems: 'center' },
+  thinkDots: { flexDirection: 'row', gap: 3, marginLeft: 3 },
+  thinkDot: { width: 4, height: 4, borderRadius: 2 },
+  thinkSub: { fontSize: 11.5, lineHeight: 17 },
+  ripple: { position: 'absolute', left: 22, bottom: 8, width: 44, height: 8 },
+  rippleRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 1.5,
+    borderRadius: 999,
   },
   recoBody: { flex: 1, gap: Spacing.one + 2 },
   recoBadge: {

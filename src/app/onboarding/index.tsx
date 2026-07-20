@@ -30,7 +30,8 @@ export default function GoalTitleScreen() {
   );
 
   return (
-    <Screen scroll>
+    // keyboardAvoiding: autoFocusでキーボードが出ても「AIのおすすめ」チップと「次へ」に到達できるようにする
+    <Screen scroll keyboardAvoiding>
       <OnboardingNav current={1} />
 
       <View style={styles.header}>

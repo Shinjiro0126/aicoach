@@ -1,4 +1,5 @@
 import { clampWeeks, monthsToWeeks, weeksLabel } from '@/lib/roadmap';
+import { fallbackSuggestion } from './suggest-fallback';
 import type {
   CoachRequest,
   CoachResponse,
@@ -60,27 +61,21 @@ export function mockCoach(req: CoachRequest): CoachResponse {
   return { reply: pool[index] };
 }
 
-/** カテゴリ別の基準週数(習慣系は3ヶ月相当、積み上げ系は6ヶ月相当) */
-const SUGGEST_BASE_WEEKS: Record<string, number> = {
-  health: 13,
-  training: 13,
-  career: 26,
-  learning: 26,
-  money: 26,
-  other: 13,
-};
-
 /**
  * 期間おすすめのモック(API未設定時のフォールバック)。
- * カテゴリの基準週数を、ヒアリング回答の内容でざっくり補正するヒューリスティック。
+ * カテゴリ別の決定的な見立て(suggest-fallback.ts)を基準に、
+ * ヒアリング回答の内容でざっくり補正するヒューリスティック。
  */
 export function mockSuggest(req: SuggestRequest): SuggestResponse {
-  let weeks = SUGGEST_BASE_WEEKS[req.category ?? 'other'] ?? 13;
+  const base = fallbackSuggestion(req.category, req.goalTitle);
   const answers = (req.hearingAnswers ?? []).map((p) => p.answer).join(' ');
+  let weeks = base.weeks;
   // ゼロから・初挑戦なら長めに、すでに習慣がある人は短めに補正する
   if (/(ほとんど|まったく|まだ何も|初めて|初学者)/.test(answers)) weeks += 4;
   if (/(ほぼ毎日|続いた経験|習慣になっている|今も少し続けている)/.test(answers)) weeks -= 4;
   weeks = clampWeeks(weeks);
+  // 補正がなければカテゴリ別の理由文をそのまま使う(理由文中の期間表記と週数を一致させる)
+  if (weeks === base.weeks) return base;
   return {
     weeks,
     reason: `私の経験では、この目標は${weeksLabel(weeks)}かけるのが現実的です。急ぐより、続く速さを選びましょう。`,

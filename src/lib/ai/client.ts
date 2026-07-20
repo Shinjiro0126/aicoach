@@ -1,5 +1,7 @@
 import { Config } from '@/constants/config';
+import { clampWeeks } from '@/lib/roadmap';
 import { mockCoach, mockPlan, mockSuggest } from './mock';
+import { fallbackSuggestion, SUGGEST_TIMEOUT_MS, withTimeout } from './suggest-fallback';
 import {
   AiError,
   type CoachRequest,
@@ -55,9 +57,25 @@ export async function chatWithCoach(req: CoachRequest, deviceId: string): Promis
 /**
  * 達成期間のおすすめ(週数+理由)。
  * 無料枠(1日10回の対話クォータ)のカウント対象にはしない(プロキシ側レート制限のみ)。
- * 失敗時は呼び出し側でカードを出さない前提(ブロッキングにしない)。
  */
 export async function suggestDuration(req: SuggestRequest, deviceId: string): Promise<SuggestResponse> {
   if (isMockMode()) return mockSuggest(req);
   return post<SuggestResponse>('/v1/suggest', req, deviceId);
+}
+
+/**
+ * 達成期間のおすすめ(フォールバック保証つき)。reject しない。
+ * 失敗・6秒タイムアウト時はカテゴリ別の決定的な見立てに切り替えて、
+ * 成功時と同じ形で必ず解決する(「おすすめは必ず出す」方針)。
+ */
+export async function suggestDurationWithFallback(
+  req: SuggestRequest,
+  deviceId: string,
+): Promise<SuggestResponse> {
+  try {
+    const res = await withTimeout(suggestDuration(req, deviceId), SUGGEST_TIMEOUT_MS);
+    return { weeks: clampWeeks(res.weeks), reason: res.reason };
+  } catch {
+    return fallbackSuggestion(req.category, req.goalTitle);
+  }
 }
