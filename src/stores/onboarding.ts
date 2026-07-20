@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { GoalCategory } from '@/constants/categories';
+import { fallbackSuggestion } from '@/lib/ai/suggest-fallback';
 import type { SuggestResponse } from '@/lib/ai/types';
 
 /**
@@ -75,11 +76,20 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     if (get().suggestion?.key === key) return;
     const promise = start();
     set({ suggestion: { key, promise, result: null } });
-    promise.then((result) => {
-      // 解決までに入力が変わって別keyの取得が始まっていたら、この結果は捨てる
-      const current = get().suggestion;
-      if (current?.key === key) set({ suggestion: { ...current, result } });
-    });
+    promise
+      .then((result) => {
+        // 解決までに入力が変わって別keyの取得が始まっていたら、この結果は捨てる
+        const current = get().suggestion;
+        if (current?.key === key) set({ suggestion: { ...current, result } });
+      })
+      .catch(() => {
+        // 契約違反(rejectするPromiseが渡された)への防御。考え中が永久表示にならないよう、
+        // カテゴリ別のフォールバック見立てで必ず結果を届ける(unhandled rejectionも防ぐ)
+        const current = get().suggestion;
+        if (current?.key === key) {
+          set({ suggestion: { ...current, result: fallbackSuggestion(get().category, get().title) } });
+        }
+      });
   },
   reset: () =>
     set({ category: null, title: '', durationWeeks: null, why: '', hearingAnswers: {}, suggestion: null }),

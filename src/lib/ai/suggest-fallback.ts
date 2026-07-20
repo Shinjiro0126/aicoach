@@ -10,6 +10,14 @@ import type { HearingPair, SuggestResponse } from './types';
 /** 見立てAPIの待ち時間上限(これを超えたらフォールバック見立てに切り替える) */
 export const SUGGEST_TIMEOUT_MS = 6_000;
 
+/**
+ * 理由文の文字数上限(全角換算)。おすすめカードの理由文は3行表示が上限で、
+ * これを超えるとカードが伸びてレイアウトが跳ねる。プロキシ側プロンプト
+ * (proxy/src/prompts.ts の SUGGEST_SYSTEM)の「全角55文字以内」と、
+ * duration.tsx の numberOfLines={3} はこの値を前提にしている。
+ */
+export const SUGGEST_REASON_MAX_CHARS = 55;
+
 /** カテゴリ別の基準週数(習慣系は3ヶ月相当、積み上げ系は6ヶ月相当) */
 export const FALLBACK_WEEKS: Record<string, number> = {
   health: 13,

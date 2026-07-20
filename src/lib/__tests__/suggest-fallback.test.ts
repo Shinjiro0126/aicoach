@@ -2,6 +2,7 @@ import { mockSuggest } from '../ai/mock';
 import {
   buildSuggestKey,
   fallbackSuggestion,
+  SUGGEST_REASON_MAX_CHARS,
   SUGGEST_TIMEOUT_MS,
   withTimeout,
 } from '../ai/suggest-fallback';
@@ -29,6 +30,22 @@ describe('suggest-fallback', () => {
       expect(fallbackSuggestion('career', '目標').reason).toContain('6ヶ月');
       expect(fallbackSuggestion('learning', '目標').reason).toContain('6ヶ月');
       expect(fallbackSuggestion('money', '目標').reason).toContain('6ヶ月');
+    });
+
+    it('理由文はカード3行(全角55文字)に収まる長さ(レイアウトジャンプ防止)', () => {
+      // 上限を超えるとおすすめカードが伸びてクロスフェード中にレイアウトが跳ねる。
+      // プロキシ側プロンプト(SUGGEST_SYSTEM)の「全角55文字以内」と同じ前提
+      for (const cat of ['health', 'training', 'career', 'learning', 'money', 'other', null]) {
+        const { reason } = fallbackSuggestion(cat, '毎日日記を書く');
+        expect([...reason].length).toBeLessThanOrEqual(SUGGEST_REASON_MAX_CHARS);
+      }
+      // mockSuggest のヒアリング補正後の理由文も同じ上限に収まる
+      const adjusted = mockSuggest({
+        goalTitle: 'ベンチプレス80kgを上げる',
+        category: 'training',
+        hearingAnswers: [{ question: '頻度は?', answer: 'まったくしていない' }],
+      });
+      expect([...adjusted.reason].length).toBeLessThanOrEqual(SUGGEST_REASON_MAX_CHARS);
     });
 
     it('エラーの気配を出す文言を含まない(成功時と同じ見た目で出すため)', () => {

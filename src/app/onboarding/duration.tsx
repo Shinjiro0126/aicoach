@@ -185,8 +185,10 @@ export default function DurationScreen() {
     transform: [{ scale: 0.6 + 0.4 * miniPop.value }],
   }));
 
-  // ユーザー未選択の間は、AIおすすめ(なければ3ヶ月相当)を初期選択として表示する
-  const selectedWeeks = durationWeeks ?? suggestion?.weeks ?? monthsToWeeks(3);
+  // ユーザー未選択の間は、AIおすすめ(なければ3ヶ月相当)を初期選択として表示する。
+  // おすすめの反映は showResult(クロスフェードの瞬間)でゲートし、考え中の最低表示中に
+  // 解決しても選択枠・ステッパーだけが先に切り替わらないようにする(カード・ミニバッジと同期)
+  const selectedWeeks = durationWeeks ?? (showResult ? suggestion?.weeks : undefined) ?? monthsToWeeks(3);
 
   const next = () => {
     // 初期選択のまま進んだ場合もストアに確定させる(戻ったときに選択が保持される)
@@ -210,7 +212,11 @@ export default function DurationScreen() {
       {/* おすすめカード: 考え中/結果で高さ共通(minHeight)のままクロスフェードする */}
       <View style={[styles.recoCard, { backgroundColor: theme.tintSoft }]}>
         {suggestion && (
-          <Animated.View style={[styles.recoContent, resultStyle]}>
+          <Animated.View
+            style={[styles.recoContent, resultStyle]}
+            // 考え中の間は不可視(opacity 0)のままマウントされるため、スクリーンリーダーからも隠す
+            accessibilityElementsHidden={!showResult}
+            importantForAccessibility={showResult ? 'auto' : 'no-hide-descendants'}>
             <Hotori variant="bust" size={40} />
             <View style={styles.recoBody}>
               <Animated.View style={[styles.recoBadge, { backgroundColor: theme.tint }, badgeStyle]}>
@@ -219,14 +225,20 @@ export default function DurationScreen() {
                   ホトリのおすすめ: {weeksLabel(suggestion.weeks)}
                 </ThemedText>
               </Animated.View>
-              <ThemedText type="small" style={styles.recoReason}>
+              {/* 理由文は3行まで(カードの高さを3状態で共通に保つ。文字数上限はプロキシ側プロンプトでも制約) */}
+              <ThemedText type="small" style={styles.recoReason} numberOfLines={3}>
                 {suggestion.reason}
               </ThemedText>
             </View>
           </Animated.View>
         )}
         {!thinkingGone && (
-          <Animated.View style={[styles.thinkingOverlay, thinkingStyle]} pointerEvents="none">
+          <Animated.View
+            style={[styles.thinkingOverlay, thinkingStyle]}
+            pointerEvents="none"
+            // クロスフェード開始後(フェードアウト中)はスクリーンリーダーからも隠す
+            accessibilityElementsHidden={showResult}
+            importantForAccessibility={showResult ? 'no-hide-descendants' : 'auto'}>
             <Hotori pose="thinking" size={56} animate="thinking" />
             <View style={styles.recoBody}>
               <View style={styles.thinkLineRow}>

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
 import { OnboardingNav } from '@/components/onboarding-steps';
@@ -19,6 +19,13 @@ const HOTORI_SIZE = 128;
 const PX = HOTORI_SIZE / 120;
 /** 考え中の泡の色(hotori.tsx の BUBBLE と同じ値) */
 const BUBBLE_COLOR = '#9DC3D9';
+
+/**
+ * チップのアイコン。bubbles.and.sparkles は SF Symbols 5(iOS 17+)で、
+ * それ未満のiOSでは SymbolView が何も描画しないため sparkles(iOS 13+)に落とす。
+ */
+const CHIP_SYMBOL =
+  Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) < 17 ? 'sparkles' : 'bubbles.and.sparkles';
 
 /**
  * 泡の静止表示(reduce motion時用)。
@@ -84,7 +91,7 @@ export default function BridgeScreen() {
         </ThemedText>
 
         <View style={[styles.chip, { backgroundColor: theme.tintSoft }]}>
-          <SymbolView name="bubbles.and.sparkles" size={16} tintColor={theme.tint} />
+          <SymbolView name={CHIP_SYMBOL} size={16} tintColor={theme.tint} />
           <ThemedText type="smallBold" style={{ color: theme.tintDeep, fontSize: 12, lineHeight: 16 }}>
             あなたと一緒に、ホトリも考えはじめています
           </ThemedText>
