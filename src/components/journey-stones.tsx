@@ -27,8 +27,8 @@ import { journeySummaryLabel, type JourneyDay } from '@/lib/insight-stats';
 
 /** 水面の色(デザイン原本の --water / --water-deep / --stone。テーマ定義外の風景専用色) */
 const WATER_COLORS = {
-  light: { water: '#D5EEFB', waterDeep: '#BFE4F7', stone: '#8FCBE8' },
-  dark: { water: '#0B2231', waterDeep: '#12354C', stone: '#23566F' },
+  light: { water: '#D5EEFB', waterDeep: '#BFE4F7', stone: '#8FCBE8', foam: 'rgba(255,255,255,0.55)' },
+  dark: { water: '#0B2231', waterDeep: '#12354C', stone: '#23566F', foam: 'rgba(255,255,255,0.18)' },
 } as const;
 
 export type JourneyStonesProps = {
@@ -73,6 +73,8 @@ type StoneColors = {
   tintSoft: string;
   water: string;
   stone: string;
+  /** 波打ち際の泡の線(汀線) */
+  foam: string;
 };
 
 /** 飛び石1つ。今日の石は状態に依らず深瀬ブルー(ホトリが立つ石) */
@@ -200,12 +202,37 @@ function ColdJourneySvg({
         stone={colors.stone}
         paths={['M150 20 q7 -4 14 0', 'M250 88 q7 -4 14 0', 'M80 92 q7 -4 14 0']}
       />
-      {/* スタートの岸: 濃い縁+砂地の二層と小石で、ベタ塗り一枚の安っぽさを消す */}
-      <Path d="M-6 22 q36 3 42 30 q5 23 -8 62 h-34 Z" fill={sandText} opacity={0.2} />
-      <Path d="M-6 26 q31 3 36 27 q4 21 -7 57 h-29 Z" fill={sand} />
-      <Ellipse cx={11} cy={86} rx={4} ry={2.6} fill={sandText} opacity={0.3} />
-      <Ellipse cx={22} cy={94} rx={3} ry={2} fill={sandText} opacity={0.22} />
-      <SvgText x={5} y={52} fontSize={8} fill={sandText} fontWeight="700">
+      {/* スタートの岸: 画面左端から上下いっぱいに続く陸地。ゆらいだ汀線+泡+草+立て札で「岸」を記号化する */}
+      {/* 陸地(波打つ海岸線で上下端まで) */}
+      <Path
+        d="M0 0 H30 Q38 14 30 26 Q42 40 33 56 Q42 72 30 86 Q24 96 28 108 H0 Z"
+        fill={sand}
+      />
+      {/* 波打ち際の泡の線(汀線を少し水側でなぞる) */}
+      <Path
+        d="M33 0 Q41 14 33 26 Q45 40 36 56 Q45 72 33 86 Q27 96 31 108"
+        stroke={colors.foam}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="round"
+      />
+      {/* 岸辺の草 */}
+      <G stroke={sandText} strokeWidth={1.3} strokeLinecap="round" opacity={0.7} fill="none">
+        <Path d="M20 16 q1 -5 4 -7" />
+        <Path d="M23 17 q0 -6 -2 -8" />
+        <Path d="M14 76 q1 -5 4 -6" />
+        <Path d="M17 77 q0 -5 -2 -7" />
+      </G>
+      {/* 小石 */}
+      <Ellipse cx={12} cy={96} rx={3.6} ry={2.4} fill={sandText} opacity={0.3} />
+      <Ellipse cx={21} cy={101} rx={2.6} ry={1.8} fill={sandText} opacity={0.22} />
+      {/* 立て札「スタート」 */}
+      <Line x1={16} y1={44} x2={16} y2={58} stroke={sandText} strokeWidth={2.4} strokeLinecap="round" />
+      <Path
+        d="M4 28 h24 q3 0 3 3 v10 q0 3 -3 3 h-24 q-3 0 -3 -3 v-10 q0 -3 3 -3 Z"
+        fill={sandText}
+      />
+      <SvgText x={16} y={39} fontSize={7} fill={sand} fontWeight="700" textAnchor="middle">
         スタート
       </SvgText>
       {days.slice(0, COLD_POSITIONS.length).map((day, i) => (
@@ -234,6 +261,7 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
     tintSoft: theme.tintSoft,
     water: water.water,
     stone: water.stone,
+    foam: water.foam,
   };
 
   const todayIndex = days.findIndex((d) => d.isToday);
