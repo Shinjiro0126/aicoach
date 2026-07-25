@@ -1,8 +1,11 @@
+import { buildInsightFallback } from '@/lib/insight-stats';
 import { clampWeeks, monthsToWeeks, weeksLabel } from '@/lib/roadmap';
 import { fallbackSuggestion } from './suggest-fallback';
 import type {
   CoachRequest,
   CoachResponse,
+  InsightRequest,
+  InsightResponse,
   PlanRequest,
   PlanResponse,
   SuggestRequest,
@@ -80,6 +83,15 @@ export function mockSuggest(req: SuggestRequest): SuggestResponse {
     weeks,
     reason: `私の経験では、この目標は${weeksLabel(weeks)}かけるのが現実的です。急ぐより、続く速さを選びましょう。`,
   };
+}
+
+/**
+ * 観察手帳のモック(API未設定時)。
+ * 統計値からの決定的なフォールバック文(insight-stats.ts)をそのまま使う。
+ * EXPO_PUBLIC_COACH_API_URL 未設定でも手帳が必ず表示できる
+ */
+export function mockInsight(req: InsightRequest): InsightResponse {
+  return buildInsightFallback(req);
 }
 
 /** オフライン時に画面へ出す定型文 */

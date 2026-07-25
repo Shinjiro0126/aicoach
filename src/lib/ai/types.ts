@@ -1,5 +1,7 @@
 /** アプリ⇔プロキシ間のAPI型定義(proxy/src/index.ts と対応) */
 
+import type { InsightContent, InsightStats } from '@/lib/insight-stats';
+
 /** 現在地ヒアリングの回答1件(質問文と選んだチップの文言) */
 export type HearingPair = { question: string; answer: string };
 
@@ -65,6 +67,21 @@ export type SuggestResponse = {
   /** おすすめ理由(ホトリの口調・2文以内) */
   reason: string;
 };
+
+/**
+ * 観察手帳(/v1/insight)のリクエスト。
+ * 端末内で集計した統計値(数値+カテゴリenum)のみで構成する。
+ * タスク名・目標タイトル・会話・ヒアリング回答などの自由テキストは絶対に含めない。
+ */
+export type InsightRequest = InsightStats & {
+  /** 観察対象の週番号(1-based) */
+  weekNo: number;
+  /** 目標カテゴリ(GoalCategory の enum値のみ。自由入力は不可) */
+  category?: string;
+};
+
+/** 観察手帳のレスポンス(総評・タイプ名・曜日解説・作戦) */
+export type InsightResponse = InsightContent;
 
 export class AiError extends Error {
   constructor(

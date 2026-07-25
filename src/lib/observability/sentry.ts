@@ -23,7 +23,7 @@ export function isCoachApiUrl(url: string | undefined): boolean {
   // ベースURLが設定されていれば、コーチAPI配下の全エンドポイントを対象にする
   if (Config.coachApiUrl && url.startsWith(Config.coachApiUrl)) return true;
   // フォールバック: 既知のエンドポイントをパスパターンで判定する
-  return /\/v1\/(coach|plan|suggest)(\?|\/|$)/.test(url);
+  return /\/v1\/(coach|plan|suggest|insight)(\?|\/|$)/.test(url);
 }
 
 /**

@@ -290,6 +290,22 @@ export function listReportDates(goalId: string): string[] {
     .map((r) => r.dateKey);
 }
 
+/**
+ * 提出記録の一覧(観察手帳の集計用)。
+ * 日付キー・提出時刻・チェック件数のみ返す(タスク名などのテキストは含めない)
+ */
+export function listReports(goalId: string): { dateKey: string; submittedAt: number; doneCount: number }[] {
+  return db
+    .select({
+      dateKey: dailyReports.dateKey,
+      submittedAt: dailyReports.submittedAt,
+      doneCount: dailyReports.doneCount,
+    })
+    .from(dailyReports)
+    .where(eq(dailyReports.goalId, goalId))
+    .all();
+}
+
 // ---- Checkins ----
 
 export function addCheckin(goalId: string, date: string, mood: number | null, note: string | null): Checkin {
