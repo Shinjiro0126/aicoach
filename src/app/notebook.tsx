@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
@@ -11,12 +11,13 @@ import { Spacing } from '@/constants/theme';
 import { listReports } from '@/db/repo';
 import { generateInsightWithFallback } from '@/lib/ai/client';
 import type { InsightRequest } from '@/lib/ai/types';
-import { formatJP, toDateKey, todayKey } from '@/lib/dates';
+import { formatJP, todayKey } from '@/lib/dates';
 import {
   buildInsightFallback,
   buildTeaser,
   comebackText,
   computeInsightStats,
+  firstReportDateKey,
   maxTimeBand,
   notebookSchedule,
   TIME_BAND_LABELS,
@@ -175,10 +176,16 @@ function TimeBandCells({ stats }: { stats: InsightStats }) {
 /** 復帰力カード(分母ゼロは「まだ一度も止まっていません」) */
 function ComebackCard({ stats }: { stats: InsightStats }) {
   const theme = useTheme();
-  const big = stats.stops > 0 ? `${Math.round((stats.nextDayReturns / stats.stops) * 100)}%` : '0回';
   return (
     <View style={[styles.comeback, { borderColor: theme.border, backgroundColor: theme.background }]}>
-      <ThemedText style={[styles.comebackPct, { color: theme.tint }]}>{big}</ThemedText>
+      {stats.stops > 0 ? (
+        <ThemedText style={[styles.comebackPct, { color: theme.tint }]}>
+          {Math.round((stats.nextDayReturns / stats.stops) * 100)}%
+        </ThemedText>
+      ) : (
+        // 一度も止まっていない場合は文脈のない「0回」を出さず、歩き続けている図像で代える
+        <SymbolView name="figure.walk" size={26} tintColor={theme.tint} />
+      )}
       <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, lineHeight: 19 }}>
         {comebackText(stats)}
       </ThemedText>
@@ -204,6 +211,12 @@ function LetterCard({ letter }: { letter: string }) {
   );
 }
 
+/**
+ * 生成中ガード(goalId:週番号)。画面のアンマウント直後の再入で旧リクエストが生きたまま
+ * 新規生成が走らないよう、ref ではなくモジュールスコープに置く
+ */
+const inFlightInsightKeys = new Set<string>();
+
 export default function NotebookScreen() {
   const theme = useTheme();
   const goal = useAppStore((s) => s.activeGoal);
@@ -214,20 +227,21 @@ export default function NotebookScreen() {
 
   const [reports, setReports] = useState<ReportEntry[]>([]);
   const [streak, setStreak] = useState<StreakResult>({ current: 0, best: 0, graceUsedOn: [] });
-  const inFlight = useRef(false);
+  const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(() => {
     if (!goal) return;
     const rows = listReports(goal.id);
     setReports(rows);
     setStreak(computeStreak(rows.map((r) => r.dateKey), todayKey()));
+    setLoaded(true);
   }, [goal]);
 
   useFocusEffect(refresh);
 
   const today = todayKey();
-  const startKey = goal ? toDateKey(new Date(goal.createdAt)) : today;
-  const schedule = notebookSchedule(startKey, today);
+  // 「データ2週」の判定は初提出日基準(stats.observedDays と同じ起点)に統一(Issue #30)
+  const schedule = notebookSchedule(firstReportDateKey(reports), today);
   const stats = computeInsightStats(reports, today, streak);
 
   const cacheMatched =
@@ -235,36 +249,60 @@ export default function NotebookScreen() {
     insightCache !== null &&
     insightCache.goalId === goal.id &&
     insightCache.weekNo === schedule.availableWeekNo;
-  // 週次更新日(週の旗の日)を過ぎてキャッシュが古い/無い場合に新規生成する。
-  // プレミアム化した瞬間も、蓄積データがあれば同じ条件で即生成される
-  const needsGenerate = premium && goal !== null && schedule.availableWeekNo > 0 && !cacheMatched;
-  // 前回フォールバック文で保存された場合は、次に開いたとき静かに再生成を試みる
-  const retryFallback = premium && cacheMatched && insightCache !== null && insightCache.fallback;
 
   useEffect(() => {
-    if (!goal || !(needsGenerate || retryFallback) || inFlight.current) return;
-    inFlight.current = true;
+    if (!goal || !premium) return;
+    // マウントコミット時点では useFocusEffect(refresh) の setReports がまだ state に反映されておらず、
+    // 空の reports から全ゼロ統計で生成・キャッシュしてしまうため(Issue #29)、
+    // 生成の判定と集計は state を介さず DB から直接読み直した記録で行う
+    const todayNow = todayKey();
+    const rows = listReports(goal.id);
+    const freshStreak = computeStreak(rows.map((r) => r.dateKey), todayNow);
+    const freshSchedule = notebookSchedule(firstReportDateKey(rows), todayNow);
+    // データ2週未満は「観察中」で、生成しない
+    if (freshSchedule.availableWeekNo === 0) return;
+    const freshCacheMatched =
+      insightCache !== null &&
+      insightCache.goalId === goal.id &&
+      insightCache.weekNo === freshSchedule.availableWeekNo;
+    // 前回フォールバック文で保存された場合は、次に開いたとき静かに再生成を試みる。
+    // それ以外は、週次更新日(週の旗の日)を過ぎてキャッシュが古い/無い場合に新規生成する。
+    // プレミアム化した瞬間も、蓄積データがあれば同じ条件で即生成される
+    const retryFallback = freshCacheMatched && insightCache.fallback;
+    if (freshCacheMatched && !retryFallback) return;
+    const key = `${goal.id}:${freshSchedule.availableWeekNo}`;
+    if (inFlightInsightKeys.has(key)) return;
+    inFlightInsightKeys.add(key);
     const request: InsightRequest = {
-      ...stats,
-      weekNo: schedule.availableWeekNo,
+      ...computeInsightStats(rows, todayNow, freshStreak),
+      weekNo: freshSchedule.availableWeekNo,
       category: goal.category,
     };
     // 失敗・タイムアウトでもフォールバック文で必ず解決する(rejectしない)
     generateInsightWithFallback(request, deviceId).then((result) => {
-      inFlight.current = false;
+      inFlightInsightKeys.delete(key);
       // 再生成の試みが再び失敗した場合は、表示中のフォールバック文を上書きしない
       if (retryFallback && result.fallback) return;
       setInsight({
         goalId: goal.id,
-        weekNo: schedule.availableWeekNo,
+        weekNo: freshSchedule.availableWeekNo,
         insight: result.insight,
         generatedAt: Date.now(),
         fallback: result.fallback,
       });
     });
-  }, [goal, needsGenerate, retryFallback, stats, schedule.availableWeekNo, deviceId, setInsight]);
+  }, [goal, premium, insightCache, deviceId, setInsight]);
 
   if (!goal) return null;
+
+  // フォーカス反映前の空 state で観察中/ティザー画面を一瞬描画しないよう、読み込み完了まではヘッダーのみ
+  if (!loaded) {
+    return (
+      <Screen scroll>
+        <NotebookHeader />
+      </Screen>
+    );
+  }
 
   // ---- 無料: ティザー+ぼかしプレビュー+CTA(デザイン02) ----
   if (!premium) {
@@ -287,20 +325,27 @@ export default function NotebookScreen() {
           </ThemedText>
         </View>
 
-        {/* ぼかした手帳プレビュー(実データの集計を薄く見せるが読めない) */}
+        {/* ぼかした手帳プレビュー(実データの集計を薄く見せるが読めない)。
+            透明文字+影は視覚的には判読不能でもアクセシビリティツリーには乗るため、
+            VoiceOver がロック内容を全文読み上げないよう区画ごと隠す */}
         <Card style={{ gap: Spacing.two + 2 }}>
-          <SectionLabel label="あなたの歩き方タイプ" />
-          <View style={[styles.typeBadge, { backgroundColor: theme.tintSoft }]}>
-            <BlurredText bold text={preview.typeName} />
+          <View
+            style={{ gap: Spacing.two + 2 }}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants">
+            <SectionLabel label="あなたの歩き方タイプ" />
+            <View style={[styles.typeBadge, { backgroundColor: theme.tintSoft }]}>
+              <BlurredText bold text={preview.typeName} />
+            </View>
+            <SectionLabel label="曜日別の歩み(直近3週)" />
+            <View style={{ opacity: 0.45 }}>
+              <WeekdayBars counts={stats.weekdayCounts} />
+            </View>
+            <SectionLabel label="止まった後の復帰力" />
+            <BlurredText text={comebackText(stats)} />
+            <SectionLabel label="来週のホトリの作戦" />
+            <BlurredText text={preview.plan} />
           </View>
-          <SectionLabel label="曜日別の歩み(直近3週)" />
-          <View style={{ opacity: 0.45 }}>
-            <WeekdayBars counts={stats.weekdayCounts} />
-          </View>
-          <SectionLabel label="止まった後の復帰力" />
-          <BlurredText text={comebackText(stats)} />
-          <SectionLabel label="来週のホトリの作戦" />
-          <BlurredText text={preview.plan} />
 
           <View style={styles.lockArea}>
             <Pressable

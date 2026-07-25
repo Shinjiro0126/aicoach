@@ -272,6 +272,15 @@ export function comebackText(stats: InsightStats): string {
   return `止まった${stats.stops}回のうち、${stats.nextDayReturns}回は翌日に戻りました。戻れた事実が、次の一歩を支えます。`;
 }
 
+/** 初提出日(観察の起点)。提出が1件も無ければ null */
+export function firstReportDateKey(reports: readonly ReportEntry[]): string | null {
+  let first: string | null = null;
+  for (const report of reports) {
+    if (first === null || report.dateKey < first) first = report.dateKey;
+  }
+  return first;
+}
+
 // ===== 手帳の更新スケジュール(週の旗の日=週次更新日) =====
 
 export type NotebookSchedule = {
@@ -287,12 +296,23 @@ export type NotebookSchedule = {
 
 /**
  * 「次の手帳まであとN日」の計算。
- * 週の区切りは roadmap.ts の weekIndex と同じく開始日起点の7日区切りで、
- * 旗の日=各週の最終日(開始日 + 週番号×7 - 1 日目)。
- * 最初の手帳はデータ2週(MIN_INSIGHT_DAYS)がそろった日=第2週の旗の日に書ける。
+ * 「データ2週」の基準は初提出日(=stats.observedDays と同じ起点)に統一する。
+ * 目標開始日基準にすると、開始から日が経ってから記録を始めたユーザーで
+ * 「観察日数は2週未満なのに手帳が書ける/あと0日表示」の矛盾が生じるため(Issue #30)。
+ * 観察の週は初提出日起点の7日区切りで、旗の日=各週の最終日。
+ * 最初の手帳はデータ2週(MIN_INSIGHT_DAYS)がそろった日=観察第2週の旗の日に書ける。
  */
-export function notebookSchedule(startKey: string, today: string): NotebookSchedule {
-  const days = Math.max(0, diffDays(startKey, today));
+export function notebookSchedule(firstReportKey: string | null, today: string): NotebookSchedule {
+  // まだ一度も提出していない=観察は始まっていない。最初の手帳まで丸2週間
+  if (firstReportKey === null) {
+    return {
+      availableWeekNo: 0,
+      daysToFirst: MIN_INSIGHT_DAYS,
+      daysToNext: MIN_INSIGHT_DAYS,
+      latestFlagDateKey: null,
+    };
+  }
+  const days = Math.max(0, diffDays(firstReportKey, today));
   const weekNo = Math.floor((days + 1) / 7);
   const available = days >= MIN_INSIGHT_DAYS - 1 ? weekNo : 0;
   const daysToFirst = available > 0 ? 0 : MIN_INSIGHT_DAYS - 1 - days;
@@ -300,7 +320,7 @@ export function notebookSchedule(startKey: string, today: string): NotebookSched
     availableWeekNo: available,
     daysToFirst,
     daysToNext: available > 0 ? (available + 1) * 7 - 1 - days : daysToFirst,
-    latestFlagDateKey: available > 0 ? addDaysKey(startKey, available * 7 - 1) : null,
+    latestFlagDateKey: available > 0 ? addDaysKey(firstReportKey, available * 7 - 1) : null,
   };
 }
 
@@ -370,5 +390,7 @@ export function journeySummaryLabel(days: readonly JourneyDay[], weekNo: number,
   const walked = days.filter((d) => d.state === 'walked').length;
   const reported = days.filter((d) => d.state === 'reported').length;
   const grace = days.filter((d) => d.state === 'grace').length;
-  return `直近${days.length}日: 歩いた日${walked}、報告した日${reported}、おやすみ${grace}。第${weekNo}週の旗まであと${daysToFlag}日`;
+  // コールドスタートは未来日(点線の石)を含むため「直近N日」と言わず「今週」と読む
+  const range = days.some((d) => d.state === 'future') ? '今週' : `直近${days.length}日`;
+  return `${range}: 歩いた日${walked}、報告した日${reported}、おやすみ${grace}。第${weekNo}週の旗まであと${daysToFlag}日`;
 }

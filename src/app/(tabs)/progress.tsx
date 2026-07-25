@@ -15,6 +15,7 @@ import {
   buildTeaser,
   coldStartJourneyDays,
   computeInsightStats,
+  firstReportDateKey,
   journeyDays,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
@@ -58,7 +59,9 @@ export default function ProgressScreen() {
   const summary = progressSummary(startKey, targetKey, today);
   const week = weekFlagInfo(startKey, today, reports.map((r) => r.dateKey));
   const stats = computeInsightStats(reports, today, streak);
-  const schedule = notebookSchedule(startKey, today);
+  // 手帳の「データ2週」判定は初提出日基準(stats.observedDays と同じ起点)。
+  // 目標開始日基準にすると observedDays<14 なのに「あと0日」表示になりうる(Issue #30)
+  const schedule = notebookSchedule(firstReportDateKey(reports), today);
 
   // コールドスタート(開始から2週未満)は「スタートの岸+第1週の旗」レイアウト
   const coldStart = diffDays(startKey, today) + 1 < MIN_INSIGHT_DAYS;

@@ -4,6 +4,7 @@ import {
   coldStartJourneyDays,
   comebackText,
   computeInsightStats,
+  firstReportDateKey,
   journeyDays,
   journeySummaryLabel,
   maxTimeBand,
@@ -210,14 +211,22 @@ describe('maxTimeBand', () => {
 
 describe('notebookSchedule', () => {
   it('データ2週未満は未提供で、最初の手帳までの日数を返す', () => {
-    // 開始から11日目(days=10): あと3日でデータ2週
+    // 初提出から11日目(days=10): あと3日でデータ2週
     const result = notebookSchedule('2026-07-01', '2026-07-11');
     expect(result.availableWeekNo).toBe(0);
     expect(result.daysToFirst).toBe(3);
     expect(result.latestFlagDateKey).toBeNull();
   });
 
-  it('開始14日目(第2週の旗の日)に最初の手帳が書ける', () => {
+  it('提出が1件も無ければ観察は始まっておらず、最初の手帳まで丸2週間', () => {
+    const result = notebookSchedule(null, '2026-07-25');
+    expect(result.availableWeekNo).toBe(0);
+    expect(result.daysToFirst).toBe(MIN_INSIGHT_DAYS);
+    expect(result.daysToNext).toBe(MIN_INSIGHT_DAYS);
+    expect(result.latestFlagDateKey).toBeNull();
+  });
+
+  it('初提出から14日目(観察第2週の旗の日)に最初の手帳が書ける', () => {
     const result = notebookSchedule('2026-07-01', '2026-07-14');
     expect(result.availableWeekNo).toBe(2);
     expect(result.daysToFirst).toBe(0);
@@ -234,10 +243,33 @@ describe('notebookSchedule', () => {
     expect(next.daysToNext).toBe(7);
   });
 
-  it('週の旗の日は roadmap の週区切り(開始日起点の7日区切り)と一致する', () => {
-    // 第2週の旗 = 開始日+13日目 = 週index1 の最終日
+  it('週の旗の日は初提出日起点の7日区切りの最終日になる', () => {
+    // 観察第2週の旗 = 初提出日+13日目
     const result = notebookSchedule('2026-07-01', '2026-07-16');
     expect(result.latestFlagDateKey).toBe('2026-07-14');
+  });
+
+  it('「データ2週」の判定は stats.observedDays(初提出日基準)と一致する', () => {
+    // Issue #30: 目標開始が古くても、初提出から2週未満なら観察中(あと0日にならない)
+    const reports = [report('2026-07-20'), report('2026-07-24')];
+    const stats = computeInsightStats(reports, '2026-07-25', NO_STREAK);
+    const schedule = notebookSchedule(firstReportDateKey(reports), '2026-07-25');
+    expect(stats.observedDays).toBe(6);
+    expect(schedule.availableWeekNo).toBe(0);
+    expect(schedule.daysToFirst).toBe(MIN_INSIGHT_DAYS - stats.observedDays);
+    // 観察日数がちょうど2週に達した日に手帳が書ける
+    const ready = notebookSchedule('2026-07-12', '2026-07-25');
+    expect(computeInsightStats([report('2026-07-12')], '2026-07-25', NO_STREAK).observedDays).toBe(14);
+    expect(ready.availableWeekNo).toBe(2);
+  });
+});
+
+describe('firstReportDateKey', () => {
+  it('最古の提出日を返し、提出が無ければ null', () => {
+    expect(firstReportDateKey([])).toBeNull();
+    expect(
+      firstReportDateKey([report('2026-07-20'), report('2026-07-12'), report('2026-07-25')]),
+    ).toBe('2026-07-12');
   });
 });
 
@@ -279,5 +311,11 @@ describe('journeyDays / coldStartJourneyDays', () => {
     );
     const label = journeySummaryLabel(days, 2, 3);
     expect(label).toBe('直近14日: 歩いた日2、報告した日1、おやすみ1。第2週の旗まであと3日');
+  });
+
+  it('未来日を含むコールドスタートの要約は「直近N日」ではなく「今週」と読む', () => {
+    const days = coldStartJourneyDays('2026-07-23', [report('2026-07-23', 1)], [], '2026-07-24');
+    const label = journeySummaryLabel(days, 1, 6);
+    expect(label).toBe('今週: 歩いた日1、報告した日0、おやすみ0。第1週の旗まであと6日');
   });
 });
