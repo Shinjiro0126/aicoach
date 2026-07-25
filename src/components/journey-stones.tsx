@@ -6,20 +6,9 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, {
-  Defs,
-  Ellipse,
-  G,
-  Line,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-  Text as SvgText,
-} from 'react-native-svg';
+import Svg, { Ellipse, G, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
@@ -38,8 +27,8 @@ import { journeySummaryLabel, type JourneyDay } from '@/lib/insight-stats';
 
 /** 水面の色(デザイン原本の --water / --water-deep / --stone。テーマ定義外の風景専用色) */
 const WATER_COLORS = {
-  light: { water: '#D5EEFB', waterDeep: '#BFE4F7', stone: '#8FCBE8' },
-  dark: { water: '#0B2231', waterDeep: '#12354C', stone: '#23566F' },
+  light: { water: '#D5EEFB', waterDeep: '#BFE4F7', stone: '#8FCBE8', foam: 'rgba(255,255,255,0.55)' },
+  dark: { water: '#0B2231', waterDeep: '#12354C', stone: '#23566F', foam: 'rgba(255,255,255,0.18)' },
 } as const;
 
 export type JourneyStonesProps = {
@@ -64,13 +53,9 @@ function FloatingBust({ size, reduce }: { size: number; reduce: boolean }) {
       translateY.value = 0;
       return;
     }
-    translateY.value = withRepeat(
-      withSequence(
-        withTiming(-2.5, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
-      ),
-      -1,
-    );
+    // reverse:true の単一timing+sinイージングで正弦波状に往復させる
+    // (2つのtimingを繋ぐと折り返しで速度が不連続になり、カクついて見える)
+    translateY.value = withRepeat(withTiming(-3, { duration: 1500, easing: Easing.inOut(Easing.sin) }), -1, true);
     return () => cancelAnimation(translateY);
   }, [reduce, translateY]);
 
@@ -87,8 +72,9 @@ type StoneColors = {
   tintDeep: string;
   tintSoft: string;
   water: string;
-  waterDeep: string;
   stone: string;
+  /** 波打ち際の泡の線(汀線) */
+  foam: string;
 };
 
 /** 飛び石1つ。今日の石は状態に依らず深瀬ブルー(ホトリが立つ石) */
@@ -164,14 +150,9 @@ const TODAY_POSITION = { x: 74, y: 94 };
 function FullJourneySvg({ days, colors }: { days: JourneyDay[]; colors: StoneColors }) {
   const positions = [...TOP_POSITIONS, FOLD_POSITION, ...BOTTOM_POSITIONS, TODAY_POSITION];
   return (
-    <Svg viewBox="0 0 316 132" width="100%">
-      <Defs>
-        <LinearGradient id="journeyWater" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colors.water} />
-          <Stop offset="1" stopColor={colors.waterDeep} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={316} height={132} fill="url(#journeyWater)" />
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)。
+    // 背景はSVG内に描かない: グラデ矩形を重ねるとカード背景との境界線が見えてしまうため、水面はカード背景色に任せる
+    <Svg viewBox="0 0 316 132" width="100%" height="100%">
       <Ripples
         stone={colors.stone}
         paths={['M14 24 q7 -4 14 0', 'M250 18 q7 -4 14 0', 'M120 12 q7 -4 14 0', 'M60 118 q7 -4 14 0', 'M230 122 q7 -4 14 0']}
@@ -199,7 +180,8 @@ function FullJourneySvg({ days, colors }: { days: JourneyDay[]; colors: StoneCol
 }
 
 // ---- コールドスタートレイアウト(スタートの岸+第1週の旗) ----
-const COLD_POSITIONS = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ x: 50 + 38 * i, y: i % 2 === 0 ? 58 : 50 }));
+// 先頭を x=64 に置き、岸と「スタート」の文字(〜x40)にホトリ(幅34)が被らないようにする
+const COLD_POSITIONS = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ x: 64 + 36 * i, y: i % 2 === 0 ? 58 : 50 }));
 
 function ColdJourneySvg({
   days,
@@ -213,21 +195,44 @@ function ColdJourneySvg({
   sandText: string;
 }) {
   return (
-    <Svg viewBox="0 0 316 108" width="100%">
-      <Defs>
-        <LinearGradient id="journeyWaterCold" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colors.water} />
-          <Stop offset="1" stopColor={colors.waterDeep} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={316} height={108} fill="url(#journeyWaterCold)" />
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)。
+    // 背景はSVG内に描かない: グラデ矩形を重ねるとカード背景との境界線が見えてしまうため、水面はカード背景色に任せる
+    <Svg viewBox="0 0 316 108" width="100%" height="100%">
       <Ripples
         stone={colors.stone}
         paths={['M150 20 q7 -4 14 0', 'M250 88 q7 -4 14 0', 'M80 92 q7 -4 14 0']}
       />
-      {/* スタートの岸 */}
-      <Path d="M0 30 q30 4 34 28 q3 22 -8 50 h-26 Z" fill={sand} opacity={0.9} />
-      <SvgText x={7} y={62} fontSize={8.5} fill={sandText} fontWeight="700">
+      {/* スタートの岸: 画面左端から上下いっぱいに続く陸地。ゆらいだ汀線+泡+草+立て札で「岸」を記号化する */}
+      {/* 陸地(波打つ海岸線で上下端まで) */}
+      <Path
+        d="M0 0 H30 Q38 14 30 26 Q42 40 33 56 Q42 72 30 86 Q24 96 28 108 H0 Z"
+        fill={sand}
+      />
+      {/* 波打ち際の泡の線(汀線を少し水側でなぞる) */}
+      <Path
+        d="M33 0 Q41 14 33 26 Q45 40 36 56 Q45 72 33 86 Q27 96 31 108"
+        stroke={colors.foam}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="round"
+      />
+      {/* 岸辺の草 */}
+      <G stroke={sandText} strokeWidth={1.3} strokeLinecap="round" opacity={0.7} fill="none">
+        <Path d="M20 16 q1 -5 4 -7" />
+        <Path d="M23 17 q0 -6 -2 -8" />
+        <Path d="M14 76 q1 -5 4 -6" />
+        <Path d="M17 77 q0 -5 -2 -7" />
+      </G>
+      {/* 小石 */}
+      <Ellipse cx={12} cy={96} rx={3.6} ry={2.4} fill={sandText} opacity={0.3} />
+      <Ellipse cx={21} cy={101} rx={2.6} ry={1.8} fill={sandText} opacity={0.22} />
+      {/* 立て札「スタート」 */}
+      <Line x1={16} y1={44} x2={16} y2={58} stroke={sandText} strokeWidth={2.4} strokeLinecap="round" />
+      <Path
+        d="M4 28 h24 q3 0 3 3 v10 q0 3 -3 3 h-24 q-3 0 -3 -3 v-10 q0 -3 3 -3 Z"
+        fill={sandText}
+      />
+      <SvgText x={16} y={39} fontSize={7} fill={sand} fontWeight="700" textAnchor="middle">
         スタート
       </SvgText>
       {days.slice(0, COLD_POSITIONS.length).map((day, i) => (
@@ -255,8 +260,8 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
     tintDeep: theme.tintDeep,
     tintSoft: theme.tintSoft,
     water: water.water,
-    waterDeep: water.waterDeep,
     stone: water.stone,
+    foam: water.foam,
   };
 
   const todayIndex = days.findIndex((d) => d.isToday);
@@ -282,7 +287,11 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
           あなたの道のり
         </ThemedText>
         <ThemedText type="small" style={[styles.headSub, { color: theme.tintDeep }]}>
-          {reached ? 'ゴールまで、歩き切りました' : `第${weekNo}週 · 旗まであと${daysToFlag}日`}
+          {reached
+            ? 'ゴールまで、歩き切りました'
+            : daysToFlag <= 0
+              ? `第${weekNo}週 · 今日は旗の日`
+              : `第${weekNo}週 · 旗まであと${daysToFlag}日`}
         </ThemedText>
       </View>
 

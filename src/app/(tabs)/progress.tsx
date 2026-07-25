@@ -69,6 +69,8 @@ export default function ProgressScreen() {
     ? coldStartJourneyDays(startKey, reports, streak.graceUsedOn, today)
     : journeyDays(reports, streak.graceUsedOn, today);
   const todayReport = reports.find((r) => r.dateKey === today);
+  // ホームと同じ数え方: 未提出時は今日を含み、提出後は今日を除く(デザイン04は提出済みで「あと6日」)
+  const daysToFlag = Math.max(0, week.daysToFlag - (todayReport ? 1 : 0));
   const coldCaption =
     reports.length === 0
       ? 'ここから渡っていきます。最初の一歩を、今日の画面で。'
@@ -107,7 +109,7 @@ export default function ProgressScreen() {
       <JourneyStones
         days={stones}
         weekNo={week.weekNo}
-        daysToFlag={week.daysToFlag}
+        daysToFlag={daysToFlag}
         reached={summary.reached}
         coldStart={coldStart}
         caption={coldCaption}
