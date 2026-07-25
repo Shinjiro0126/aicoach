@@ -5,11 +5,13 @@ import {
   comebackText,
   computeInsightStats,
   firstReportDateKey,
+  insightGenerationPlan,
   journeyDays,
   journeySummaryLabel,
   maxTimeBand,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
+  type InsightCacheRef,
   type InsightStats,
   type ReportEntry,
 } from '../insight-stats';
@@ -261,6 +263,60 @@ describe('notebookSchedule', () => {
     const ready = notebookSchedule('2026-07-12', '2026-07-25');
     expect(computeInsightStats([report('2026-07-12')], '2026-07-25', NO_STREAK).observedDays).toBe(14);
     expect(ready.availableWeekNo).toBe(2);
+  });
+});
+
+describe('insightGenerationPlan', () => {
+  const cache = (overrides: Partial<InsightCacheRef> = {}): InsightCacheRef => ({
+    goalId: 'g1',
+    weekNo: 2,
+    fallback: false,
+    ...overrides,
+  });
+
+  it('キャッシュが現行週と一致していれば生成しない', () => {
+    expect(insightGenerationPlan(cache(), 'g1', 2)).toEqual({
+      generate: false,
+      retryFallback: false,
+    });
+  });
+
+  it('キャッシュ無し・別目標のキャッシュは新規生成する(retryFallbackではない)', () => {
+    expect(insightGenerationPlan(null, 'g1', 2)).toEqual({ generate: true, retryFallback: false });
+    expect(insightGenerationPlan(cache({ goalId: 'g0' }), 'g1', 2)).toEqual({
+      generate: true,
+      retryFallback: false,
+    });
+  });
+
+  it('データ2週未満(availableWeekNo=0)は観察中で、生成しない', () => {
+    expect(insightGenerationPlan(null, 'g1', 0).generate).toBe(false);
+    expect(insightGenerationPlan(cache(), 'g1', 0).generate).toBe(false);
+  });
+
+  it('フォールバック文で保存された週は、静かな再生成(retryFallback)になる', () => {
+    expect(insightGenerationPlan(cache({ fallback: true }), 'g1', 2)).toEqual({
+      generate: true,
+      retryFallback: true,
+    });
+  });
+
+  it('画面を開いたまま週の旗の日を跨いで観察週が進むと、キャッシュ不一致で再生成が必要になる', () => {
+    // Issue #31: 表示ゲート(cacheMatched)が false へ落ちるのと同じ条件で、生成側も真になること
+    const first = '2026-07-01';
+    // 第3週の旗の日(7/21)の前日までは、第2週キャッシュのままで生成不要
+    const before = notebookSchedule(first, '2026-07-20');
+    expect(before.availableWeekNo).toBe(2);
+    expect(insightGenerationPlan(cache({ weekNo: 2 }), 'g1', before.availableWeekNo).generate).toBe(
+      false,
+    );
+    // 旗の日を迎えると観察週が第3週へ進み、同じキャッシュでは再生成が必要になる
+    const after = notebookSchedule(first, '2026-07-21');
+    expect(after.availableWeekNo).toBe(3);
+    expect(insightGenerationPlan(cache({ weekNo: 2 }), 'g1', after.availableWeekNo)).toEqual({
+      generate: true,
+      retryFallback: false,
+    });
   });
 });
 

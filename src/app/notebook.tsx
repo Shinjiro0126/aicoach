@@ -18,6 +18,7 @@ import {
   comebackText,
   computeInsightStats,
   firstReportDateKey,
+  insightGenerationPlan,
   maxTimeBand,
   notebookSchedule,
   TIME_BAND_LABELS,
@@ -252,6 +253,11 @@ export default function NotebookScreen() {
 
   useEffect(() => {
     if (!goal || !premium) return;
+    // 手帳が現行週のキャッシュで表示できており、フォールバック再試行も不要なら何もしない。
+    // 依存の cacheMatched は表示ゲートと同じレンダー時計算のため、画面を開いたまま週の旗の日を
+    // 跨ぐと cacheMatched が false へ落ちて考え中画面になるのと同じ再レンダーでこの effect も
+    // 再実行され、「表示条件は進むがトリガーが進まない」固まりを防ぐ(Issue #31)
+    if (cacheMatched && insightCache !== null && !insightCache.fallback) return;
     // マウントコミット時点では useFocusEffect(refresh) の setReports がまだ state に反映されておらず、
     // 空の reports から全ゼロ統計で生成・キャッシュしてしまうため(Issue #29)、
     // 生成の判定と集計は state を介さず DB から直接読み直した記録で行う
@@ -259,17 +265,11 @@ export default function NotebookScreen() {
     const rows = listReports(goal.id);
     const freshStreak = computeStreak(rows.map((r) => r.dateKey), todayNow);
     const freshSchedule = notebookSchedule(firstReportDateKey(rows), todayNow);
-    // データ2週未満は「観察中」で、生成しない
-    if (freshSchedule.availableWeekNo === 0) return;
-    const freshCacheMatched =
-      insightCache !== null &&
-      insightCache.goalId === goal.id &&
-      insightCache.weekNo === freshSchedule.availableWeekNo;
-    // 前回フォールバック文で保存された場合は、次に開いたとき静かに再生成を試みる。
-    // それ以外は、週次更新日(週の旗の日)を過ぎてキャッシュが古い/無い場合に新規生成する。
+    // データ2週未満(観察中)は生成しない。キャッシュが現行週と一致していれば新規生成も不要。
+    // フォールバック文で保存された週は、次に開いたとき静かに再生成を試みる(insightGenerationPlan)。
     // プレミアム化した瞬間も、蓄積データがあれば同じ条件で即生成される
-    const retryFallback = freshCacheMatched && insightCache.fallback;
-    if (freshCacheMatched && !retryFallback) return;
+    const plan = insightGenerationPlan(insightCache, goal.id, freshSchedule.availableWeekNo);
+    if (!plan.generate) return;
     const key = `${goal.id}:${freshSchedule.availableWeekNo}`;
     if (inFlightInsightKeys.has(key)) return;
     inFlightInsightKeys.add(key);
@@ -282,7 +282,7 @@ export default function NotebookScreen() {
     generateInsightWithFallback(request, deviceId).then((result) => {
       inFlightInsightKeys.delete(key);
       // 再生成の試みが再び失敗した場合は、表示中のフォールバック文を上書きしない
-      if (retryFallback && result.fallback) return;
+      if (plan.retryFallback && result.fallback) return;
       setInsight({
         goalId: goal.id,
         weekNo: freshSchedule.availableWeekNo,
@@ -291,7 +291,7 @@ export default function NotebookScreen() {
         fallback: result.fallback,
       });
     });
-  }, [goal, premium, insightCache, deviceId, setInsight]);
+  }, [goal, premium, insightCache, deviceId, setInsight, cacheMatched]);
 
   if (!goal) return null;
 

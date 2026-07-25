@@ -324,6 +324,45 @@ export function notebookSchedule(firstReportKey: string | null, today: string): 
   };
 }
 
+// ===== 手帳の生成要否判定 =====
+
+/** 生成判定に必要な最小のキャッシュ情報(ストアの InsightCacheEntry と構造互換) */
+export type InsightCacheRef = {
+  goalId: string;
+  weekNo: number;
+  /** フォールバック文で保存された応答か */
+  fallback: boolean;
+};
+
+export type InsightGenerationPlan = {
+  /** 新規生成(または再生成)を始めるべきか */
+  generate: boolean;
+  /** フォールバック保存週の静かな再生成か(再失敗時は表示中の文を上書きしない) */
+  retryFallback: boolean;
+};
+
+/**
+ * 観察手帳の生成要否判定(notebook.tsx の生成effectとテストで共有する純関数)。
+ * 画面を開いたまま週の旗の日を跨いで availableWeekNo が進んだ場合も、
+ * キャッシュ週との不一致として「生成が必要」と判定される(Issue #31)。
+ * - データ2週未満(availableWeekNo=0)は観察中で、生成しない
+ * - キャッシュが現行週と不一致(週が進んだ・目標が変わった・キャッシュ無し)なら新規生成
+ * - フォールバック文で保存された週は、次に開いたとき静かに再生成を試みる
+ */
+export function insightGenerationPlan(
+  cache: InsightCacheRef | null,
+  goalId: string,
+  availableWeekNo: number,
+): InsightGenerationPlan {
+  if (availableWeekNo === 0) return { generate: false, retryFallback: false };
+  if (cache === null || cache.goalId !== goalId || cache.weekNo !== availableWeekNo) {
+    return { generate: true, retryFallback: false };
+  }
+  return cache.fallback
+    ? { generate: true, retryFallback: true }
+    : { generate: false, retryFallback: false };
+}
+
 // ===== 飛び石の道のり(journey-stones)用の日別データ =====
 
 export type JourneyDayState = 'walked' | 'reported' | 'grace' | 'missed' | 'future';
