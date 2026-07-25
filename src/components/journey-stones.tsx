@@ -6,7 +6,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Ellipse, G, Line, Path, Text as SvgText } from 'react-native-svg';
@@ -54,13 +53,9 @@ function FloatingBust({ size, reduce }: { size: number; reduce: boolean }) {
       translateY.value = 0;
       return;
     }
-    translateY.value = withRepeat(
-      withSequence(
-        withTiming(-2.5, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
-      ),
-      -1,
-    );
+    // reverse:true の単一timing+sinイージングで正弦波状に往復させる
+    // (2つのtimingを繋ぐと折り返しで速度が不連続になり、カクついて見える)
+    translateY.value = withRepeat(withTiming(-3, { duration: 1500, easing: Easing.inOut(Easing.sin) }), -1, true);
     return () => cancelAnimation(translateY);
   }, [reduce, translateY]);
 
@@ -183,7 +178,8 @@ function FullJourneySvg({ days, colors }: { days: JourneyDay[]; colors: StoneCol
 }
 
 // ---- コールドスタートレイアウト(スタートの岸+第1週の旗) ----
-const COLD_POSITIONS = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ x: 50 + 38 * i, y: i % 2 === 0 ? 58 : 50 }));
+// 先頭を x=64 に置き、岸と「スタート」の文字(〜x40)にホトリ(幅34)が被らないようにする
+const COLD_POSITIONS = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ x: 64 + 36 * i, y: i % 2 === 0 ? 58 : 50 }));
 
 function ColdJourneySvg({
   days,
@@ -204,9 +200,12 @@ function ColdJourneySvg({
         stone={colors.stone}
         paths={['M150 20 q7 -4 14 0', 'M250 88 q7 -4 14 0', 'M80 92 q7 -4 14 0']}
       />
-      {/* スタートの岸 */}
-      <Path d="M0 30 q30 4 34 28 q3 22 -8 50 h-26 Z" fill={sand} opacity={0.9} />
-      <SvgText x={7} y={62} fontSize={8.5} fill={sandText} fontWeight="700">
+      {/* スタートの岸: 濃い縁+砂地の二層と小石で、ベタ塗り一枚の安っぽさを消す */}
+      <Path d="M-6 22 q36 3 42 30 q5 23 -8 62 h-34 Z" fill={sandText} opacity={0.2} />
+      <Path d="M-6 26 q31 3 36 27 q4 21 -7 57 h-29 Z" fill={sand} />
+      <Ellipse cx={11} cy={86} rx={4} ry={2.6} fill={sandText} opacity={0.3} />
+      <Ellipse cx={22} cy={94} rx={3} ry={2} fill={sandText} opacity={0.22} />
+      <SvgText x={5} y={52} fontSize={8} fill={sandText} fontWeight="700">
         スタート
       </SvgText>
       {days.slice(0, COLD_POSITIONS.length).map((day, i) => (
