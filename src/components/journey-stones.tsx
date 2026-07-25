@@ -9,17 +9,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, {
-  Defs,
-  Ellipse,
-  G,
-  Line,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-  Text as SvgText,
-} from 'react-native-svg';
+import Svg, { Ellipse, G, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
@@ -87,7 +77,6 @@ type StoneColors = {
   tintDeep: string;
   tintSoft: string;
   water: string;
-  waterDeep: string;
   stone: string;
 };
 
@@ -164,15 +153,9 @@ const TODAY_POSITION = { x: 74, y: 94 };
 function FullJourneySvg({ days, colors }: { days: JourneyDay[]; colors: StoneColors }) {
   const positions = [...TOP_POSITIONS, FOLD_POSITION, ...BOTTOM_POSITIONS, TODAY_POSITION];
   return (
-    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)。
+    // 背景はSVG内に描かない: グラデ矩形を重ねるとカード背景との境界線が見えてしまうため、水面はカード背景色に任せる
     <Svg viewBox="0 0 316 132" width="100%" height="100%">
-      <Defs>
-        <LinearGradient id="journeyWater" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colors.water} />
-          <Stop offset="1" stopColor={colors.waterDeep} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={316} height={132} fill="url(#journeyWater)" />
       <Ripples
         stone={colors.stone}
         paths={['M14 24 q7 -4 14 0', 'M250 18 q7 -4 14 0', 'M120 12 q7 -4 14 0', 'M60 118 q7 -4 14 0', 'M230 122 q7 -4 14 0']}
@@ -214,15 +197,9 @@ function ColdJourneySvg({
   sandText: string;
 }) {
   return (
-    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)。
+    // 背景はSVG内に描かない: グラデ矩形を重ねるとカード背景との境界線が見えてしまうため、水面はカード背景色に任せる
     <Svg viewBox="0 0 316 108" width="100%" height="100%">
-      <Defs>
-        <LinearGradient id="journeyWaterCold" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colors.water} />
-          <Stop offset="1" stopColor={colors.waterDeep} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={316} height={108} fill="url(#journeyWaterCold)" />
       <Ripples
         stone={colors.stone}
         paths={['M150 20 q7 -4 14 0', 'M250 88 q7 -4 14 0', 'M80 92 q7 -4 14 0']}
@@ -257,7 +234,6 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
     tintDeep: theme.tintDeep,
     tintSoft: theme.tintSoft,
     water: water.water,
-    waterDeep: water.waterDeep,
     stone: water.stone,
   };
 
