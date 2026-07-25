@@ -1,6 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { COACH_SYSTEM, CRISIS_KEYWORDS, CRISIS_RESPONSE, PLAN_SYSTEM, SUGGEST_SYSTEM } from './prompts';
+import {
+  COACH_SYSTEM,
+  CRISIS_KEYWORDS,
+  CRISIS_RESPONSE,
+  INSIGHT_SYSTEM,
+  PLAN_SYSTEM,
+  SUGGEST_SYSTEM,
+} from './prompts';
 
 export interface Env {
   ANTHROPIC_API_KEY: string;
@@ -13,6 +20,8 @@ const COACH_MODEL = 'claude-haiku-4-5';
 const PLAN_MODEL = 'claude-sonnet-5';
 /** 期間おすすめは軽量な提案なので高速・低コストのモデルを使う */
 const SUGGEST_MODEL = 'claude-haiku-4-5';
+/** 観察手帳は統計値からの短文生成なので高速・低コストのモデルを使う */
+const INSIGHT_MODEL = 'claude-haiku-4-5';
 /** 期間おすすめの週数の許容範囲(クライアントのステッパーと同じ 2週〜2年) */
 const MIN_SUGGEST_WEEKS = 2;
 const MAX_SUGGEST_WEEKS = 104;
@@ -54,6 +63,26 @@ type SuggestRequest = {
   goalTitle: string;
   category?: string;
   hearingAnswers?: HearingPair[];
+};
+
+/**
+ * 観察手帳のリクエスト。端末内で集計された統計値のみを受け取る。
+ * 自由テキストフィールドは持たない(handleInsight で数値・既知enumに正規化してからプロンプトに載せる)
+ */
+type InsightRequest = {
+  category?: string;
+  weekNo: number;
+  /** 曜日別提出数(日〜土の7要素、直近3週) */
+  weekdayCounts: number[];
+  timeBands: { morning: number; midday: number; night: number };
+  stops: number;
+  nextDayReturns: number;
+  walkedDays: number;
+  zeroReportDays: number;
+  streakCurrent: number;
+  streakBest: number;
+  graceDays: number;
+  observedDays: number;
 };
 
 /** クライアントの GoalCategory enum値 → プロンプト用の日本語ラベル */
@@ -237,6 +266,79 @@ async function handleSuggest(env: Env, client: Anthropic, req: SuggestRequest): 
   return json({ weeks, reason: parsed.reason });
 }
 
+const INSIGHT_SCHEMA = {
+  type: 'object',
+  properties: {
+    letter: { type: 'string' },
+    typeName: { type: 'string' },
+    weekdayNote: { type: 'string' },
+    plan: { type: 'string' },
+  },
+  required: ['letter', 'typeName', 'weekdayNote', 'plan'],
+  additionalProperties: false,
+} as const;
+
+/** 統計値の安全弁: 数値以外・範囲外は丸める(プロンプトに数値以外を載せないため) */
+function clampStat(value: unknown, max = 9999): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(max, Math.max(0, n));
+}
+
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
+/**
+ * 端末内で集計された統計値から観察手帳(総評・タイプ名・曜日解説・作戦)を生成する。
+ * リクエストの各フィールドは数値へ正規化し、カテゴリは既知enumのラベルのみ採用する。
+ * 自由テキストがプロンプトへ流れる経路は存在しない
+ */
+async function handleInsight(env: Env, client: Anthropic, req: InsightRequest): Promise<Response> {
+  const categoryLabel = req.category ? CATEGORY_LABELS[req.category] : undefined;
+  const weekdayCounts = Array.from({ length: 7 }, (_, i) =>
+    clampStat(Array.isArray(req.weekdayCounts) ? req.weekdayCounts[i] : 0),
+  );
+  const bands = req.timeBands ?? { morning: 0, midday: 0, night: 0 };
+  const stops = clampStat(req.stops);
+  const nextDayReturns = Math.min(clampStat(req.nextDayReturns), stops);
+
+  const prompt = [
+    `以下の統計値から、第${clampStat(req.weekNo, 200)}週の観察手帳を書いてください。`,
+    categoryLabel ? `目標カテゴリ: ${categoryLabel}` : '',
+    `観察日数: ${clampStat(req.observedDays)}日`,
+    `曜日別の提出数(直近3週): ${weekdayCounts.map((n, i) => `${WEEKDAY_LABELS[i]}${n}回`).join(' ')}`,
+    `記録の時間帯: 朝${clampStat(bands.morning)}回 / 昼${clampStat(bands.midday)}回 / 夜${clampStat(bands.night)}回`,
+    `止まった回数: ${stops}回 / うち翌日に復帰: ${nextDayReturns}回`,
+    `歩いた日数(チェックあり提出): ${clampStat(req.walkedDays)}日 / 報告のみの日(チェック0件提出): ${clampStat(req.zeroReportDays)}日`,
+    `現在の連続日数: ${clampStat(req.streakCurrent)}日 / 自己ベスト: ${clampStat(req.streakBest)}日 / おやすみ救済: ${clampStat(req.graceDays)}回`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const message = await client.messages.create({
+    model: INSIGHT_MODEL,
+    max_tokens: 768,
+    system: INSIGHT_SYSTEM,
+    output_config: { format: { type: 'json_schema', schema: INSIGHT_SCHEMA } },
+    messages: [{ role: 'user', content: prompt }],
+  });
+  if (message.stop_reason === 'refusal') {
+    return json({ error: 'insight_refused' }, 422);
+  }
+  const parsed = JSON.parse(extractText(message)) as {
+    letter: string;
+    typeName: string;
+    weekdayNote: string;
+    plan: string;
+  };
+  // typeName はバッジ表示のため15文字で切り詰めて返す
+  return json({
+    letter: parsed.letter,
+    typeName: (parsed.typeName ?? '').slice(0, 15),
+    weekdayNote: parsed.weekdayNote,
+    plan: parsed.plan,
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
@@ -261,6 +363,9 @@ export default {
       }
       if (url.pathname === '/v1/suggest') {
         return await handleSuggest(env, client, (await request.json()) as SuggestRequest);
+      }
+      if (url.pathname === '/v1/insight') {
+        return await handleInsight(env, client, (await request.json()) as InsightRequest);
       }
       return json({ error: 'not_found' }, 404);
     } catch (e) {

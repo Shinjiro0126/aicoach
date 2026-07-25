@@ -5,11 +5,28 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { Config } from '@/constants/config';
 import { getActiveGoal } from '@/db/repo';
 import type { Goal } from '@/db/schema';
+import type { InsightResponse } from '@/lib/ai/types';
 import { todayKey } from '@/lib/dates';
 import { makeId } from '@/lib/id';
 import { canSendMessage, consumeQuota, remainingQuota, type QuotaState } from '@/lib/quota';
 
 type NotificationTime = { hour: number; minute: number };
+
+/**
+ * 観察手帳のキャッシュ(最新1件)。
+ * DBでなく永続ストアに置く理由: 週1回更新の最新スナップショットのみで履歴・リレーションが不要なため、
+ * SQLiteマイグレーション(末尾追加のみ)を増やさず AsyncStorage 永続で持つ。
+ * 応答は端末の中だけに保存される(サーバー保存はしない)
+ */
+export type InsightCacheEntry = {
+  goalId: string;
+  /** 観察対象の週番号(notebookSchedule.availableWeekNo) */
+  weekNo: number;
+  insight: InsightResponse;
+  generatedAt: number;
+  /** フォールバック文で組み立てた応答か(後の再生成判定に使う) */
+  fallback: boolean;
+};
 
 type AppState = {
   // ---- 永続化される設定 ----
@@ -19,6 +36,8 @@ type AppState = {
   notificationsEnabled: boolean;
   quota: QuotaState;
   premium: boolean;
+  /** 観察手帳の最新キャッシュ(端末内のみに保存) */
+  insight: InsightCacheEntry | null;
 
   // ---- セッション状態(非永続) ----
   activeGoal: Goal | null;
@@ -30,6 +49,7 @@ type AppState = {
   setNotificationTimes: (morning: NotificationTime, evening: NotificationTime) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setPremium: (premium: boolean) => void;
+  setInsight: (entry: InsightCacheEntry | null) => void;
   canSendAiMessage: () => boolean;
   remainingAiMessages: () => number;
   consumeAiMessage: () => void;
@@ -44,6 +64,7 @@ export const useAppStore = create<AppState>()(
       notificationsEnabled: false,
       quota: { date: '', used: 0 },
       premium: false,
+      insight: null,
 
       activeGoal: null,
       goalLoaded: false,
@@ -56,6 +77,7 @@ export const useAppStore = create<AppState>()(
       setNotificationTimes: (morning, evening) => set({ morningTime: morning, eveningTime: evening }),
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       setPremium: (premium) => set({ premium }),
+      setInsight: (entry) => set({ insight: entry }),
 
       canSendAiMessage: () => {
         const s = get();
@@ -77,6 +99,7 @@ export const useAppStore = create<AppState>()(
         notificationsEnabled: s.notificationsEnabled,
         quota: s.quota,
         premium: s.premium,
+        insight: s.insight,
       }),
     },
   ),

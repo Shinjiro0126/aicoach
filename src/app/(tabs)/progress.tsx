@@ -1,15 +1,27 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { JourneyStones } from '@/components/journey-stones';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { getWeeklyPlans, listReportDates } from '@/db/repo';
+import { getWeeklyPlans, listReports } from '@/db/repo';
 import type { WeeklyPlan } from '@/db/schema';
-import { monthMeta, todayKey } from '@/lib/dates';
+import { diffDays, monthMeta, toDateKey, todayKey } from '@/lib/dates';
+import {
+  buildTeaser,
+  coldStartJourneyDays,
+  computeInsightStats,
+  journeyDays,
+  MIN_INSIGHT_DAYS,
+  notebookSchedule,
+  type ReportEntry,
+} from '@/lib/insight-stats';
+import { progressSummary, weekFlagInfo } from '@/lib/progress';
+import { addWeeksKey } from '@/lib/roadmap';
 import { computeStreak, type StreakResult } from '@/lib/streak';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
@@ -19,7 +31,9 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 export default function ProgressScreen() {
   const theme = useTheme();
   const goal = useAppStore((s) => s.activeGoal);
-  const [doneDates, setDoneDates] = useState<Set<string>>(new Set());
+  const premium = useAppStore((s) => s.premium);
+  const insightCache = useAppStore((s) => s.insight);
+  const [reports, setReports] = useState<ReportEntry[]>([]);
   const [streak, setStreak] = useState<StreakResult>({ current: 0, best: 0, graceUsedOn: [] });
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
 
@@ -29,15 +43,50 @@ export default function ProgressScreen() {
   const refresh = useCallback(() => {
     if (!goal) return;
     // 提出=その日の記録(ホームv2)。カレンダー・ストリークは提出日で数える
-    const dates = listReportDates(goal.id);
-    setDoneDates(new Set(dates));
-    setStreak(computeStreak(dates, todayKey()));
+    const rows = listReports(goal.id);
+    setReports(rows);
+    setStreak(computeStreak(rows.map((r) => r.dateKey), todayKey()));
     setPlans(getWeeklyPlans(goal.id));
   }, [goal]);
 
   useFocusEffect(refresh);
 
   if (!goal) return null;
+
+  const startKey = toDateKey(new Date(goal.createdAt));
+  const targetKey = goal.targetDate ?? addWeeksKey(startKey, 13);
+  const summary = progressSummary(startKey, targetKey, today);
+  const week = weekFlagInfo(startKey, today, reports.map((r) => r.dateKey));
+  const stats = computeInsightStats(reports, today, streak);
+  const schedule = notebookSchedule(startKey, today);
+
+  // コールドスタート(開始から2週未満)は「スタートの岸+第1週の旗」レイアウト
+  const coldStart = diffDays(startKey, today) + 1 < MIN_INSIGHT_DAYS;
+  const stones = coldStart
+    ? coldStartJourneyDays(startKey, reports, streak.graceUsedOn, today)
+    : journeyDays(reports, streak.graceUsedOn, today);
+  const todayReport = reports.find((r) => r.dateKey === today);
+  const coldCaption =
+    reports.length === 0
+      ? 'ここから渡っていきます。最初の一歩を、今日の画面で。'
+      : todayReport && reports.length === 1
+        ? '今日、最初の石を渡りました。ここから一歩ずつです。'
+        : '一歩ずつ、旗まで渡っていきます。';
+
+  // 手帳入口カードの1行(無料=ローカル生成ティザー / プレミアム=最新の見立て)
+  const teaser = buildTeaser(stats);
+  const cacheMatched =
+    insightCache !== null && insightCache.goalId === goal.id && insightCache.weekNo === schedule.availableWeekNo;
+  const notebookLine =
+    stats.observedDays < MIN_INSIGHT_DAYS
+      ? `ホトリが、あなたの歩き方の観察を始めました。最初の見立てまで、あと${schedule.daysToFirst}日です。`
+      : premium && cacheMatched
+        ? `最新の見立て: 「${insightCache.insight.typeName}」 —— 手帳を開いて読めます。`
+        : `今週の見立て: 「${teaser}」 —— 続きは手帳で。`;
+
+  // カレンダー用: 日付キー → 提出記録 / 救済日
+  const reportMap = new Map(reports.map((r) => [r.dateKey, r.doneCount]));
+  const graceSet = new Set(streak.graceUsedOn);
 
   const { firstWeekday, daysInMonth } = monthMeta(year, month);
   const cells: (number | null)[] = [
@@ -51,8 +100,18 @@ export default function ProgressScreen() {
         記録
       </ThemedText>
 
+      {/* 飛び石の道のり(直近14日 / コールドスタートは第1週) */}
+      <JourneyStones
+        days={stones}
+        weekNo={week.weekNo}
+        daysToFlag={week.daysToFlag}
+        reached={summary.reached}
+        coldStart={coldStart}
+        caption={coldCaption}
+      />
+
       <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
+        <Card style={[styles.statCard, { backgroundColor: theme.tintSoft }]}>
           <ThemedText type="title" style={{ color: theme.tint, fontSize: 36, lineHeight: 40 }}>
             {streak.current}
           </ThemedText>
@@ -73,10 +132,10 @@ export default function ProgressScreen() {
         </Card>
         <Card style={styles.statCard}>
           <ThemedText type="title" style={{ fontSize: 36, lineHeight: 40 }}>
-            {doneDates.size}
+            {stats.walkedDays}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            合計達成日
+            歩いた日数
           </ThemedText>
         </Card>
       </View>
@@ -90,6 +149,7 @@ export default function ProgressScreen() {
         </View>
       )}
 
+      {/* カレンダー: 歩いた日=塗り、報告した日=輪郭、救済=浅瀬ソフト、今日=破線 */}
       <Card>
         <ThemedText type="smallBold">
           {year}年{month}月
@@ -105,18 +165,33 @@ export default function ProgressScreen() {
           {cells.map((day, i) => {
             if (day === null) return <View key={`empty-${i}`} style={styles.cell} />;
             const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const done = doneDates.has(key);
+            const doneCount = reportMap.get(key);
+            const walked = doneCount !== undefined && doneCount > 0;
+            const reported = doneCount !== undefined && doneCount === 0;
+            const grace = doneCount === undefined && graceSet.has(key);
             const isToday = key === today;
+            const isFuture = diffDays(today, key) > 0;
             return (
               <View
                 key={key}
                 style={[
                   styles.cell,
                   styles.dayCell,
-                  done && { backgroundColor: theme.tint },
-                  !done && isToday && { borderWidth: 1.5, borderColor: theme.tint, borderRadius: 999 },
+                  walked && { backgroundColor: theme.tint },
+                  grace && { backgroundColor: theme.tintSoft },
+                  reported && { borderWidth: 1.5, borderColor: theme.tint },
+                  !walked && !reported && isToday && {
+                    borderWidth: 1.5,
+                    borderColor: theme.tintDeep,
+                    borderStyle: 'dashed',
+                  },
                 ]}>
-                <ThemedText type="small" style={{ color: done ? theme.onTint : theme.text }}>
+                <ThemedText
+                  type="small"
+                  style={{
+                    color: walked ? theme.onTint : theme.text,
+                    opacity: isFuture ? 0.35 : 1,
+                  }}>
                   {day}
                 </ThemedText>
               </View>
@@ -124,6 +199,26 @@ export default function ProgressScreen() {
           })}
         </View>
       </Card>
+
+      {/* ホトリの観察手帳への入口 */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="ホトリの観察手帳を開く"
+        onPress={() => router.push('/notebook')}
+        style={({ pressed }) => pressed && { opacity: 0.85 }}>
+        <Card style={{ gap: Spacing.two }}>
+          <View style={styles.bookHead}>
+            <SymbolView name="book.closed" size={16} tintColor={theme.tintDeep} />
+            <ThemedText type="smallBold">ホトリの観察手帳</ThemedText>
+            <View style={[styles.premiumTag, { backgroundColor: theme.sand }]}>
+              <ThemedText style={[styles.premiumTagText, { color: theme.sandText }]}>PREMIUM</ThemedText>
+            </View>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary" style={{ lineHeight: 20 }}>
+            {notebookLine}
+          </ThemedText>
+        </Card>
+      </Pressable>
 
       <View style={{ gap: Spacing.two }}>
         <ThemedText type="smallBold">4週間のフォーカス</ThemedText>
@@ -149,4 +244,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 6 },
   dayCell: { borderRadius: 999, aspectRatio: 1, justifyContent: 'center', paddingVertical: 0, marginVertical: 2 },
+  bookHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  premiumTag: { marginLeft: 'auto', borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 2 },
+  premiumTagText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
 });

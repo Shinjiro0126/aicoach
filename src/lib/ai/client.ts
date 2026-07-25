@@ -1,11 +1,14 @@
 import { Config } from '@/constants/config';
+import { buildInsightFallback, INSIGHT_TIMEOUT_MS } from '@/lib/insight-stats';
 import { clampWeeks } from '@/lib/roadmap';
-import { mockCoach, mockPlan, mockSuggest } from './mock';
+import { mockCoach, mockInsight, mockPlan, mockSuggest } from './mock';
 import { fallbackSuggestion, SUGGEST_TIMEOUT_MS, withTimeout } from './suggest-fallback';
 import {
   AiError,
   type CoachRequest,
   type CoachResponse,
+  type InsightRequest,
+  type InsightResponse,
   type PlanRequest,
   type PlanResponse,
   type SuggestRequest,
@@ -77,5 +80,47 @@ export async function suggestDurationWithFallback(
     return { weeks: clampWeeks(res.weeks), reason: res.reason };
   } catch {
     return fallbackSuggestion(req.category, req.goalTitle);
+  }
+}
+
+/**
+ * 観察手帳の生成(/v1/insight)。送るのは端末内で集計した統計値のみ。
+ * プレミアム専用機能のため、無料枠(quota)は消費しない
+ */
+export async function generateInsight(req: InsightRequest, deviceId: string): Promise<InsightResponse> {
+  if (isMockMode()) return mockInsight(req);
+  return post<InsightResponse>('/v1/insight', req, deviceId);
+}
+
+export type InsightResult = {
+  insight: InsightResponse;
+  /** フォールバック文で組み立てた応答か(後で再生成を試みる判定に使う) */
+  fallback: boolean;
+};
+
+/**
+ * 観察手帳の生成(フォールバック保証つき)。reject しない。
+ * 失敗・タイムアウト時は統計値からの定型文に切り替えて必ず結果を返す
+ * (期間おすすめ suggestDurationWithFallback と同じ思想)。
+ */
+export async function generateInsightWithFallback(
+  req: InsightRequest,
+  deviceId: string,
+): Promise<InsightResult> {
+  const fallback = buildInsightFallback(req);
+  try {
+    const res = await withTimeout(generateInsight(req, deviceId), INSIGHT_TIMEOUT_MS);
+    // 応答のフィールド欠け・空文字はフォールバック文で補う(画面に空欄を出さない)
+    return {
+      insight: {
+        letter: res.letter?.trim() || fallback.letter,
+        typeName: (res.typeName?.trim() || fallback.typeName).slice(0, 15),
+        weekdayNote: res.weekdayNote?.trim() || fallback.weekdayNote,
+        plan: res.plan?.trim() || fallback.plan,
+      },
+      fallback: false,
+    };
+  } catch {
+    return { insight: fallback, fallback: true };
   }
 }
