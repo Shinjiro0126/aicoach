@@ -164,7 +164,8 @@ const TODAY_POSITION = { x: 74, y: 94 };
 function FullJourneySvg({ days, colors }: { days: JourneyDay[]; colors: StoneColors }) {
   const positions = [...TOP_POSITIONS, FOLD_POSITION, ...BOTTOM_POSITIONS, TODAY_POSITION];
   return (
-    <Svg viewBox="0 0 316 132" width="100%">
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)
+    <Svg viewBox="0 0 316 132" width="100%" height="100%">
       <Defs>
         <LinearGradient id="journeyWater" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={colors.water} />
@@ -213,7 +214,8 @@ function ColdJourneySvg({
   sandText: string;
 }) {
   return (
-    <Svg viewBox="0 0 316 108" width="100%">
+    // height未指定だとreact-native-svgは高さ0で描画され、中身が一切見えない(親のaspectRatioを100%で埋める)
+    <Svg viewBox="0 0 316 108" width="100%" height="100%">
       <Defs>
         <LinearGradient id="journeyWaterCold" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={colors.water} />
@@ -282,7 +284,11 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
           あなたの道のり
         </ThemedText>
         <ThemedText type="small" style={[styles.headSub, { color: theme.tintDeep }]}>
-          {reached ? 'ゴールまで、歩き切りました' : `第${weekNo}週 · 旗まであと${daysToFlag}日`}
+          {reached
+            ? 'ゴールまで、歩き切りました'
+            : daysToFlag <= 0
+              ? `第${weekNo}週 · 今日は旗の日`
+              : `第${weekNo}週 · 旗まであと${daysToFlag}日`}
         </ThemedText>
       </View>
 
