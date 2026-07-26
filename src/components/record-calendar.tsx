@@ -166,10 +166,11 @@ export function RecordCalendar({ reports, streak, walkedDays, startKey, today }:
           const isFuture = diffDays(today, key) > 0;
           // 連続の帯: 帯の始端・終端に加え、週の行頭(日曜)は左丸角・行末(土曜)は右丸角にする
           // (デザイン原本では行をまたぐ帯も各行のセグメント両端が丸角)
+          // 帯が月をまたぐ場合も、表示中の月で見えているセグメントの端(1日・月末日)は丸角にする
           const inBand = bandSet.has(key);
           const col = (firstWeekday + day - 1) % 7;
-          const bandStart = inBand && (!bandSet.has(addDaysKey(key, -1)) || col === 0);
-          const bandEnd = inBand && (!bandSet.has(addDaysKey(key, 1)) || col === 6);
+          const bandStart = inBand && (!bandSet.has(addDaysKey(key, -1)) || col === 0 || day === 1);
+          const bandEnd = inBand && (!bandSet.has(addDaysKey(key, 1)) || col === 6 || day === daysInMonth);
 
           const dayCircle = (
             <View
