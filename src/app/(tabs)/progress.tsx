@@ -4,13 +4,14 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { JourneyStones } from '@/components/journey-stones';
+import { RecordCalendar } from '@/components/record-calendar';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { getWeeklyPlans, listReports } from '@/db/repo';
 import type { WeeklyPlan } from '@/db/schema';
-import { diffDays, monthMeta, toDateKey, todayKey } from '@/lib/dates';
+import { diffDays, toDateKey, todayKey } from '@/lib/dates';
 import {
   buildTeaser,
   coldStartJourneyDays,
@@ -27,8 +28,6 @@ import { computeStreak, type StreakResult } from '@/lib/streak';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
-
 export default function ProgressScreen() {
   const theme = useTheme();
   const goal = useAppStore((s) => s.activeGoal);
@@ -39,7 +38,6 @@ export default function ProgressScreen() {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
 
   const today = todayKey();
-  const [year, month] = today.split('-').map(Number);
 
   const refresh = useCallback(() => {
     if (!goal) return;
@@ -89,16 +87,6 @@ export default function ProgressScreen() {
         ? `最新の見立て: 「${insightCache.insight.typeName}」 —— 手帳を開いて読めます。`
         : `今週の見立て: 「${teaser}」 —— 続きは手帳で。`;
 
-  // カレンダー用: 日付キー → 提出記録 / 救済日
-  const reportMap = new Map(reports.map((r) => [r.dateKey, r.doneCount]));
-  const graceSet = new Set(streak.graceUsedOn);
-
-  const { firstWeekday, daysInMonth } = monthMeta(year, month);
-  const cells: (number | null)[] = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
   return (
     <Screen scroll withTabInset>
       <ThemedText type="subtitle" style={{ marginTop: Spacing.two }}>
@@ -115,95 +103,14 @@ export default function ProgressScreen() {
         caption={coldCaption}
       />
 
-      <View style={styles.statsRow}>
-        <Card style={[styles.statCard, { backgroundColor: theme.tintSoft }]}>
-          <ThemedText type="title" style={{ color: theme.tint, fontSize: 36, lineHeight: 40 }}>
-            {streak.current}
-          </ThemedText>
-          <View style={styles.statLabel}>
-            <SymbolView name="flame.fill" size={13} tintColor={theme.tint} />
-            <ThemedText type="small" themeColor="textSecondary">
-              連続日数
-            </ThemedText>
-          </View>
-        </Card>
-        <Card style={styles.statCard}>
-          <ThemedText type="title" style={{ fontSize: 36, lineHeight: 40 }}>
-            {streak.best}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            自己ベスト
-          </ThemedText>
-        </Card>
-        <Card style={styles.statCard}>
-          <ThemedText type="title" style={{ fontSize: 36, lineHeight: 40 }}>
-            {stats.walkedDays}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            歩いた日数
-          </ThemedText>
-        </Card>
-      </View>
-
-      {streak.graceUsedOn.length > 0 && (
-        <View style={styles.graceRow}>
-          <SymbolView name="leaf" size={14} tintColor={theme.tint} />
-          <ThemedText type="small" themeColor="textSecondary">
-            1日おやすみしましたが、ストリークは守られています
-          </ThemedText>
-        </View>
-      )}
-
-      {/* カレンダー: 歩いた日=塗り、報告した日=輪郭、救済=浅瀬ソフト、今日=破線 */}
-      <Card>
-        <ThemedText type="smallBold">
-          {year}年{month}月
-        </ThemedText>
-        <View style={styles.weekRow}>
-          {WEEKDAYS.map((w) => (
-            <ThemedText key={w} type="small" themeColor="textSecondary" style={styles.cell}>
-              {w}
-            </ThemedText>
-          ))}
-        </View>
-        <View style={styles.grid}>
-          {cells.map((day, i) => {
-            if (day === null) return <View key={`empty-${i}`} style={styles.cell} />;
-            const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const doneCount = reportMap.get(key);
-            const walked = doneCount !== undefined && doneCount > 0;
-            const reported = doneCount !== undefined && doneCount === 0;
-            const grace = doneCount === undefined && graceSet.has(key);
-            const isToday = key === today;
-            const isFuture = diffDays(today, key) > 0;
-            return (
-              <View
-                key={key}
-                style={[
-                  styles.cell,
-                  styles.dayCell,
-                  walked && { backgroundColor: theme.tint },
-                  grace && { backgroundColor: theme.tintSoft },
-                  reported && { borderWidth: 1.5, borderColor: theme.tint },
-                  !walked && !reported && isToday && {
-                    borderWidth: 1.5,
-                    borderColor: theme.tintDeep,
-                    borderStyle: 'dashed',
-                  },
-                ]}>
-                <ThemedText
-                  type="small"
-                  style={{
-                    color: walked ? theme.onTint : theme.text,
-                    opacity: isFuture ? 0.35 : 1,
-                  }}>
-                  {day}
-                </ThemedText>
-              </View>
-            );
-          })}
-        </View>
-      </Card>
+      {/* 統合カレンダーカード: 統計帯+月送り+連続の帯+救済メッセージ+凡例 */}
+      <RecordCalendar
+        reports={reports}
+        streak={streak}
+        walkedDays={stats.walkedDays}
+        startKey={startKey}
+        today={today}
+      />
 
       {/* ホトリの観察手帳への入口 */}
       <Pressable
@@ -241,14 +148,6 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: 'row', gap: Spacing.two },
-  statCard: { flex: 1, alignItems: 'center' },
-  statLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  graceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  weekRow: { flexDirection: 'row', marginTop: Spacing.two },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 6 },
-  dayCell: { borderRadius: 999, aspectRatio: 1, justifyContent: 'center', paddingVertical: 0, marginVertical: 2 },
   bookHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   premiumTag: { marginLeft: 'auto', borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 2 },
   premiumTagText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },

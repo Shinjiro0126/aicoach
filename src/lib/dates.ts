@@ -40,6 +40,12 @@ export function formatJP(key: string): string {
   return `${m}月${d}日(${week})`;
 }
 
+/** カレンダー月送り用: (year, month1) に delta ヶ月加算した年月を返す(負数可・年跨ぎ対応) */
+export function shiftMonth(year: number, month1: number, delta: number): { year: number; month: number } {
+  const index = year * 12 + (month1 - 1) + delta;
+  return { year: Math.floor(index / 12), month: ((index % 12) + 12) % 12 + 1 };
+}
+
 /** その月のカレンダー表示用: 月初の曜日(0=日)と日数 */
 export function monthMeta(year: number, month1: number): { firstWeekday: number; daysInMonth: number } {
   const first = new Date(year, month1 - 1, 1);
