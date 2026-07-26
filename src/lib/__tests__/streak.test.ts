@@ -126,6 +126,19 @@ describe('streakBandDays', () => {
     expect(band(['2026-06-28', '2026-06-29', '2026-07-02'], TODAY)).toEqual(['2026-07-02']);
   });
 
+  it('今日未提出かつ昨日が救済日: 帯の終端が救済日になる', () => {
+    // 6/29, 6/30 提出 → 7/1(昨日)未提出=救済 → 7/2(今日)未提出
+    // computeStreak は昨日を起点に救済を適用するため、帯は救済日 7/1 で終わる
+    const dates = ['2026-06-29', '2026-06-30'];
+    const result = computeStreak(dates, TODAY);
+    expect(result.graceUsedOn).toEqual(['2026-07-01']);
+    expect(streakBandDays(dates, result.graceUsedOn, TODAY)).toEqual([
+      '2026-06-29',
+      '2026-06-30',
+      '2026-07-01',
+    ]);
+  });
+
   it('月跨ぎ・年跨ぎでも連続する', () => {
     const dates = ['2025-12-30', '2025-12-31', '2026-01-01', '2026-01-02'];
     expect(band(dates, '2026-01-02')).toEqual(dates);

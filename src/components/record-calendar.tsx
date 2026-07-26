@@ -100,9 +100,12 @@ export function RecordCalendar({ reports, streak, walkedDays, startKey, today }:
           <SymbolView name="chevron.right" size={14} tintColor={theme.tintDeep} />
         </Pressable>
         <View style={styles.spacer} />
-        <ThemedText style={[styles.headSub, { color: theme.textSecondary }]}>
-          この月は {monthWalked}日 歩きました
-        </ThemedText>
+        {/* 歩いた日が0の月(報告のみ・記録なし)はサマリーを出さない */}
+        {monthWalked > 0 && (
+          <ThemedText style={[styles.headSub, { color: theme.textSecondary }]}>
+            この月は {monthWalked}日 歩きました
+          </ThemedText>
+        )}
       </View>
 
       {/* 統合ステータス帯: 連続 / 自己ベスト / 歩いた日数(値は全期間) */}
@@ -161,10 +164,12 @@ export function RecordCalendar({ reports, streak, walkedDays, startKey, today }:
           const grace = doneCount === undefined && graceSet.has(key);
           const isToday = key === today;
           const isFuture = diffDays(today, key) > 0;
-          // 連続の帯: 帯の始端・終端だけ丸め、行端をまたいで続く場合はフラット
+          // 連続の帯: 帯の始端・終端に加え、週の行頭(日曜)は左丸角・行末(土曜)は右丸角にする
+          // (デザイン原本では行をまたぐ帯も各行のセグメント両端が丸角)
           const inBand = bandSet.has(key);
-          const bandStart = inBand && !bandSet.has(addDaysKey(key, -1));
-          const bandEnd = inBand && !bandSet.has(addDaysKey(key, 1));
+          const col = (firstWeekday + day - 1) % 7;
+          const bandStart = inBand && (!bandSet.has(addDaysKey(key, -1)) || col === 0);
+          const bandEnd = inBand && (!bandSet.has(addDaysKey(key, 1)) || col === 6);
 
           const dayCircle = (
             <View
@@ -311,7 +316,8 @@ const styles = StyleSheet.create({
   dayTextGrace: { fontWeight: '600' },
   dayTextFuture: { opacity: 0.35 },
   graceLeaf: { position: 'absolute', top: -3, right: -1 },
-  todayRing: { borderRadius: 999, borderWidth: 2, padding: 2 },
+  // 原本の box-shadow(ギャップ2px+外周3.5px)相当: リング線幅は 3.5 - 2 = 1.5px
+  todayRing: { borderRadius: 999, borderWidth: 1.5, padding: 2 },
 
   graceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, paddingHorizontal: Spacing.one },
   graceText: { fontSize: 11, lineHeight: 16 },
