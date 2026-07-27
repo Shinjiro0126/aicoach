@@ -59,3 +59,28 @@ export function computeStreak(doneDates: readonly string[], today: string): Stre
 
   return { current: currentWalk.length, best, graceUsedOn: currentWalk.grace };
 }
+
+/**
+ * 現在のストリークを構成する日(提出日+救済日)のdateKey配列(古い順)。
+ * カレンダーの「連続の帯」描画に使う。
+ *
+ * computeStreak と同じ起点(今日提出済みなら今日、未提出なら昨日)から、
+ * 提出日または救済日が続く限りさかのぼる。graceUsedOn は computeStreak の
+ * 結果(現在のストリーク内の救済日)を渡すこと。
+ * 帯の日数は current + graceUsedOn.length と一致する。
+ */
+export function streakBandDays(
+  reportDateKeys: readonly string[],
+  graceUsedOn: readonly string[],
+  today: string,
+): string[] {
+  const done = new Set(reportDateKeys);
+  const grace = new Set(graceUsedOn);
+  const days: string[] = [];
+  let cursor = done.has(today) ? today : addDaysKey(today, -1);
+  while (done.has(cursor) || grace.has(cursor)) {
+    days.push(cursor);
+    cursor = addDaysKey(cursor, -1);
+  }
+  return days.reverse();
+}

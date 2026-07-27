@@ -1,4 +1,4 @@
-import { addDaysKey, diffDays, formatJP, monthMeta, toDateKey } from '../dates';
+import { addDaysKey, diffDays, formatJP, monthMeta, shiftMonth, toDateKey } from '../dates';
 
 describe('dates', () => {
   it('toDateKey はローカル日付を YYYY-MM-DD にする', () => {
@@ -35,5 +35,14 @@ describe('dates', () => {
     const { firstWeekday, daysInMonth } = monthMeta(2026, 7);
     expect(firstWeekday).toBe(3); // 2026-07-01 は水曜
     expect(daysInMonth).toBe(31);
+  });
+
+  it('shiftMonth は前月・翌月を年跨ぎ込みで返す', () => {
+    expect(shiftMonth(2026, 7, -1)).toEqual({ year: 2026, month: 6 });
+    expect(shiftMonth(2026, 7, 1)).toEqual({ year: 2026, month: 8 });
+    expect(shiftMonth(2026, 1, -1)).toEqual({ year: 2025, month: 12 });
+    expect(shiftMonth(2025, 12, 1)).toEqual({ year: 2026, month: 1 });
+    expect(shiftMonth(2026, 7, 0)).toEqual({ year: 2026, month: 7 });
+    expect(shiftMonth(2026, 3, -15)).toEqual({ year: 2024, month: 12 });
   });
 });

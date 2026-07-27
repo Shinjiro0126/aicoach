@@ -1,4 +1,4 @@
-import { computeStreak } from '../streak';
+import { computeStreak, streakBandDays } from '../streak';
 
 const TODAY = '2026-07-02';
 
@@ -79,5 +79,89 @@ describe('computeStreak', () => {
   it('月跨ぎ・年跨ぎでも正しくカウントする', () => {
     const dates = ['2025-12-30', '2025-12-31', '2026-01-01', '2026-01-02'];
     expect(computeStreak(dates, '2026-01-02').current).toBe(4);
+  });
+});
+
+describe('streakBandDays', () => {
+  /** computeStreak の救済日をそのまま渡してカレンダー帯の日集合を得る(実利用と同じ流れ) */
+  const band = (dates: string[], today: string) =>
+    streakBandDays(dates, computeStreak(dates, today).graceUsedOn, today);
+
+  it('記録がなければ空(ストリーク0)', () => {
+    expect(band([], TODAY)).toEqual([]);
+  });
+
+  it('今日提出済み: 今日を含む連続日を古い順で返す', () => {
+    expect(band(['2026-06-30', '2026-07-01', '2026-07-02'], TODAY)).toEqual([
+      '2026-06-30',
+      '2026-07-01',
+      '2026-07-02',
+    ]);
+  });
+
+  it('今日未提出: 昨日までの連続日を返す(今日は含まない)', () => {
+    expect(band(['2026-06-30', '2026-07-01'], TODAY)).toEqual(['2026-06-30', '2026-07-01']);
+  });
+
+  it('救済日を帯に含む', () => {
+    // 6/29, 6/30 提出 → 7/1 抜け(救済) → 7/2 提出
+    expect(band(['2026-06-29', '2026-06-30', '2026-07-02'], TODAY)).toEqual([
+      '2026-06-29',
+      '2026-06-30',
+      '2026-07-01',
+      '2026-07-02',
+    ]);
+  });
+
+  it('救済されなかった抜けで帯は止まる(7日以内の2回目の救済)', () => {
+    // 6/29 は救済不可の抜け → 6/28 は帯に含まれない
+    expect(band(['2026-06-28', '2026-06-30', '2026-07-02'], TODAY)).toEqual([
+      '2026-06-30',
+      '2026-07-01',
+      '2026-07-02',
+    ]);
+  });
+
+  it('2日以上の抜けの前は帯に含まれない', () => {
+    expect(band(['2026-06-28', '2026-06-29', '2026-07-02'], TODAY)).toEqual(['2026-07-02']);
+  });
+
+  it('今日未提出かつ昨日が救済日: 帯の終端が救済日になる', () => {
+    // 6/29, 6/30 提出 → 7/1(昨日)未提出=救済 → 7/2(今日)未提出
+    // computeStreak は昨日を起点に救済を適用するため、帯は救済日 7/1 で終わる
+    const dates = ['2026-06-29', '2026-06-30'];
+    const result = computeStreak(dates, TODAY);
+    expect(result.graceUsedOn).toEqual(['2026-07-01']);
+    expect(streakBandDays(dates, result.graceUsedOn, TODAY)).toEqual([
+      '2026-06-29',
+      '2026-06-30',
+      '2026-07-01',
+    ]);
+  });
+
+  it('月跨ぎ・年跨ぎでも連続する', () => {
+    const dates = ['2025-12-30', '2025-12-31', '2026-01-01', '2026-01-02'];
+    expect(band(dates, '2026-01-02')).toEqual(dates);
+  });
+
+  it('computeStreak と整合する: 帯の日数 = current + 救済日数', () => {
+    const dates = [
+      '2026-06-21',
+      '2026-06-22',
+      '2026-06-24',
+      '2026-06-25',
+      '2026-06-26',
+      '2026-06-27',
+      '2026-06-28',
+      '2026-06-29',
+      '2026-06-30',
+      '2026-07-02',
+    ];
+    const result = computeStreak(dates, TODAY);
+    const days = streakBandDays(dates, result.graceUsedOn, TODAY);
+    expect(days).toHaveLength(result.current + result.graceUsedOn.length);
+    // 救済日('2026-07-01', '2026-06-23')も帯に含まれる
+    expect(days).toContain('2026-07-01');
+    expect(days).toContain('2026-06-23');
   });
 });
