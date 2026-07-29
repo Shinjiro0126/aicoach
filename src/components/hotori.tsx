@@ -73,6 +73,8 @@ const LANYARD = '#5FC2EE'; // ホイッスルの紐・水辺の照り返し
 const METAL_EDGE = '#8FA0AC'; // ホイッスルの縁取り
 const BUBBLE = '#9DC3D9'; // 考え中の泡
 const ZZZ = '#5B87A3'; // おやすみの zzz
+// 原本SVGのテキストは 'Helvetica Neue' 指定(zzz・COACHロゴ共通)
+const TEXT_FONT = 'Helvetica Neue';
 const ACCENT = '#2E9FD6'; // 波紋・動き線・指先アクセント
 const GOLD = '#F2C14E'; // 喜びのキラキラ(金)
 
@@ -410,15 +412,23 @@ function HoodieBody({ g }: { g: Grad }) {
   );
 }
 
-/** 首元: 畳まれたフードのロール(前面) */
-function HoodRoll({ g }: { g: Grad }) {
+/** 首元: 畳まれたフードのロール(前面)。バストは全身より2下+原本準拠の微調整(下端102.5・裾線104.4) */
+function HoodRoll({ g, variant = 'full' }: { g: Grad; variant?: 'full' | 'bust' }) {
+  const bust = variant === 'bust';
+  const roll = bust
+    ? 'M42.5 91 Q51 98.5 60 98.5 Q69 98.5 77.5 91 Q82 93.5 81 98 Q70.5 103.5 60 102.5 Q49.5 103.5 39 98 Q38 93.5 42.5 91 Z'
+    : 'M42.5 89 Q51 96.5 60 96.5 Q69 96.5 77.5 89 Q82 91.5 81 96 Q70.5 101.5 60 101 Q49.5 101.5 39 96 Q38 91.5 42.5 89 Z';
+  const hem = bust ? 'M42 98.6 Q60 104.4 78 98.6' : 'M42 96.6 Q60 102.6 78 96.6';
   return (
     <G>
-      <Path d="M42.5 89 Q51 96.5 60 96.5 Q69 96.5 77.5 89 Q82 91.5 81 96 Q70.5 101.5 60 101 Q49.5 101.5 39 96 Q38 91.5 42.5 89 Z" fill={g.hoodOuter} />
-      <Path d="M50.5 92.3 Q52 96 51.5 99.3" fill="none" stroke="#0C4260" strokeWidth={1.3} strokeLinecap="round" opacity={0.6} />
-      <Path d="M69.5 92.3 Q68 96 68.5 99.3" fill="none" stroke="#0A3A56" strokeWidth={1.3} strokeLinecap="round" opacity={0.6} />
-      <Path d="M45 90.8 Q52.5 96.2 60 96.2" fill="none" stroke="#9ED4F0" strokeWidth={1.1} strokeLinecap="round" opacity={0.5} />
-      <Path d="M42 96.6 Q60 102.6 78 96.6" fill="none" stroke="#0A3A56" strokeWidth={1} strokeLinecap="round" opacity={0.45} />
+      <Path d={roll} fill={g.hoodOuter} />
+      {/* 折りジワとハイライトはバスト原本でも全身のちょうど+2 */}
+      <G y={bust ? 2 : 0}>
+        <Path d="M50.5 92.3 Q52 96 51.5 99.3" fill="none" stroke="#0C4260" strokeWidth={1.3} strokeLinecap="round" opacity={0.6} />
+        <Path d="M69.5 92.3 Q68 96 68.5 99.3" fill="none" stroke="#0A3A56" strokeWidth={1.3} strokeLinecap="round" opacity={0.6} />
+        <Path d="M45 90.8 Q52.5 96.2 60 96.2" fill="none" stroke="#9ED4F0" strokeWidth={1.1} strokeLinecap="round" opacity={0.5} />
+      </G>
+      <Path d={hem} fill="none" stroke="#0A3A56" strokeWidth={1} strokeLinecap="round" opacity={0.45} />
     </G>
   );
 }
@@ -442,7 +452,7 @@ function ChestGear({ showCoach, lanyardEnd = 115 }: { showCoach: boolean; lanyar
   return (
     <G>
       {showCoach && (
-        <SvgText x={60} y={105.5} fontSize={6.6} fontWeight="800" fill="#E3F4FC" textAnchor="middle" letterSpacing={0.7}>
+        <SvgText x={60} y={105.5} fontFamily={TEXT_FONT} fontSize={6.6} fontWeight="800" fill="#E3F4FC" textAnchor="middle" letterSpacing={0.7}>
           COACH
         </SvgText>
       )}
@@ -592,17 +602,17 @@ function Zzz() {
   return (
     <G>
       <G rotation={-8} origin="94, 39">
-        <SvgText x={94} y={39} fontSize={10} fontWeight="700" fill={ZZZ} opacity={0.75}>
+        <SvgText x={94} y={39} fontFamily={TEXT_FONT} fontSize={10} fontWeight="700" fill={ZZZ} opacity={0.75}>
           z
         </SvgText>
       </G>
       <G rotation={-8} origin="101, 30">
-        <SvgText x={101} y={30} fontSize={13} fontWeight="700" fill={ZZZ} opacity={0.85}>
+        <SvgText x={101} y={30} fontFamily={TEXT_FONT} fontSize={13} fontWeight="700" fill={ZZZ} opacity={0.85}>
           z
         </SvgText>
       </G>
       <G rotation={-8} origin="110, 20">
-        <SvgText x={110} y={20} fontSize={16} fontWeight="700" fill={ZZZ}>
+        <SvgText x={110} y={20} fontFamily={TEXT_FONT} fontSize={16} fontWeight="700" fill={ZZZ}>
           z
         </SvgText>
       </G>
@@ -746,17 +756,20 @@ function CelebrateRipple({ scale }: { scale: number }) {
   );
 }
 
-/** thinking: ふわっと浮かぶ泡(2つを位相ずらしで明滅) */
+/** thinking: ふわっと浮かぶ泡(2つを位相ずらしで明滅)。静止泡と同じ白ハイライトつき */
 function ThinkingBubble({
   cx,
   cy,
   r,
+  hi,
   scale,
   initialDelay,
 }: {
   cx: number;
   cy: number;
   r: number;
+  /** ハイライト円(viewBox座標)。BubblesStatic と同じ値を渡す */
+  hi: { cx: number; cy: number; r: number };
   scale: number;
   initialDelay: number;
 }) {
@@ -778,6 +791,7 @@ function ThinkingBubble({
 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const d = 2 * r * scale;
+  const hd = 2 * hi.r * scale;
   return (
     <Animated.View
       pointerEvents="none"
@@ -792,8 +806,21 @@ function ThinkingBubble({
           backgroundColor: BUBBLE,
         },
         style,
-      ]}
-    />
+      ]}>
+      {/* 白ハイライト(親の明滅opacityを継承する) */}
+      <View
+        style={{
+          position: 'absolute',
+          left: (hi.cx - hi.r - (cx - r)) * scale,
+          top: (hi.cy - hi.r - (cy - r)) * scale,
+          width: hd,
+          height: hd,
+          borderRadius: hd / 2,
+          backgroundColor: '#FFFFFF',
+          opacity: 0.7,
+        }}
+      />
+    </Animated.View>
   );
 }
 
@@ -887,15 +914,13 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
           <Path d={bustHoodie} fill={g.hoodieBody} />
           <Path d={bustHoodie} fill={g.shadeBlue} />
           {/* 畳まれたフードのロール(前面)+ドローコード */}
-          <G y={2}>
-            <HoodRoll g={g} />
-          </G>
+          <HoodRoll g={g} variant="bust" />
           <Path d="M55.5 99.8 L54.1 103.1" fill="none" stroke="#DCEFF9" strokeWidth={1.6} strokeLinecap="round" />
           <Path d="M64.5 99.8 L65.9 103.1" fill="none" stroke="#DCEFF9" strokeWidth={1.6} strokeLinecap="round" />
           <Circle cx={53.8} cy={104} r={1.05} fill={g.metal} stroke={METAL_EDGE} strokeWidth={0.4} />
           <Circle cx={66.2} cy={104} r={1.05} fill={g.metal} stroke={METAL_EDGE} strokeWidth={0.4} />
           {/* COACH+紐+ホイッスル(バスト用の小ぶり配置) */}
-          <SvgText x={60} y={109} fontSize={6} fontWeight="800" fill="#E3F4FC" textAnchor="middle" letterSpacing={0.7}>
+          <SvgText x={60} y={109} fontFamily={TEXT_FONT} fontSize={6} fontWeight="800" fill="#E3F4FC" textAnchor="middle" letterSpacing={0.7}>
             COACH
           </SvgText>
           <Path d="M43.5 100.5 L56 111" stroke={LANYARD} strokeWidth={2.2} fill="none" strokeLinecap="round" />
@@ -968,8 +993,8 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
       </Animated.View>
       {anim === 'thinking' && (
         <>
-          <ThinkingBubble cx={97} cy={45} r={3.2} scale={px} initialDelay={0} />
-          <ThinkingBubble cx={105.5} cy={35.5} r={5} scale={px} initialDelay={500} />
+          <ThinkingBubble cx={97} cy={45} r={3.2} hi={{ cx: 96, cy: 44, r: 1.1 }} scale={px} initialDelay={0} />
+          <ThinkingBubble cx={105.5} cy={35.5} r={5} hi={{ cx: 103.8, cy: 33.8, r: 1.7 }} scale={px} initialDelay={500} />
         </>
       )}
     </View>
