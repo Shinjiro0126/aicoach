@@ -3,6 +3,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -27,7 +28,11 @@ export default function PaywallScreen() {
 
   return (
     <Screen scroll>
-      <ThemedText type="subtitle" style={{ marginTop: Spacing.three }}>
+      {/* ホトリのヒーローポーズ(ウィンク+指差し+観察ボード) */}
+      <View style={{ alignItems: 'center', marginTop: Spacing.three }}>
+        <Hotori pose="hero" size={128} animate="idle" />
+      </View>
+      <ThemedText type="subtitle">
         プレミアムで{'\n'}もっと深く伴走
       </ThemedText>
       <ThemedText themeColor="textSecondary">

@@ -46,7 +46,8 @@ export type HotoriPose =
   | 'encourage' // 励まし: 未達成の日の夜、背中を押すとき
   | 'sleep' // おやすみ: 夜の振り返り後
   | 'concern' // 心配: ストリーク救済、おかえりデー
-  | 'applaud'; // 拍手: 目標達成、ストリーク節目
+  | 'applaud' // 拍手: 目標達成、ストリーク節目
+  | 'hero'; // ヒーロー: ペイウォール等の主役ポーズ(ウィンク+指差し+観察ボード)
 
 export type HotoriAnimation = 'idle' | 'celebrate' | 'thinking';
 
@@ -95,6 +96,8 @@ function gradientUrls(uid: string) {
     hoodieBody: u('HoodieBody'), // パーカー本体
     hoodOuter: u('HoodOuter'), // フードの外側
     metal: u('Metal'), // ホイッスルの金属
+    boardG: u('BoardG'), // 観察ボードの板(hero)
+    paperG: u('PaperG'), // 観察ボードの紙(hero)
     eyeG: u('EyeG'), // 瞳
     blush: u('Blush'), // 頬の赤み
     noseG: u('NoseG'), // 鼻
@@ -161,6 +164,15 @@ function CharacterDefs({ uid, variant }: { uid: string; variant: 'full' | 'bust'
         <Stop offset="0" stopColor="#EEF4F8" />
         <Stop offset="0.55" stopColor="#C4D0D9" />
         <Stop offset="1" stopColor="#9DAEBA" />
+      </LinearGradient>
+      <LinearGradient id={id('BoardG')} x1="0" y1="0" x2="0.4" y2="1">
+        <Stop offset="0" stopColor="#9A7850" />
+        <Stop offset="0.5" stopColor="#8A6B47" />
+        <Stop offset="1" stopColor="#6F553A" />
+      </LinearGradient>
+      <LinearGradient id={id('PaperG')} x1="0" y1="0" x2="0.2" y2="1">
+        <Stop offset="0" stopColor="#FAF2E3" />
+        <Stop offset="1" stopColor="#EDDFC6" />
       </LinearGradient>
       <RadialGradient id={id('EyeG')} cx="0.36" cy="0.3" r="0.9">
         <Stop offset="0" stopColor="#4A3524" />
@@ -355,6 +367,20 @@ function OpenEyes({ g }: { g: Grad }) {
   );
 }
 
+/** ウィンク目(hero): 左=開き目(瞳グラデ)/ 右=やわらかいウィンク弧。原本 design-final-hero.svg 準拠 */
+function WinkEyes({ g }: { g: Grad }) {
+  return (
+    <G>
+      <Circle cx={45} cy={53.3} r={4.6} fill={g.eyeG} />
+      <Circle cx={43.5} cy={51.4} r={2} fill="#FFFFFF" />
+      <Circle cx={46.9} cy={55.3} r={0.95} fill="#FFFFFF" opacity={0.6} />
+      <Circle cx={43.1} cy={55.9} r={0.6} fill="#7CC5E8" opacity={0.8} />
+      <Path d="M42.7 58.6 q2.3 1.8 4.6 0.1" fill="none" stroke={TEAR_HI} strokeWidth={1} strokeLinecap="round" opacity={0.5} />
+      <Path d="M70.6 54.2 q4.4 -5 8.8 0" stroke={EYE} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+    </G>
+  );
+}
+
 /** 口4種: neutral=穏やかな微笑み / smile=にっこり / open=喜び(舌つき) / worry=への字ぎみの小さな口 */
 function Mouth({ kind, variant = 'full' }: { kind: 'neutral' | 'smile' | 'open' | 'worry'; variant?: 'full' | 'bust' }) {
   if (kind === 'open') {
@@ -493,7 +519,7 @@ function Feet({ g }: { g: Grad }) {
   );
 }
 
-type ArmsKind = 'down' | 'up' | 'point' | 'cheer' | 'crossed' | 'pawsTogether';
+type ArmsKind = 'down' | 'up' | 'point' | 'cheer' | 'crossed' | 'pawsTogether' | 'heroBoard';
 
 /** 左腕: 自然に下ろす(袖+ハイライト+袖口リブ+手) */
 function ArmLeftDown({ g }: { g: Grad }) {
@@ -519,7 +545,50 @@ function ArmRightDown({ g }: { g: Grad }) {
   );
 }
 
-/** 腕6種(下ろす・万歳・指し示す・応援・腕組み・両手を合わせる) */
+/** 右腕: 空へ指し示す(指先アクセントつき)。guide / hero で共用 */
+function ArmRightPoint({ g }: { g: Grad }) {
+  return (
+    <G>
+      <Path d="M78 102 q14 -5 22 -13" stroke={SLEEVE} strokeWidth={10} strokeLinecap="round" fill="none" />
+      <Path d="M78 100.4 q13.5 -4.8 21 -12.2" stroke={SLEEVE_HI} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.5} />
+      <Circle cx={100} cy={89} r={5.6} fill={CUFF} />
+      <Circle cx={102.4} cy={86.6} r={5} fill={g.furHead} />
+      <Circle cx={106.4} cy={83} r={2.5} fill={g.furHead} />
+      <G stroke={ACCENT} strokeWidth={2} strokeLinecap="round">
+        <Line x1={106} y1={74} x2={109} y2={67.5} />
+        <Line x1={112} y1={80} x2={117.5} y2={75.5} />
+      </G>
+    </G>
+  );
+}
+
+/** 左腕+観察ボード(hero)。原本の描画順を厳守: 袖→ボード→拳(拳はボード右縁に半重なり) */
+function ArmLeftBoard({ g }: { g: Grad }) {
+  return (
+    <G>
+      {/* 袖(腕)は常にボードの背面 */}
+      <Path d="M40 103 q-8 2 -11 7" stroke={SLEEVE} strokeWidth={10} strokeLinecap="round" fill="none" />
+      <Path d="M40 101.6 q-7.5 1.8 -10.4 6.2" stroke={SLEEVE_HI} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.5} />
+      {/* 観察ボード(左手で前に構える。右縁を親指前掛けサイドグリップ) */}
+      <G rotation={-12} origin="30, 100">
+        <Rect x={16.5} y={84} width={22} height={29} rx={3} fill={g.boardG} />
+        <Rect x={19} y={89} width={17} height={21.5} rx={1.8} fill={g.paperG} stroke="#C9B48D" strokeWidth={0.5} />
+        <Line x1={21.5} y1={95} x2={31.5} y2={95} stroke={ACCENT} strokeWidth={1.5} strokeLinecap="round" />
+        <Line x1={21.5} y1={100} x2={31.5} y2={100} stroke={BUBBLE} strokeWidth={1.5} strokeLinecap="round" />
+        <Line x1={21.5} y1={105} x2={28} y2={105} stroke={BUBBLE} strokeWidth={1.5} strokeLinecap="round" />
+        <Rect x={23.5} y={81} width={8} height={5.5} rx={1.6} fill={g.metal} stroke={METAL_EDGE} strokeWidth={0.5} />
+        {/* 拳: ボード右縁の中央を握る(縁に半分重ねる) */}
+        <Ellipse cx={34.8} cy={101.8} rx={1.7} ry={2.7} fill="#B08F63" opacity={0.25} />
+        <Circle cx={39} cy={100} r={5.3} fill={CUFF} />
+        <Ellipse cx={38.7} cy={100} rx={4.9} ry={4.6} fill={g.furHead} />
+        {/* 親指: 独立カプセルで縁の前に掛かる(紙面に約2px食い込む) */}
+        <Rect x={33.9} y={95} width={2.7} height={6.2} rx={1.35} fill={g.furHead} rotation={6} origin="35.2, 98" />
+      </G>
+    </G>
+  );
+}
+
+/** 腕7種(下ろす・万歳・指し示す・応援・腕組み・両手を合わせる・ボード持ち指差し) */
 function Arms({ kind, g }: { kind: ArmsKind; g: Grad }) {
   switch (kind) {
     case 'down':
@@ -548,15 +617,15 @@ function Arms({ kind, g }: { kind: ArmsKind; g: Grad }) {
       return (
         <G>
           <ArmLeftDown g={g} />
-          <Path d="M78 102 q14 -5 22 -13" stroke={SLEEVE} strokeWidth={10} strokeLinecap="round" fill="none" />
-          <Path d="M78 100.4 q13.5 -4.8 21 -12.2" stroke={SLEEVE_HI} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.5} />
-          <Circle cx={100} cy={89} r={5.6} fill={CUFF} />
-          <Circle cx={102.4} cy={86.6} r={5} fill={g.furHead} />
-          <Circle cx={106.4} cy={83} r={2.5} fill={g.furHead} />
-          <G stroke={ACCENT} strokeWidth={2} strokeLinecap="round">
-            <Line x1={106} y1={74} x2={109} y2={67.5} />
-            <Line x1={112} y1={80} x2={117.5} y2={75.5} />
-          </G>
+          <ArmRightPoint g={g} />
+        </G>
+      );
+    case 'heroBoard':
+      // 左は観察ボードを構え、右は空へ指し示す(hero)
+      return (
+        <G>
+          <ArmLeftBoard g={g} />
+          <ArmRightPoint g={g} />
         </G>
       );
     case 'cheer':
@@ -665,7 +734,7 @@ function ClapArcs() {
 type PoseDef = {
   arms: ArmsKind;
   brows?: 'normal' | 'worry';
-  eyes: 'open' | 'happy' | 'closed';
+  eyes: 'open' | 'happy' | 'closed' | 'wink';
   mouth: 'neutral' | 'smile' | 'open' | 'worry';
   extra?: 'bubbles' | 'sparkles' | 'zzz' | 'clapArcs';
   /** 腕が胸元を覆うポーズでは COACH ロゴを描かない */
@@ -713,6 +782,7 @@ const POSES: Record<HotoriPose, PoseDef> = {
     whistleDy: 2,
     whistleOnHands: true,
   },
+  hero: { arms: 'heroBoard', brows: 'normal', eyes: 'wink', mouth: 'open' },
 };
 
 const EXTRAS = {
@@ -967,6 +1037,8 @@ export function Hotori({ pose = 'normal', size = 96, animate, variant = 'full' }
             </>
           ) : def.eyes === 'open' ? (
             <OpenEyes g={g} />
+          ) : def.eyes === 'wink' ? (
+            <WinkEyes g={g} />
           ) : (
             <Eyes kind={def.eyes} />
           )}
