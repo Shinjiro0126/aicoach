@@ -178,7 +178,7 @@
     <path d="M64.5 99.8 L65.9 103.1" fill="none" stroke="#DCEFF9" stroke-width="1.6" stroke-linecap="round"/>
     <circle cx="53.8" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
     <circle cx="66.2" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
-    <!-- COACH+ランヤード+ホイッスル -->
+    <!-- COACH(アイコンではランヤード・ホイッスルは外す) -->
     <text x="60" y="109" font-size="6" font-weight="800" fill="#E3F4FC" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" letter-spacing="0.7">COACH</text>
     
     

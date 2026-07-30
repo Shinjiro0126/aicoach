@@ -19,7 +19,7 @@
 | `sand` / `sandText` | `#F6EFE3` / `#6B5636` 砂浜サンド | `#2A241B` / `#D8C29A` | 動機カードなど温かみを出す面 |
 | `onTint` | `#FFFFFF` | `#04202E` | tint 上のテキスト |
 
-SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hotori-brand-redesign.html`)。
+カラートークンの原本は `src/constants/theme.ts`、キャラクターSVGのv2原本は `assets/brand/`(後述)。
 
 ## キャラクター設定 — 威厳のあるカワウソコーチ
 
@@ -43,7 +43,7 @@ SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hot
 
 実装は `src/components/hotori.tsx`。目・眉・口・腕をパーツ分けしたSVGコンポーネントで、ポーズはパーツの組み合わせ定義。`<Hotori pose="celebrate" size={96} />` のように使う。reduce motion 設定時はアニメーションを止めて静止ポーズを表示する。
 
-### ポーズ8種と使用場面
+### ポーズ9種と使用場面
 
 | pose | 名前 | 使用場面 |
 | --- | --- | --- |
