@@ -1,38 +1,186 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120" width="240" height="240">
-  <!-- ホトリ: バストアップ(チャットアバター用) -->
-<!-- 耳 -->
-      <circle cx="30" cy="34" r="9" fill="#8B6B54"/>
-      <circle cx="30" cy="34" r="4" fill="#6E523E"/>
-      <circle cx="90" cy="34" r="9" fill="#8B6B54"/>
-      <circle cx="90" cy="34" r="4" fill="#6E523E"/>
-      <!-- 頭 -->
-      <ellipse cx="60" cy="56" rx="36" ry="32" fill="#8B6B54"/>
-      <!-- 頬〜口元(明るい毛色) -->
-      <ellipse cx="60" cy="68" rx="23" ry="17" fill="#F0E4D2"/>
-      <!-- 眉(太く水平気味=威厳) -->
-      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(6 42 43)"/>
-      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-6 78 43)"/>
-      <!-- 目(落ち着いた眼差し) -->
-      <circle cx="45" cy="53" r="3.6" fill="#241A14"/>
-      <circle cx="46.3" cy="51.8" r="1.1" fill="#fff"/>
-      <circle cx="75" cy="53" r="3.6" fill="#241A14"/>
-      <circle cx="76.3" cy="51.8" r="1.1" fill="#fff"/>
-      <!-- 鼻 -->
-      <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="#41302A"/>
-      <!-- 口(結んだ口元) -->
-      <path d="M60 68 v3 M53 74 q7 4 14 0" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-      <!-- ひげ -->
-      <g stroke="#C9B79C" stroke-width="1.4" stroke-linecap="round">
-        <line x1="34" y1="63" x2="20" y2="60"/>
-        <line x1="34" y1="68" x2="20" y2="68"/>
-        <line x1="86" y1="63" x2="100" y2="60"/>
-        <line x1="86" y1="68" x2="100" y2="68"/>
-      </g>
-      <!-- 首(頭と体をつなぐ・短め) -->
-      <path d="M42 78 q18 12 36 0 v12 h-36 Z" fill="#8B6B54"/>
-      <!-- 体の示唆(丸いシルエット) -->
-      <ellipse cx="60" cy="119" rx="29" ry="28" fill="#7A5C47"/>
-      <!-- スカーフ(コーチの証・水辺ブルー) -->
-      <path d="M38 88 q22 -10 44 0 l-2.2 8.5 q-20 -8 -39.6 0 Z" fill="#1E7FB4"/>
-      <path d="M63 93 l10 3 -3 13 -9 -2.5 Z" fill="#2E9FD6"/>
+<svg width="480" height="480" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- ホトリ チャットアバター最終版: A案ベース(あご下パッチ軽減・瞳ハイライト拡大・ヒゲ視認性UP) -->
+  <defs>
+    <linearGradient id="bustBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFE5F6"/>
+      <stop offset="0.7" stop-color="#7CC5E8"/>
+      <stop offset="1" stop-color="#2E9FD6"/>
+    </linearGradient>
+    <clipPath id="bustClip"><circle cx="60" cy="60" r="60"/></clipPath>
+    <radialGradient id="furHead" cx="0.36" cy="0.28" r="0.95">
+      <stop offset="0" stop-color="#A8896B"/>
+      <stop offset="0.52" stop-color="#8B6B54"/>
+      <stop offset="1" stop-color="#755841"/>
+    </radialGradient>
+    <!-- あご下の毛: 明度を上げ、上端を顔の毛色に寄せて境界をなじませる -->
+    <linearGradient id="neckG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9B7C60"/>
+      <stop offset="0.45" stop-color="#8A6B51"/>
+      <stop offset="1" stop-color="#6E563F"/>
+    </linearGradient>
+    <radialGradient id="furInner" cx="0.4" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#7E604A"/>
+      <stop offset="0.55" stop-color="#6E523E"/>
+      <stop offset="1" stop-color="#56402D"/>
+    </radialGradient>
+    <radialGradient id="cream" cx="0.4" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#FCF6EC"/>
+      <stop offset="0.55" stop-color="#F0E4D2"/>
+      <stop offset="1" stop-color="#DFCCAC"/>
+    </radialGradient>
+    <radialGradient id="shadeFur" cx="0.36" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#3E2B1C" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#3E2B1C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3E2B1C" stop-opacity="0.3"/>
+    </radialGradient>
+    <radialGradient id="shadeCream" cx="0.38" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#B08F63" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#B08F63" stop-opacity="0"/>
+      <stop offset="1" stop-color="#B08F63" stop-opacity="0.32"/>
+    </radialGradient>
+    <radialGradient id="shadeBlue" cx="0.36" cy="0.28" r="0.95">
+      <stop offset="0" stop-color="#04263C" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#04263C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#04263C" stop-opacity="0.48"/>
+    </radialGradient>
+    <radialGradient id="hoodieBody" cx="0.35" cy="0.24" r="1">
+      <stop offset="0" stop-color="#2E86B4"/>
+      <stop offset="0.55" stop-color="#17638F"/>
+      <stop offset="1" stop-color="#0E4767"/>
+    </radialGradient>
+    <linearGradient id="hoodOuter" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#2E86B4"/>
+      <stop offset="0.55" stop-color="#17638F"/>
+      <stop offset="1" stop-color="#114E72"/>
+    </linearGradient>
+    <linearGradient id="hoodInner" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#0E4A6C"/>
+      <stop offset="0.6" stop-color="#0A3A56"/>
+      <stop offset="1" stop-color="#072C42"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF4F8"/>
+      <stop offset="0.55" stop-color="#C4D0D9"/>
+      <stop offset="1" stop-color="#9DAEBA"/>
+    </linearGradient>
+    <radialGradient id="eyeG" cx="0.36" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#4A3524"/>
+      <stop offset="0.55" stop-color="#241A14"/>
+      <stop offset="1" stop-color="#0F0A06"/>
+    </radialGradient>
+    <radialGradient id="blush" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#D69B77" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#D69B77" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.46" r="0.5">
+      <stop offset="0" stop-color="#0B3B58" stop-opacity="0"/>
+      <stop offset="0.82" stop-color="#0B3B58" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0B3B58" stop-opacity="0.3"/>
+    </radialGradient>
+    <linearGradient id="noseG" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#5A423A"/>
+      <stop offset="1" stop-color="#31231D"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="60" cy="60" r="60" fill="url(#bustBg)"/>
+  <g clip-path="url(#bustClip)">
+    <!-- 下ろしたフード(背中側に垂らした状態: 両肩に畳まれた丸い襞が覗く) -->
+    <path d="M34 79 Q25 84 26 92.5 Q27.5 99 36 101 L84 101 Q92.5 99 94 92.5 Q95 84 86 79 Q73 72.5 60 72.5 Q47 72.5 34 79 Z" fill="url(#hoodOuter)"/>
+    <path d="M36.5 82.5 Q32.5 89.5 35 97.5" fill="none" stroke="#0C4260" stroke-width="1.5" stroke-linecap="round" opacity="0.65"/>
+    <path d="M29.5 87 Q28 92 31 97.5" fill="none" stroke="#0C4260" stroke-width="1.3" stroke-linecap="round" opacity="0.5"/>
+    <path d="M83.5 82.5 Q87.5 89.5 85 97.5" fill="none" stroke="#0A3A56" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+    <path d="M90.5 87 Q92 92 89 97.5" fill="none" stroke="#0A3A56" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+    <path d="M91.5 84.5 Q94.5 89.5 92 95 Q90 98.5 85.5 100" fill="none" stroke="#072C42" stroke-width="2.4" stroke-linecap="round" opacity="0.4"/>
+    <path d="M30 81.5 Q26 85.5 26.3 92" fill="none" stroke="#A9DBF3" stroke-width="2.4" stroke-linecap="round" opacity="0.2"/>
+    <path d="M30 81.5 Q26 85.5 26.3 92" fill="none" stroke="#CDE9F8" stroke-width="1.1" stroke-linecap="round" opacity="0.32"/>
+
+    <!-- 頭 -->
+    <path d="M50 26 C51 22.4 54 21.9 55.4 24.4 C56.6 21.5 59.8 21.3 61.2 24.1 C62.4 21.7 65.4 22.1 66 25.3 C60.8 24 55.4 24 50 26 Z" fill="#9B7C60" opacity="0.95"/>
+    <path d="M25.8 58 l-5 2.4 4.4 2 -3.6 2.8 4.9 1.5 Z" fill="#83654E"/>
+    <path d="M94.2 58 l5 2.4 -4.4 2 3.6 2.8 -4.9 1.5 Z" fill="#7A5C45"/>
+    <circle cx="30" cy="34" r="9" fill="url(#furHead)"/>
+    <circle cx="30.8" cy="35" r="4.4" fill="url(#furInner)"/>
+    <circle cx="27.2" cy="31.2" r="2.1" fill="#B99A78" opacity="0.35"/>
+    <circle cx="90" cy="34" r="9" fill="url(#furHead)"/>
+    <circle cx="90.8" cy="35" r="4.4" fill="url(#furInner)"/>
+    <circle cx="87.2" cy="31.2" r="2.1" fill="#B99A78" opacity="0.4"/>
+    <ellipse cx="60" cy="56" rx="36" ry="32" fill="url(#furHead)"/>
+    <ellipse cx="60" cy="56" rx="36" ry="32" fill="url(#shadeFur)"/>
+    <path d="M29.5 73 Q23 57 28 42.5" fill="none" stroke="#EAF6FD" stroke-width="4" stroke-linecap="round" opacity="0.1"/>
+    <path d="M29.5 72 Q23.6 57 28.2 43.5" fill="none" stroke="#EAF6FD" stroke-width="1.8" stroke-linecap="round" opacity="0.18"/>
+    <ellipse cx="60" cy="68" rx="23" ry="17" fill="url(#cream)"/>
+    <ellipse cx="60" cy="68" rx="23" ry="17" fill="url(#shadeCream)"/>
+    <circle cx="39" cy="65" r="6.5" fill="url(#blush)"/>
+    <circle cx="81" cy="65" r="6.5" fill="url(#blush)"/>
+    <ellipse cx="60" cy="69.6" rx="5.5" ry="2.6" fill="#C9AE85" opacity="0.3"/>
+    <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="url(#noseG)"/>
+    <ellipse cx="57.6" cy="62.5" rx="1.5" ry="0.85" fill="#FFFFFF" opacity="0.45" transform="rotate(-16 57.6 62.5)"/>
+    <!-- 穏やかな微笑み -->
+    <path d="M60 68 v3" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M52.5 73.2 q7.5 5.4 15 0" stroke="#41302A" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- うるみのある大きな瞳(メインハイライト拡大) -->
+    <circle cx="45" cy="53.3" r="4.6" fill="url(#eyeG)"/>
+    <circle cx="43.5" cy="51.4" r="2" fill="#FFFFFF"/>
+    <circle cx="46.9" cy="55.3" r="0.95" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="43.1" cy="55.9" r="0.6" fill="#7CC5E8" opacity="0.8"/>
+    <circle cx="75" cy="53.3" r="4.6" fill="url(#eyeG)"/>
+    <circle cx="73.5" cy="51.4" r="2" fill="#FFFFFF"/>
+    <circle cx="76.9" cy="55.3" r="0.95" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="73.1" cy="55.9" r="0.6" fill="#7CC5E8" opacity="0.8"/>
+    <!-- 涙袋の照り返し(C案移植・低不透明度) -->
+    <path d="M42.7 58.6 q2.3 1.8 4.6 0.1" fill="none" stroke="#AEDFF6" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+    <path d="M72.7 58.6 q2.3 1.8 4.6 0.1" fill="none" stroke="#AEDFF6" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+    <!-- たれ気味のやさしい眉(細く短く・柔らかい色) -->
+    <path d="M38.5 44 Q43.5 41.6 49.5 42.6" stroke="#66503B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M81.5 44 Q76.5 41.6 70.5 42.6" stroke="#66503B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <!-- 丸メガネ(リムをわずかに細くして目とのコントラスト確保) -->
+    <g fill="none" stroke="#4A382A" stroke-width="1.4" stroke-linecap="round">
+      <circle cx="45" cy="53.5" r="8.4" fill="#EAF7FF" fill-opacity="0.13"/>
+      <circle cx="75" cy="53.5" r="8.4" fill="#EAF7FF" fill-opacity="0.13"/>
+      <path d="M53.2 52.2 q6.8 -4.2 13.6 0"/>
+      <path d="M36.8 51.5 L26.5 47.8"/>
+      <path d="M83.2 51.5 L93.5 47.8"/>
+    </g>
+    <path d="M39.4 48.4 a8.4 8.4 0 0 1 4.2 -2.9" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round" opacity="0.38"/>
+    <path d="M69.4 48.4 a8.4 8.4 0 0 1 4.2 -2.9" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round" opacity="0.38"/>
+    <!-- ひげ(B案移植: 明色2〜3本+わずかな垂れカーブで48pxでも残す) -->
+    <g stroke="#E3D4B8" stroke-width="1.4" stroke-linecap="round" opacity="0.9" fill="none">
+      <path d="M35 62 q-9 -1.5 -16.5 -4"/>
+      <path d="M35 66.5 q-9.5 0 -17 1"/>
+      <path d="M35 70.5 q-8.5 2 -15 4.6"/>
+      <path d="M85 62 q9 -1.5 16.5 -4"/>
+      <path d="M85 66.5 q9.5 0 17 1"/>
+      <path d="M85 70.5 q8.5 2 15 4.6"/>
+    </g>
+
+    <!-- 首元の毛(面積を縮小し明度を上げ、上端に中間色ストロークでなじませる) -->
+    <path d="M46 80.5 q14 8.5 28 0 q2.5 10.5 -14 10.5 q-16.5 0 -14 -10.5 Z" fill="url(#neckG)"/>
+    <path d="M46 80.5 q14 8.5 28 0" fill="none" stroke="#B08F63" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+    <!-- パーカー本体(洋梨型: 肩は狭く、裾に向かってふくらむ) -->
+    <path d="M60 91.5 C52.5 91.5 47 94 44.8 98.8 C39.8 107.5 36 115.5 35.4 123.5 C34.8 131 34.8 140 35 150 L85 150 C85.2 140 85.2 131 84.6 123.5 C84 115.5 80.2 107.5 75.2 98.8 C73 94 67.5 91.5 60 91.5 Z" fill="url(#hoodieBody)"/>
+    <path d="M60 91.5 C52.5 91.5 47 94 44.8 98.8 C39.8 107.5 36 115.5 35.4 123.5 C34.8 131 34.8 140 35 150 L85 150 C85.2 140 85.2 131 84.6 123.5 C84 115.5 80.2 107.5 75.2 98.8 C73 94 67.5 91.5 60 91.5 Z" fill="url(#shadeBlue)"/>
+    <!-- 首元: 畳まれたフードのロール(前面)+ドローコード -->
+    <path d="M42.5 91 Q51 98.5 60 98.5 Q69 98.5 77.5 91 Q82 93.5 81 98 Q70.5 103.5 60 102.5 Q49.5 103.5 39 98 Q38 93.5 42.5 91 Z" fill="url(#hoodOuter)"/>
+    <path d="M50.5 94.3 Q52 98 51.5 101.3" fill="none" stroke="#0C4260" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/>
+    <path d="M69.5 94.3 Q68 98 68.5 101.3" fill="none" stroke="#0A3A56" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/>
+    <path d="M45 92.8 Q52.5 98.2 60 98.2" fill="none" stroke="#9ED4F0" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
+    <path d="M42 98.6 Q60 104.4 78 98.6" fill="none" stroke="#0A3A56" stroke-width="1" stroke-linecap="round" opacity="0.45"/>
+    <path d="M55.5 99.8 L54.1 103.1" fill="none" stroke="#DCEFF9" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M64.5 99.8 L65.9 103.1" fill="none" stroke="#DCEFF9" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="53.8" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
+    <circle cx="66.2" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
+    <!-- COACH+ランヤード+ホイッスル -->
+    <text x="60" y="109" font-size="6" font-weight="800" fill="#E3F4FC" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" letter-spacing="0.7">COACH</text>
+    <path d="M43.5 100.5 L56 111" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M76.5 100.5 L64 111" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <rect x="52.5" y="109.5" width="11" height="7.5" rx="3.2" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
+    <rect x="53.1" y="110.1" width="9.8" height="2.8" rx="1.4" fill="#EDF3F7" opacity="0.85"/>
+    <circle cx="63.4" cy="115.6" r="3.9" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
+    <circle cx="63.4" cy="115.6" r="1.5" fill="#6E7E8A"/>
+
+    <!-- 円形の縁の落ち影 -->
+    <circle cx="60" cy="60" r="60" fill="url(#vig)"/>
+  </g>
+  <circle cx="60" cy="60" r="59.2" fill="none" stroke="#E3F4FC" stroke-width="1.2" opacity="0.5"/>
 </svg>

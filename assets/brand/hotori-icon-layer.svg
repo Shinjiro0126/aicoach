@@ -89,7 +89,6 @@
     </linearGradient>
   
   </defs>
-  <rect width="120" height="120" fill="url(#iconBg)"/>
   <circle cx="60" cy="53" r="52" fill="url(#iconGlow)"/>
   <g clip-path="url(#iconClip)">
     <g transform="translate(60 58) scale(1.06) translate(-60 -58)">
