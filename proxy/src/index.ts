@@ -192,7 +192,9 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
 
   const message = await client.messages.create({
     model: COACH_MODEL,
-    max_tokens: 512,
+    // 512では振り返りの1言目など長めの応答が文の途中で打ち切られることがあった。
+    // 実質の上限は3文ルール(プロンプト)で、この値は安全弁(課金は生成した分のみ)
+    max_tokens: 1024,
     // カテゴリが分かる場合は分野別の定石を連結する(未知・未指定なら空文字で無変化)
     system: COACH_SYSTEM + categoryPlaybookSection(context.category),
     messages,
