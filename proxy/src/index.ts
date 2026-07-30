@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import {
+  categoryPlaybookSection,
   COACH_SYSTEM,
   CRISIS_KEYWORDS,
   CRISIS_RESPONSE,
@@ -34,6 +35,12 @@ type CoachRequest = {
   context: {
     goalTitle: string;
     why: string;
+    /** 目標カテゴリ(クライアントの GoalCategory enum値)。旧クライアントは送らない */
+    category?: string;
+    /** 今週のフォーカステーマ(AI生成計画由来)。旧クライアントは送らない */
+    weeklyFocus?: string;
+    /** 今日のタスク一覧(タイトルと完了状態のみ)。旧クライアントは送らない */
+    todayTasks?: { title: string; done: boolean }[];
     recentDays: { date: string; done: boolean; description: string }[];
     streak: number;
     mode: 'chat' | 'reflection';
@@ -151,16 +158,27 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
   const recent = context.recentDays
     .map((d) => `${d.date}: ${d.done ? '達成' : '未達成'} (${d.description})`)
     .join('\n');
+  // 追加コンテキスト(カテゴリ・今週のフォーカス・今日のタスク)は値があるときのみ行を出す(旧クライアント互換)
+  const categoryLabel = context.category ? CATEGORY_LABELS[context.category] : undefined;
+  const todayTasks =
+    context.todayTasks && context.todayTasks.length > 0
+      ? `今日のタスク: ${context.todayTasks.map((t) => `「${t.title}(${t.done ? '済' : '未'})」`).join('、')}`
+      : '';
   const contextBlock = [
     `# ユーザーの状況`,
     `目標: ${context.goalTitle}`,
+    categoryLabel ? `カテゴリ: ${categoryLabel}` : '',
     `動機: ${context.why}`,
+    context.weeklyFocus ? `今週のフォーカス: ${context.weeklyFocus}` : '',
+    todayTasks,
     `現在のストリーク: ${context.streak}日`,
     `直近の記録:\n${recent || '(まだ記録なし)'}`,
     context.mode === 'reflection'
       ? `モード: 振り返り(「今日の記録」への1言目は褒め+受領で完結し、質問で返さない)`
       : `モード: 通常対話`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const history: Anthropic.MessageParam[] = req.messages.slice(-12).map((m) => ({
     role: m.role,
@@ -175,7 +193,8 @@ async function handleCoach(env: Env, client: Anthropic, req: CoachRequest): Prom
   const message = await client.messages.create({
     model: COACH_MODEL,
     max_tokens: 512,
-    system: COACH_SYSTEM,
+    // カテゴリが分かる場合は分野別の定石を連結する(未知・未指定なら空文字で無変化)
+    system: COACH_SYSTEM + categoryPlaybookSection(context.category),
     messages,
   });
   return json({ reply: extractText(message).trim() });
@@ -213,7 +232,8 @@ async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promis
     model: PLAN_MODEL,
     max_tokens: 2048,
     thinking: { type: 'disabled' },
-    system: PLAN_SYSTEM,
+    // カテゴリが分かる場合は分野別の定石を連結する(未知・未指定なら空文字で無変化)
+    system: PLAN_SYSTEM + categoryPlaybookSection(req.category),
     output_config: { format: { type: 'json_schema', schema: PLAN_SCHEMA } },
     messages: [{ role: 'user', content: prompt }],
   });
