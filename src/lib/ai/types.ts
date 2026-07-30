@@ -33,6 +33,12 @@ export type PlanResponse = {
 export type CoachContext = {
   goalTitle: string;
   why: string;
+  /** 目標カテゴリ(GoalCategory の enum値)。カテゴリ別の定石をプロンプトに反映する */
+  category?: string;
+  /** 今週のフォーカステーマ(AIが生成した計画から特定。該当週がなければ省略) */
+  weeklyFocus?: string;
+  /** 今日のタスク一覧(タイトルと完了状態のみ) */
+  todayTasks?: { title: string; done: boolean }[];
   /** 直近7日の達成状況 */
   recentDays: { date: string; done: boolean; description: string }[];
   /** 現在のストリーク */

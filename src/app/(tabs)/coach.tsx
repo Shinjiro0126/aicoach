@@ -24,6 +24,7 @@ import {
   addCoachMessage,
   getCheckin,
   getTasksForDate,
+  getWeeklyPlans,
   listCoachMessages,
   listReportDates,
   recentActionSummary,
@@ -33,7 +34,8 @@ import { chatWithCoach } from '@/lib/ai/client';
 import { OFFLINE_FALLBACK_MESSAGE } from '@/lib/ai/mock';
 import { AiError, type CoachContext } from '@/lib/ai/types';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
-import { addDaysKey, todayKey } from '@/lib/dates';
+import { addDaysKey, toDateKey, todayKey } from '@/lib/dates';
+import { currentWeekNo, ROADMAP_WEEKS } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
@@ -84,9 +86,20 @@ export default function CoachScreen() {
     if (!goal) throw new Error('no active goal');
     const today = todayKey();
     const last7 = Array.from({ length: 7 }, (_, i) => addDaysKey(today, -(6 - i)));
+    // 今週のフォーカス: 開始日(goal.createdAt)からの経過週で該当する週次計画を特定する(ホームv2と同じ計算)
+    const plans = getWeeklyPlans(goal.id);
+    const startKey = toDateKey(new Date(goal.createdAt));
+    const weekNo = currentWeekNo(startKey, today, plans.length || ROADMAP_WEEKS);
+    // 今日のタスク: タイトルと完了状態のみ渡す(週次で数件だが念のため10件で打ち切る)
+    const todayTasks = getTasksForDate(goal.id, today)
+      .slice(0, 10)
+      .map((t) => ({ title: t.title, done: t.done }));
     return {
       goalTitle: goal.title,
       why: goal.why,
+      category: goal.category,
+      weeklyFocus: plans[weekNo - 1]?.focus,
+      todayTasks,
       recentDays: recentActionSummary(goal.id, last7),
       // ストリークは提出日(daily_reports)で数える
       streak: computeStreak(listReportDates(goal.id), today).current,
