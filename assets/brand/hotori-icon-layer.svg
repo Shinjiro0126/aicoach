@@ -1,12 +1,18 @@
-<svg width="480" height="480" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-  <!-- ホトリ チャットアバター最終版: A案ベース(あご下パッチ軽減・瞳ハイライト拡大・ヒゲ視認性UP) -->
+<svg width="1024" height="1024" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- ホトリ アプリアイコンv2: コーチ姿バストを正方形全面グラデに配置 -->
   <defs>
-    <linearGradient id="bustBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#BFE5F6"/>
-      <stop offset="0.7" stop-color="#7CC5E8"/>
-      <stop offset="1" stop-color="#2E9FD6"/>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7CC5E8"/>
+      <stop offset="0.58" stop-color="#2E9FD6"/>
+      <stop offset="1" stop-color="#17638F"/>
     </linearGradient>
-    <clipPath id="bustClip"><circle cx="60" cy="60" r="60"/></clipPath>
+    <radialGradient id="iconGlow" cx="0.5" cy="0.44" r="0.62">
+      <stop offset="0" stop-color="#E3F4FC" stop-opacity="0.34"/>
+      <stop offset="0.7" stop-color="#E3F4FC" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#E3F4FC" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="iconClip"><rect width="120" height="120"/></clipPath>
+
     <radialGradient id="furHead" cx="0.36" cy="0.28" r="0.95">
       <stop offset="0" stop-color="#A8896B"/>
       <stop offset="0.52" stop-color="#8B6B54"/>
@@ -81,10 +87,12 @@
       <stop offset="0" stop-color="#5A423A"/>
       <stop offset="1" stop-color="#31231D"/>
     </linearGradient>
+  
   </defs>
+  <circle cx="60" cy="53" r="52" fill="url(#iconGlow)"/>
+  <g clip-path="url(#iconClip)">
+    <g transform="translate(60 58) scale(1.06) translate(-60 -58)">
 
-  <circle cx="60" cy="60" r="60" fill="url(#bustBg)"/>
-  <g clip-path="url(#bustClip)">
     <!-- 下ろしたフード(背中側に垂らした状態: 両肩に畳まれた丸い襞が覗く) -->
     <path d="M34 79 Q25 84 26 92.5 Q27.5 99 36 101 L84 101 Q92.5 99 94 92.5 Q95 84 86 79 Q73 72.5 60 72.5 Q47 72.5 34 79 Z" fill="url(#hoodOuter)"/>
     <path d="M36.5 82.5 Q32.5 89.5 35 97.5" fill="none" stroke="#0C4260" stroke-width="1.5" stroke-linecap="round" opacity="0.65"/>
@@ -170,17 +178,16 @@
     <path d="M64.5 99.8 L65.9 103.1" fill="none" stroke="#DCEFF9" stroke-width="1.6" stroke-linecap="round"/>
     <circle cx="53.8" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
     <circle cx="66.2" cy="104" r="1.05" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.4"/>
-    <!-- COACH+ランヤード+ホイッスル -->
+    <!-- COACH(アイコンではランヤード・ホイッスルは外す) -->
     <text x="60" y="109" font-size="6" font-weight="800" fill="#E3F4FC" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" letter-spacing="0.7">COACH</text>
-    <path d="M43.5 100.5 L56 111" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-    <path d="M76.5 100.5 L64 111" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-    <rect x="52.5" y="109.5" width="11" height="7.5" rx="3.2" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
-    <rect x="53.1" y="110.1" width="9.8" height="2.8" rx="1.4" fill="#EDF3F7" opacity="0.85"/>
-    <circle cx="63.4" cy="115.6" r="3.9" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
-    <circle cx="63.4" cy="115.6" r="1.5" fill="#6E7E8A"/>
+    
+    
+    
+    
+    
+    
 
-    <!-- 円形の縁の落ち影 -->
-    <circle cx="60" cy="60" r="60" fill="url(#vig)"/>
+    
+    </g>
   </g>
-  <circle cx="60" cy="60" r="59.2" fill="none" stroke="#E3F4FC" stroke-width="1.2" opacity="0.5"/>
 </svg>

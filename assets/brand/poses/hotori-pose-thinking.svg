@@ -1,104 +1,235 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="240" height="300">
-  <!-- ホトリ: thinking ポーズ(自動生成: プロトタイプ hotori-brand-redesign.html が原本) -->
+<svg width="480" height="480" viewBox="-17 -6 160 160" xmlns="http://www.w3.org/2000/svg">
+  <!-- ホトリ thinking: 腕組み・開き目・考え中の泡 -->
   <defs>
-<g id="p-head">
-      <circle cx="30" cy="34" r="9" fill="#8B6B54"/><circle cx="30" cy="34" r="4" fill="#6E523E"/>
-      <circle cx="90" cy="34" r="9" fill="#8B6B54"/><circle cx="90" cy="34" r="4" fill="#6E523E"/>
-      <ellipse cx="60" cy="56" rx="36" ry="32" fill="#8B6B54"/>
-      <ellipse cx="60" cy="68" rx="23" ry="17" fill="#F0E4D2"/>
-      <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="#41302A"/>
-      <g stroke="#C9B79C" stroke-width="1.4" stroke-linecap="round">
-        <line x1="34" y1="63" x2="20" y2="60"/><line x1="34" y1="68" x2="20" y2="68"/>
-        <line x1="86" y1="63" x2="100" y2="60"/><line x1="86" y1="68" x2="100" y2="68"/>
-      </g>
-    </g>
-<g id="p-body">
-      <ellipse cx="97" cy="131" rx="14" ry="6" fill="#6E523E" transform="rotate(-24 97 131)"/>
-      <path d="M42 78 q18 12 36 0 v14 h-36 Z" fill="#8B6B54"/>
-      <ellipse cx="60" cy="112" rx="28" ry="26" fill="#7A5C47"/>
-      <ellipse cx="60" cy="119" rx="15" ry="14" fill="#F0E4D2"/>
-      <ellipse cx="46" cy="139" rx="8" ry="4.5" fill="#6E523E"/>
-      <ellipse cx="74" cy="139" rx="8" ry="4.5" fill="#6E523E"/>
-      <path d="M38 89 q22 -10 44 0 l-2.2 8.5 q-20 -8 -39.6 0 Z" fill="#1E7FB4"/>
-      <path d="M63 95 l10 3 -3 13 -9 -2.5 Z" fill="#2E9FD6"/>
-    </g>
-<g id="p-brows">
-      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(6 42 43)"/>
-      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-6 78 43)"/>
-    </g>
-<g id="p-brows-worry">
-      <rect x="34" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(-9 42 43)"/>
-      <rect x="69" y="41" width="17" height="4.6" rx="2.3" fill="#54402F" transform="rotate(9 78 43)"/>
-    </g>
-<g id="p-eyes-open">
-      <circle cx="45" cy="53" r="3.6" fill="#241A14"/><circle cx="46.3" cy="51.8" r="1.1" fill="#fff"/>
-      <circle cx="75" cy="53" r="3.6" fill="#241A14"/><circle cx="76.3" cy="51.8" r="1.1" fill="#fff"/>
-    </g>
-<g id="p-eyes-happy" stroke="#241A14" stroke-width="2.4" fill="none" stroke-linecap="round">
-      <path d="M41 54 q4 -5 8 0"/><path d="M71 54 q4 -5 8 0"/>
-    </g>
-<g id="p-eyes-closed" stroke="#241A14" stroke-width="2.2" fill="none" stroke-linecap="round">
-      <path d="M41 53 q4 3.5 8 0"/><path d="M71 53 q4 3.5 8 0"/>
-    </g>
-<g id="p-mouth-neutral" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
-      <path d="M60 68 v3"/><path d="M53 74 q7 4 14 0"/>
-    </g>
-<g id="p-mouth-smile" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
-      <path d="M60 68 v3"/><path d="M51 73 q9 6.5 18 0"/>
-    </g>
-<g id="p-mouth-open">
-      <path d="M60 68 v2" stroke="#41302A" stroke-width="1.8" stroke-linecap="round"/>
-      <ellipse cx="60" cy="76.5" rx="5.5" ry="4.2" fill="#41302A"/>
-    </g>
-<g id="p-mouth-worry" stroke="#41302A" stroke-width="1.8" fill="none" stroke-linecap="round">
-      <path d="M60 68 v3"/><path d="M55 75 q5 -3.5 10 0"/>
-    </g>
-<g id="p-arms-down" stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-      <path d="M40 102 q-4 8 -3 15"/><path d="M80 102 q4 8 3 15"/>
-    </g>
-<g id="p-arms-up">
-      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-        <path d="M40 101 q-11 -7 -14 -18"/><path d="M80 101 q11 -7 14 -18"/>
-      </g>
-      <circle cx="25" cy="81" r="5.6" fill="#8B6B54"/><circle cx="95" cy="81" r="5.6" fill="#8B6B54"/>
-    </g>
-<g id="p-arm-point">
-      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-        <path d="M40 102 q-4 8 -3 15"/><path d="M78 102 q14 -5 22 -13"/>
-      </g>
-      <circle cx="102" cy="87" r="5.6" fill="#8B6B54"/>
-    </g>
-<g id="p-arm-cheer">
-      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-        <path d="M40 102 q-4 8 -3 15"/><path d="M78 103 q10 -1 15 -7"/>
-      </g>
-      <circle cx="95" cy="94" r="6" fill="#8B6B54"/>
-    </g>
-<g id="p-arms-crossed">
-      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-        <path d="M41 105 q19 11 37 -1"/><path d="M79 105 q-19 11 -37 -1"/>
-      </g>
-    </g>
-<g id="p-paws-together">
-      <g stroke="#8B6B54" stroke-width="10" stroke-linecap="round" fill="none">
-        <path d="M41 103 q6 6 13 7"/><path d="M79 103 q-6 6 -13 7"/>
-      </g>
-      <circle cx="55" cy="111" r="5.6" fill="#8B6B54"/><circle cx="65" cy="111" r="5.6" fill="#8B6B54"/>
-    </g>
-<g id="p-zzz" fill="#5B87A3" font-weight="700">
-      <text x="94" y="40" font-size="10">z</text><text x="101" y="31" font-size="13">z</text><text x="110" y="21" font-size="16">z</text>
-    </g>
-<g id="p-bubbles" fill="#9DC3D9">
-      <circle cx="97" cy="45" r="3"/><circle cx="105" cy="36" r="4.6"/>
-    </g>
-<g id="p-sparkles" fill="#2E9FD6">
-      <path d="M18 66 l1.8 4.6 4.6 1.8 -4.6 1.8 -1.8 4.6 -1.8 -4.6 -4.6 -1.8 4.6 -1.8 Z"/>
-      <path d="M100 60 l1.5 3.8 3.8 1.5 -3.8 1.5 -1.5 3.8 -1.5 -3.8 -3.8 -1.5 3.8 -1.5 Z"/>
-    </g>
-<g id="p-clap-arcs" stroke="#2E9FD6" stroke-width="2" fill="none" stroke-linecap="round">
-      <path d="M45 100 q-4 5 -3 10"/><path d="M75 100 q4 5 3 10"/>
-    </g>
+    <radialGradient id="bg" cx="0.5" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#F2FAFF"/>
+      <stop offset="0.62" stop-color="#DDF1FC"/>
+      <stop offset="1" stop-color="#C4E7F8"/>
+    </radialGradient>
+    <radialGradient id="furHead" cx="0.36" cy="0.28" r="0.95">
+      <stop offset="0" stop-color="#A8896B"/>
+      <stop offset="0.52" stop-color="#8B6B54"/>
+      <stop offset="1" stop-color="#755841"/>
+    </radialGradient>
+    <radialGradient id="furBody" cx="0.36" cy="0.28" r="0.95">
+      <stop offset="0" stop-color="#97785F"/>
+      <stop offset="0.55" stop-color="#7A5C47"/>
+      <stop offset="1" stop-color="#5F4732"/>
+    </radialGradient>
+    <radialGradient id="furInner" cx="0.4" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#7E604A"/>
+      <stop offset="0.55" stop-color="#6E523E"/>
+      <stop offset="1" stop-color="#56402D"/>
+    </radialGradient>
+    <radialGradient id="cream" cx="0.4" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#FCF6EC"/>
+      <stop offset="0.55" stop-color="#F0E4D2"/>
+      <stop offset="1" stop-color="#DFCCAC"/>
+    </radialGradient>
+    <radialGradient id="shadeFur" cx="0.36" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#3E2B1C" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#3E2B1C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3E2B1C" stop-opacity="0.3"/>
+    </radialGradient>
+    <radialGradient id="shadeCream" cx="0.38" cy="0.3" r="0.95">
+      <stop offset="0" stop-color="#B08F63" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#B08F63" stop-opacity="0"/>
+      <stop offset="1" stop-color="#B08F63" stop-opacity="0.32"/>
+    </radialGradient>
+    <radialGradient id="shadeBlue" cx="0.36" cy="0.28" r="0.95">
+      <stop offset="0" stop-color="#04263C" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#04263C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#04263C" stop-opacity="0.48"/>
+    </radialGradient>
+    <radialGradient id="hoodieBody" cx="0.35" cy="0.26" r="1">
+      <stop offset="0" stop-color="#2E86B4"/>
+      <stop offset="0.55" stop-color="#17638F"/>
+      <stop offset="1" stop-color="#0E4767"/>
+    </radialGradient>
+    <linearGradient id="hoodOuter" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#2E86B4"/>
+      <stop offset="0.55" stop-color="#17638F"/>
+      <stop offset="1" stop-color="#114E72"/>
+    </linearGradient>
+    <linearGradient id="hoodInner" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#0E4A6C"/>
+      <stop offset="0.6" stop-color="#0A3A56"/>
+      <stop offset="1" stop-color="#072C42"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF4F8"/>
+      <stop offset="0.55" stop-color="#C4D0D9"/>
+      <stop offset="1" stop-color="#9DAEBA"/>
+    </linearGradient>
+    <radialGradient id="eyeG" cx="0.36" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#4A3524"/>
+      <stop offset="0.55" stop-color="#241A14"/>
+      <stop offset="1" stop-color="#0F0A06"/>
+    </radialGradient>
+    <radialGradient id="blush" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#D69B77" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#D69B77" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="groundSh" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#17638F" stop-opacity="0.3"/>
+      <stop offset="0.7" stop-color="#17638F" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#17638F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="noseG" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#5A423A"/>
+      <stop offset="1" stop-color="#31231D"/>
+    </linearGradient>
   </defs>
-<use xlink:href="#p-head" href="#p-head"/><use xlink:href="#p-body" href="#p-body"/><use xlink:href="#p-arms-crossed" href="#p-arms-crossed"/>
-      <use xlink:href="#p-brows" href="#p-brows"/><use xlink:href="#p-eyes-open" href="#p-eyes-open"/><use xlink:href="#p-mouth-neutral" href="#p-mouth-neutral"/><use xlink:href="#p-bubbles" href="#p-bubbles"/>
+
+  <!-- 背景: 水辺の淡い光だまり -->
+  <circle cx="61" cy="72" r="73" fill="url(#bg)"/>
+  <!-- 足元の波紋 -->
+  <ellipse cx="60" cy="142.5" rx="24" ry="4.8" fill="none" stroke="#2E9FD6" stroke-width="1.3" opacity="0.3"/>
+  <ellipse cx="60" cy="142.5" rx="45" ry="8" fill="none" stroke="#2E9FD6" stroke-width="1.4" opacity="0.24"/>
+  <ellipse cx="60" cy="142.5" rx="56" ry="10.5" fill="none" stroke="#2E9FD6" stroke-width="1.2" opacity="0.14"/>
+  <ellipse cx="60" cy="142.5" rx="33" ry="6.5" fill="url(#groundSh)"/>
+
+  <!-- しっぽ -->
+  <path d="M78 122 Q97 118 106 130 Q110 136 103 139 Q90 142.5 79 135 Z" fill="url(#furInner)"/>
+  <path d="M82 124.5 Q96 121.5 103 130" fill="none" stroke="#8B6B54" stroke-width="2.6" stroke-linecap="round" opacity="0.55"/>
+  <path d="M86 138.6 Q96 141.6 103.5 136.8" fill="none" stroke="#5FC2EE" stroke-width="1.8" stroke-linecap="round" opacity="0.22"/>
+
+  <!-- 下ろしたフード(背面) -->
+  <path d="M34 77 Q25 82 26 90.5 Q27.5 97 36 99 L84 99 Q92.5 97 94 90.5 Q95 82 86 77 Q73 70.5 60 70.5 Q47 70.5 34 77 Z" fill="url(#hoodOuter)"/>
+  <path d="M36.5 80.5 Q32.5 87.5 35 95.5" fill="none" stroke="#0C4260" stroke-width="1.5" stroke-linecap="round" opacity="0.65"/>
+  <path d="M29.5 85 Q28 90 31 95.5" fill="none" stroke="#0C4260" stroke-width="1.3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M83.5 80.5 Q87.5 87.5 85 95.5" fill="none" stroke="#0A3A56" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M90.5 85 Q92 90 89 95.5" fill="none" stroke="#0A3A56" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M91.5 82.5 Q94.5 87.5 92 93 Q90 96.5 85.5 98" fill="none" stroke="#072C42" stroke-width="2.4" stroke-linecap="round" opacity="0.4"/>
+  <path d="M30 79.5 Q26 83.5 26.3 90" fill="none" stroke="#A9DBF3" stroke-width="2.4" stroke-linecap="round" opacity="0.2"/>
+  <path d="M30 79.5 Q26 83.5 26.3 90" fill="none" stroke="#CDE9F8" stroke-width="1.1" stroke-linecap="round" opacity="0.32"/>
+
+  <!-- 頭 -->
+  <g>
+    <path d="M50 26 C51 22.4 54 21.9 55.4 24.4 C56.6 21.5 59.8 21.3 61.2 24.1 C62.4 21.7 65.4 22.1 66 25.3 C60.8 24 55.4 24 50 26 Z" fill="#9B7C60" opacity="0.95"/>
+    <path d="M25.8 58 l-5 2.4 4.4 2 -3.6 2.8 4.9 1.5 Z" fill="#83654E"/>
+    <path d="M94.2 58 l5 2.4 -4.4 2 3.6 2.8 -4.9 1.5 Z" fill="#6B5039"/>
+    <circle cx="30" cy="34" r="9" fill="url(#furHead)"/>
+    <circle cx="30.8" cy="35" r="4.4" fill="url(#furInner)"/>
+    <circle cx="27.2" cy="31.2" r="2.1" fill="#B99A78" opacity="0.55"/>
+    <circle cx="90" cy="34" r="9" fill="url(#furHead)"/>
+    <circle cx="90.8" cy="35" r="4.4" fill="url(#furInner)"/>
+    <circle cx="87.2" cy="31.2" r="2.1" fill="#B99A78" opacity="0.4"/>
+    <ellipse cx="60" cy="56" rx="36" ry="32" fill="url(#furHead)"/>
+    <ellipse cx="60" cy="56" rx="36" ry="32" fill="url(#shadeFur)"/>
+    <path d="M29.5 73 Q23 57 28 42.5" fill="none" stroke="#EAF6FD" stroke-width="4" stroke-linecap="round" opacity="0.16"/>
+    <path d="M29.5 72 Q23.6 57 28.2 43.5" fill="none" stroke="#EAF6FD" stroke-width="1.8" stroke-linecap="round" opacity="0.28"/>
+    <ellipse cx="60" cy="68" rx="23" ry="17" fill="url(#cream)"/>
+    <ellipse cx="60" cy="68" rx="23" ry="17" fill="url(#shadeCream)"/>
+    <circle cx="39" cy="65" r="6.5" fill="url(#blush)"/>
+    <circle cx="81" cy="65" r="6.5" fill="url(#blush)"/>
+    <ellipse cx="60" cy="69.6" rx="5.5" ry="2.6" fill="#C9AE85" opacity="0.3"/>
+    <path d="M55 61 h10 q1.6 0 1 1.5 l-4.4 5 q-1.6 1.8 -3.2 0 l-4.4 -5 q-0.6 -1.5 1 -1.5 Z" fill="url(#noseG)"/>
+    <ellipse cx="57.6" cy="62.5" rx="1.5" ry="0.85" fill="#FFFFFF" opacity="0.45" transform="rotate(-16 57.6 62.5)"/>
+    <!-- 口: 穏やかな微笑み(neutral) -->
+    <path d="M60 67.6 v3" stroke="#41302A" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+    <path d="M52.5 73 q7.5 5.4 15 0" stroke="#41302A" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- 目: 両目開き・うるみのある大きな瞳 -->
+    <circle cx="45" cy="53.3" r="4.6" fill="url(#eyeG)"/>
+    <circle cx="43.5" cy="51.4" r="2" fill="#FFFFFF"/>
+    <circle cx="46.9" cy="55.3" r="0.95" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="43.1" cy="55.9" r="0.6" fill="#7CC5E8" opacity="0.8"/>
+    <circle cx="75" cy="53.3" r="4.6" fill="url(#eyeG)"/>
+    <circle cx="73.5" cy="51.4" r="2" fill="#FFFFFF"/>
+    <circle cx="76.9" cy="55.3" r="0.95" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="73.1" cy="55.9" r="0.6" fill="#7CC5E8" opacity="0.8"/>
+    <path d="M42.7 58.6 q2.3 1.8 4.6 0.1" fill="none" stroke="#AEDFF6" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+    <path d="M72.7 58.6 q2.3 1.8 4.6 0.1" fill="none" stroke="#AEDFF6" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+    <!-- たれ気味のやさしい眉 -->
+    <path d="M38.5 44 Q43.5 41.6 49.5 42.6" stroke="#66503B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M81.5 44 Q76.5 41.6 70.5 42.6" stroke="#66503B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <!-- 丸メガネ(細ワイヤー) -->
+    <g fill="none" stroke="#4A382A" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="45" cy="53.5" r="8.4" fill="#EAF7FF" fill-opacity="0.13"/>
+      <circle cx="75" cy="53.5" r="8.4" fill="#EAF7FF" fill-opacity="0.13"/>
+      <path d="M53.2 52.2 q6.8 -4.2 13.6 0"/>
+      <path d="M36.8 51.5 L26.5 47.8"/>
+      <path d="M83.2 51.5 L93.5 47.8"/>
+    </g>
+    <path d="M39.4 48.4 a8.4 8.4 0 0 1 4.2 -2.9" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round" opacity="0.38"/>
+    <path d="M69.4 48.4 a8.4 8.4 0 0 1 4.2 -2.9" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round" opacity="0.38"/>
+    <!-- ひげ(明色+わずかな垂れカーブ) -->
+    <g stroke="#E3D4B8" stroke-width="1.3" stroke-linecap="round" opacity="0.9" fill="none">
+      <path d="M35 62 q-9 -1.5 -16.5 -4"/>
+      <path d="M35 66.5 q-9.5 0 -17 1"/>
+      <path d="M35 70.5 q-8.5 2 -15 4.6"/>
+      <path d="M85 62 q9 -1.5 16.5 -4"/>
+      <path d="M85 66.5 q9.5 0 17 1"/>
+      <path d="M85 70.5 q8.5 2 15 4.6"/>
+    </g>
+  </g>
+
+  <!-- 首元の毛 -->
+  <path d="M42 78 q18 12 36 0 v14 h-36 Z" fill="url(#furBody)"/>
+  <path d="M41 82 Q60 91 79 82" fill="none" stroke="#5FC2EE" stroke-width="2.2" stroke-linecap="round" opacity="0.18"/>
+
+  <!-- パーカー本体(洋梨型) -->
+  <path d="M60 88.5 C51 88.5 45 91 43.5 96.5 C39 107 33.5 114 33 123 C32.4 132.6 44 137.8 60 137.8 C76 137.8 87.6 132.6 87 123 C86.5 114 81 107 76.5 96.5 C75 91 69 88.5 60 88.5 Z" fill="url(#hoodieBody)"/>
+  <path d="M60 88.5 C51 88.5 45 91 43.5 96.5 C39 107 33.5 114 33 123 C32.4 132.6 44 137.8 60 137.8 C76 137.8 87.6 132.6 87 123 C86.5 114 81 107 76.5 96.5 C75 91 69 88.5 60 88.5 Z" fill="url(#shadeBlue)"/>
+  <path d="M35.5 120 Q33 109 41 98.5" fill="none" stroke="#9ED4F0" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
+  <!-- 首元: 畳まれたフードのロール(前面) -->
+  <path d="M42.5 89 Q51 96.5 60 96.5 Q69 96.5 77.5 89 Q82 91.5 81 96 Q70.5 101.5 60 101 Q49.5 101.5 39 96 Q38 91.5 42.5 89 Z" fill="url(#hoodOuter)"/>
+  <path d="M50.5 92.3 Q52 96 51.5 99.3" fill="none" stroke="#0C4260" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/>
+  <path d="M69.5 92.3 Q68 96 68.5 99.3" fill="none" stroke="#0A3A56" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/>
+  <path d="M45 90.8 Q52.5 96.2 60 96.2" fill="none" stroke="#9ED4F0" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
+  <path d="M42 96.6 Q60 102.6 78 96.6" fill="none" stroke="#0A3A56" stroke-width="1" stroke-linecap="round" opacity="0.45"/>
+  <!-- カンガルーポケット -->
+  <path d="M48.5 124 Q60 128.5 71.5 124 L69 134.5 Q60 138.5 51 134.5 Z" fill="#125273"/>
+  <path d="M48.5 124 L51 134.5" stroke="#0F4B70" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M71.5 124 L69 134.5" stroke="#0F4B70" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M49.5 124.3 Q60 128.4 70.5 124.3" stroke="#2E86B4" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <!-- 布の落ちジワ -->
+  <path d="M44 118 q3.5 4.5 9 5.8" stroke="#0E4767" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.45"/>
+  <path d="M77 115 q-2 4 -5.5 5.6" stroke="#0E4767" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- 胸: COACH+ランヤード+ホイッスル -->
+  <path d="M45.5 98.5 L57 116" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M74.5 98.5 L63 116" stroke="#5FC2EE" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <rect x="53" y="113.5" width="11" height="7.5" rx="3.2" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
+  <rect x="53.6" y="114.1" width="9.8" height="2.8" rx="1.4" fill="#EDF3F7" opacity="0.85"/>
+  <circle cx="63.5" cy="120.2" r="4.1" fill="url(#metal)" stroke="#8FA0AC" stroke-width="0.5"/>
+  <circle cx="63.5" cy="120.2" r="1.5" fill="#6E7E8A"/>
+
+
+  <!-- 体の下面の水辺照り返し -->
+  <path d="M38 129.5 Q60 139.8 82 129.5" fill="none" stroke="#5FC2EE" stroke-width="2.6" stroke-linecap="round" opacity="0.22"/>
+
+  <!-- 足 -->
+  <ellipse cx="46" cy="139" rx="8" ry="4.5" fill="url(#furInner)"/>
+  <ellipse cx="74" cy="139" rx="8" ry="4.5" fill="url(#furInner)"/>
+  <g stroke="#4F3826" stroke-width="1" stroke-linecap="round" opacity="0.5">
+    <path d="M43.4 137.4 v3.2"/><path d="M46.8 137.8 v3.4"/>
+    <path d="M71.4 137.4 v3.2"/><path d="M74.8 137.8 v3.4"/>
+  </g>
+  <path d="M40.5 141.6 Q46 143.5 51.5 141.6" fill="none" stroke="#5FC2EE" stroke-width="1.4" stroke-linecap="round" opacity="0.2"/>
+  <path d="M68.5 141.6 Q74 143.5 79.5 141.6" fill="none" stroke="#5FC2EE" stroke-width="1.4" stroke-linecap="round" opacity="0.2"/>
+  <!-- 腕: 胸の前で腕組み(拳は袖の下にたくし込む=hotori.tsxと同じく袖のみ) -->
+  <path d="M41 103.5 q19 11 37 -1" stroke="#17638F" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M41.5 101.9 q18.5 10 36 -0.8" stroke="#2E86B4" stroke-width="3.2" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <path d="M79 103.5 q-19 11 -37 -1" stroke="#17638F" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M78.5 101.9 q-18.5 10 -36 -0.8" stroke="#2E86B4" stroke-width="3.2" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <!-- 考え中の泡(頭右上に2つ) -->
+  <circle cx="97" cy="45" r="3.2" fill="#9DC3D9"/>
+  <circle cx="96" cy="44" r="1.1" fill="#FFFFFF" opacity="0.7"/>
+  <circle cx="105.5" cy="35.5" r="5" fill="#9DC3D9"/>
+  <circle cx="103.8" cy="33.8" r="1.7" fill="#FFFFFF" opacity="0.7"/>
+
+  <!-- 水辺の光の粒 -->
+  <g stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" opacity="0.75">
+    <path d="M108 45.5 v5"/><path d="M105.5 48 h5"/>
+  </g>
+  <g stroke="#5FC2EE" stroke-width="1" stroke-linecap="round" opacity="0.6">
+    <path d="M8 96.8 v4.4"/><path d="M5.8 99 h4.4"/>
+  </g>
+  <path d="M12 44 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5 Z" fill="#BFE5F6" opacity="0.9"/>
+  <path d="M104 116 l1.3 3 3 1.3 -3 1.3 -1.3 3 -1.3 -3 -3 -1.3 3 -1.3 Z" fill="#5FC2EE" opacity="0.75"/>
+  <circle cx="104" cy="32" r="1.4" fill="#BFE5F6" opacity="0.85"/>
+  <circle cx="8" cy="66" r="1.2" fill="#FFFFFF" opacity="0.65"/>
+  <circle cx="113" cy="90" r="1.1" fill="#5FC2EE" opacity="0.6"/>
+  <circle cx="16" cy="128" r="1" fill="#FFFFFF" opacity="0.55"/>
 </svg>

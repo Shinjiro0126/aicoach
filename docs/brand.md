@@ -1,6 +1,6 @@
 # ホトリ — ブランド定義書
 
-決定日: 2026-07-15 / ブランドリデザイン: 2026-07-18
+決定日: 2026-07-15 / ブランドリデザイン: 2026-07-18 / キャラデザインv2「コーチ姿」: 2026-07-31
 
 ## 名前の由来
 
@@ -19,21 +19,31 @@
 | `sand` / `sandText` | `#F6EFE3` / `#6B5636` 砂浜サンド | `#2A241B` / `#D8C29A` | 動機カードなど温かみを出す面 |
 | `onTint` | `#FFFFFF` | `#04202E` | tint 上のテキスト |
 
-SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hotori-brand-redesign.html`)。
+カラートークンの原本は `src/constants/theme.ts`、キャラクターSVGのv2原本は `assets/brand/`(後述)。
 
 ## キャラクター設定 — 威厳のあるカワウソコーチ
 
 ホトリは、ユーザーの目標の道を**先に歩いた経験者**のカワウソコーチ。
 
-- 太く水平な眉と結んだ口元 — 頼れる経験者の落ち着き
-- ブルーのスカーフ — コーチの証。アイコン・通知でも同じ装い
+### コーチ姿v2(2026-07-31、PR #35で実装)
+
+- **深瀬ブルーのフード付きパーカー**(フードは背中に下ろして肩に畳んだ形)+ 胸に **COACH** の文字
+- **細ワイヤーの丸メガネ** — 観察者・経験者の知性
+- **水辺ブルーのランヤード+金属質ホイッスル** — コーチの証(v1のスカーフはこの紐色に継承して卒業)
+- 明色のヒゲ、多層グラデーションの毛並み、水辺の照り返しリムライト
+- やさしい垂れ眉と大きな瞳 — 威厳の中に「寄り添う優しさ」を残す
+
+変わらない人格:
+
 - 口調は断定調の敬語。自分の経験を根拠に語る(「私もその道を通りました」)
 - 祝うときだけ、少しだけ相好を崩す
-- 説教しない。失敗した日は「再開のしやすさ」を最優先する(従来のコーチ人格設計と同一)
+- 説教しない。できなかった日は「再開のしやすさ」を最優先する
+
+言葉の運用ルール(使う語彙・禁止語・場面別の型)は **[tone-of-voice.md](tone-of-voice.md)** を参照。
 
 実装は `src/components/hotori.tsx`。目・眉・口・腕をパーツ分けしたSVGコンポーネントで、ポーズはパーツの組み合わせ定義。`<Hotori pose="celebrate" size={96} />` のように使う。reduce motion 設定時はアニメーションを止めて静止ポーズを表示する。
 
-### ポーズ8種と使用場面
+### ポーズ9種と使用場面
 
 | pose | 名前 | 使用場面 |
 | --- | --- | --- |
@@ -45,6 +55,7 @@ SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hot
 | `applaud` | 拍手 | 目標達成、ストリーク節目 |
 | `concern` | 心配 | ストリーク救済、おかえりデー |
 | `sleep` | おやすみ | 夜の振り返り後、1日の終わり |
+| `hero` | ヒーロー(ウィンク+指差し+観察ボード) | ペイウォール(PR #37で追加) |
 
 ### アニメーション3種(`animate` prop)
 
@@ -54,7 +65,7 @@ SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hot
 | `celebrate` | 跳ね+着水の波紋 | チェック完了・週達成の瞬間 |
 | `thinking` | 腕組み+浮かぶ泡 | AI応答・計画生成の待ち時間 |
 
-`variant="bust"` はチャットアバター用(頭部+スカーフ、円形・水辺グラデ背景)。
+`variant="bust"` はチャットアバター用(頭部+パーカー肩、円形・水辺グラデ背景)。
 
 ## トーンオブボイス
 
@@ -70,37 +81,42 @@ SVGパスデータ・カラー値の原本はデザインプロトタイプ(`hot
 
 危機ワード検知と相談窓口案内(`proxy/src/prompts.ts` の `CRISIS_KEYWORDS` / `CRISIS_RESPONSE`)はキャラクター演出より常に優先。削除・迂回しない。
 
-## アプリアイコン
+## アプリアイコン(v2: 2026-07-31、PR #37で差し替え)
 
-水辺ブルーのグラデーション(`#46B1E2` → `#2E9FD6` → `#1B7AB0`)に、ホトリの顔(頭部+スカーフのみのクロップ。胴体は見せない)。ライト/ダーク/ティント各バリアントは同構図で背景のみ変える。
+水辺ブルーのグラデーション(`#7CC5E8` → `#2E9FD6` → `#17638F`)の正方形に、コーチ姿v2のバスト(頭部+パーカー+フードロール+COACH)。アイコンでは下端の視認性のためランヤードとホイッスルは外している。
 
-- 原本SVG: `assets/brand/hotori-icon.svg`
-- 書き出し済みPNG(1024×1024): `assets/brand/hotori-icon.png`(`assets/images/icon.png` にも反映済み)
+- 原本SVG: `assets/brand/hotori-icon.svg`(背景込み)/ `assets/brand/hotori-icon-layer.svg`(背景なし透過。Icon Composer レイヤー用)
+- 書き出し済みPNG(1024×1024): `assets/brand/hotori-icon.png`(`assets/images/icon.png` と同一)
+- iOS 26 リキッドグラス用: `assets/expo.icon`(fill=水辺ブルーの automatic-gradient+`Assets/hotori.png` レイヤー)
+- スプラッシュ: `assets/images/splash-icon.png`(円形バスト透過PNG。背景色 `#2E9FD6` は app.json 側)
 
 ### 手動エクスポート手順
 
-PNGの再生成(macOS標準の Quick Look を利用):
+PNGの再生成は Chrome headless を使う(**qlmanage は透過を白背景に潰すため使わない**):
 
 ```sh
-qlmanage -t -s 1024 -o . assets/brand/hotori-icon.svg
-mv hotori-icon.svg.png assets/brand/hotori-icon.png
+# 背景込みアイコン(→ assets/images/icon.png にもコピー)
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
+  --screenshot=assets/brand/hotori-icon.png --window-size=1024,1024 \
+  --default-background-color=FFFFFFFF "file://$PWD/assets/brand/hotori-icon.svg"
+
+# 透過レイヤー(→ assets/expo.icon/Assets/hotori.png にコピー)
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
+  --screenshot=/tmp/hotori-layer.png --window-size=1024,1024 \
+  --default-background-color=00000000 "file://$PWD/assets/brand/hotori-icon-layer.svg"
 ```
 
-iOS本体アイコン(`assets/expo.icon`)は Icon Composer 形式のため手動更新が必要:
-
-1. macOS の Icon Composer で `assets/expo.icon` を開く
-2. 背景の fill を水辺ブルーのグラデーション(上記3色)に変更
-3. レイヤー画像を、`assets/brand/hotori-icon.svg` から背景グラデーションを除いたキャラクター部分(頭部+スカーフのクロップ)に差し替える
-4. 保存後 `npx eas build --platform ios` でビルドに反映される(`app.json` の `ios.icon` 設定は変更不要)
+`assets/expo.icon/icon.json` はテキスト編集で更新できる(fill と layers を保持したまま画像だけ差し替えるなら Assets/hotori.png の上書きのみでよい)。反映は次回の `npx eas build --platform ios` から。`app.json` のアイコン設定は変更不要。
 
 ## キャラクターSVGアセット(デザインツール用)
 
-`assets/brand/poses/` に、外部デザインツール(Claude Design / Figma 等)にそのまま読み込める自己完結SVGを書き出し済み:
+`assets/brand/poses/` に、外部デザインツール(Claude Design / Figma 等)にそのまま読み込める自己完結SVG(コーチ姿v2原本)を格納:
 
-- `hotori-pose-{normal|guide|thinking|celebrate|encourage|sleep|concern|applaud}.svg` — 全身ポーズ8種(viewBox 0 0 120 150)
-- `hotori-bust.svg` — バストアップ(チャットアバター用、viewBox 0 0 120 120)
+- `hotori-pose-{normal|guide|thinking|celebrate|encourage|sleep|concern|applaud}.svg` — 全身ポーズ8種(480×480、viewBox "-17 -6 160 160"。水辺の背景・波紋・光の粒などの舞台要素コメント付き。**舞台要素はアプリ実装対象外**)
+- `hotori-pose-hero.svg` — ヒーローポーズ(ウィンク+指差し+観察ボード)
+- `hotori-bust.svg` — バストアップ(チャットアバター用、viewBox 0 0 120 120、円形水辺グラデ背景込み)
 
-アプリ内での描画原本は `src/components/hotori.tsx`(react-native-svg)。キャラクターの形状を変更する場合は hotori.tsx とこれらのSVGの両方を更新すること。
+アプリ内での描画原本は `src/components/hotori.tsx`(react-native-svg)。キャラクターの形状を変更する場合は hotori.tsx とこれらのSVGの両方を更新すること。実使用では**全身=透明背景、バスト=円形グラデ背景常付き**、波紋は celebrate の着水演出のみ。
 
 ## ブランドコンセプト
 
