@@ -21,8 +21,9 @@ import { journeySummaryLabel, type JourneyDay } from '@/lib/insight-stats';
 /**
  * 飛び石の道のり(デザイン01/04)。
  * 直近14日をS字2段の飛び石で描画する。歩いた日=濃い石、報告した日=輪郭の薄い石、
- * おやすみ救済=葉の石、これから=点線。今日の石にはホトリ(bust)が立つ。
- * コールドスタート(記録2週未満)はスタートの岸+第1週の旗レイアウト。
+ * おやすみ救済=葉の石、これから=点線、目標開始前=石なし(水面のまま)。
+ * 今日の石にはホトリ(bust)が立つ。
+ * コールドスタート(第1週)はスタートの岸+第1週の旗レイアウト。
  */
 
 /** 水面の色(デザイン原本の --water / --water-deep / --stone。テーマ定義外の風景専用色) */
@@ -38,7 +39,7 @@ export type JourneyStonesProps = {
   daysToFlag: number;
   /** 期日到達後はヘッダー右を到達コピーに切り替える */
   reached?: boolean;
-  /** コールドスタート(記録2週未満)レイアウトにする */
+  /** コールドスタート(第1週)レイアウトにする */
   coldStart?: boolean;
   /** コールドスタート時に石の下へ出すキャプション */
   caption?: string;
@@ -126,6 +127,9 @@ function StoneShape({
     case 'missed':
       // 抜けた日: 水面下にうっすら沈んだ石(記録が無い事実を責めない控えめな表現)
       return <Ellipse cx={cx} cy={cy} rx={11} ry={7.5} fill={colors.stone} opacity={0.22} />;
+    case 'beforeStart':
+      // 目標開始前: 石を描かず水面のまま(点線の future とも区別する)
+      return null;
   }
 }
 

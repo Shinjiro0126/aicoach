@@ -6,6 +6,7 @@ import {
   computeInsightStats,
   firstReportDateKey,
   insightGenerationPlan,
+  isJourneyColdStart,
   journeyDays,
   journeySummaryLabel,
   maxTimeBand,
@@ -373,5 +374,64 @@ describe('journeyDays / coldStartJourneyDays', () => {
     const days = coldStartJourneyDays('2026-07-23', [report('2026-07-23', 1)], [], '2026-07-24');
     const label = journeySummaryLabel(days, 1, 6);
     expect(label).toBe('今週: 歩いた日1、報告した日0、おやすみ0。第1週の旗まであと6日');
+  });
+
+  it('startKey を渡すと目標開始前の日は beforeStart になる(missed にしない)', () => {
+    // 開始8日目(第2週初日): 14日窓の先頭6日は開始前
+    const days = journeyDays(
+      [report('2026-07-25', 1), report('2026-07-19', 1)],
+      [],
+      '2026-07-26',
+      14,
+      '2026-07-19',
+    );
+    expect(days).toHaveLength(14);
+    // 開始前(7/13〜7/18)はすべて beforeStart
+    for (let i = 0; i < 6; i += 1) {
+      expect(days[i].state).toBe('beforeStart');
+    }
+    // 開始日当日以降は従来どおりの判定
+    expect(days[6]).toMatchObject({ dateKey: '2026-07-19', state: 'walked' });
+    expect(days[7].state).toBe('missed');
+    expect(days[13]).toMatchObject({ dateKey: '2026-07-26', state: 'missed', isToday: true });
+  });
+
+  it('startKey を渡しても開始日以降の状態判定は変わらない', () => {
+    const withStart = journeyDays(
+      [report('2026-07-25', 1), report('2026-07-24', 0)],
+      ['2026-07-23'],
+      '2026-07-25',
+      14,
+      '2026-07-01',
+    );
+    const withoutStart = journeyDays(
+      [report('2026-07-25', 1), report('2026-07-24', 0)],
+      ['2026-07-23'],
+      '2026-07-25',
+    );
+    // 開始日が窓より前なら、startKey の有無で結果は同一
+    expect(withStart).toEqual(withoutStart);
+  });
+
+  it('startKey 未指定(既存呼び出し互換)では従来どおり開始前も missed になる', () => {
+    const days = journeyDays([], [], '2026-07-26');
+    expect(days.every((d) => d.state === 'missed')).toBe(true);
+  });
+
+  it('journeySummaryLabel は beforeStart を歩いた日・報告した日・おやすみに数えない', () => {
+    const days = journeyDays([report('2026-07-26', 1)], [], '2026-07-26', 14, '2026-07-20');
+    const label = journeySummaryLabel(days, 2, 6);
+    // beforeStart は future ではないため「直近14日」のまま、各カウントにも含まれない
+    expect(label).toBe('直近14日: 歩いた日1、報告した日0、おやすみ0。第2週の旗まであと6日');
+  });
+});
+
+describe('isJourneyColdStart', () => {
+  it('第1週(開始から7日未満)はコールドスタート、8日目からは通常レイアウト', () => {
+    const start = '2026-07-19';
+    expect(isJourneyColdStart(start, '2026-07-19')).toBe(true); // 開始日当日(1日目)
+    expect(isJourneyColdStart(start, '2026-07-25')).toBe(true); // 7日目(diffDays=6)
+    expect(isJourneyColdStart(start, '2026-07-26')).toBe(false); // 8日目(diffDays=7)= 第2週初日
+    expect(isJourneyColdStart(start, '2026-08-10')).toBe(false);
   });
 });

@@ -365,7 +365,7 @@ export function insightGenerationPlan(
 
 // ===== 飛び石の道のり(journey-stones)用の日別データ =====
 
-export type JourneyDayState = 'walked' | 'reported' | 'grace' | 'missed' | 'future';
+export type JourneyDayState = 'walked' | 'reported' | 'grace' | 'missed' | 'future' | 'beforeStart';
 
 export type JourneyDay = {
   dateKey: string;
@@ -377,30 +377,50 @@ function dayState(
   reportMap: Map<string, number>,
   graceSet: ReadonlySet<string>,
   dateKey: string,
-): Exclude<JourneyDayState, 'future'> {
+): Exclude<JourneyDayState, 'future' | 'beforeStart'> {
   const doneCount = reportMap.get(dateKey);
   if (doneCount !== undefined) return doneCount > 0 ? 'walked' : 'reported';
   if (graceSet.has(dateKey)) return 'grace';
   return 'missed';
 }
 
-/** 直近 count 日(古い順、今日が末尾)の飛び石データ */
+/**
+ * 直近 count 日(古い順、今日が末尾)の飛び石データ。
+ * startKey(目標開始日)を渡すと、開始前の日は 'beforeStart' になる
+ * (missed のグレー石ではなく、石を描かない水面として扱うため)
+ */
 export function journeyDays(
   reports: readonly ReportEntry[],
   graceUsedOn: readonly string[],
   today: string,
   count = 14,
+  startKey?: string,
 ): JourneyDay[] {
   const reportMap = new Map(reports.map((r) => [r.dateKey, r.doneCount]));
   const graceSet = new Set(graceUsedOn);
   return Array.from({ length: count }, (_, i) => {
     const dateKey = addDaysKey(today, i - (count - 1));
-    return { dateKey, state: dayState(reportMap, graceSet, dateKey), isToday: i === count - 1 };
+    const state: JourneyDayState =
+      startKey !== undefined && dateKey < startKey
+        ? 'beforeStart'
+        : dayState(reportMap, graceSet, dateKey);
+    return { dateKey, state, isToday: i === count - 1 };
   });
 }
 
+/** 「あなたの道のり」がコールドスタート表示(スタートの岸+立て札)になる期間(第1週=7日) */
+export const JOURNEY_COLD_START_DAYS = 7;
+
 /**
- * コールドスタート(記録2週未満)用: 現在週7日分の飛び石データ。
+ * コールドスタート判定: 目標開始から第1週内(7日未満)かどうか。
+ * 第2週以降は通常の14日レイアウト(開始前の日は beforeStart で石を描かない)に切り替わる
+ */
+export function isJourneyColdStart(startKey: string, today: string): boolean {
+  return diffDays(startKey, today) < JOURNEY_COLD_START_DAYS;
+}
+
+/**
+ * コールドスタート(第1週)用: 現在週7日分の飛び石データ。
  * 今日より先の日は 'future'(点線の石)になる
  */
 export function coldStartJourneyDays(
