@@ -385,26 +385,39 @@ function dayState(
 }
 
 /**
- * 直近 count 日(古い順、今日が末尾)の飛び石データ。
- * startKey(目標開始日)を渡すと、開始前の日は 'beforeStart' になる
- * (missed のグレー石ではなく、石を描かない水面として扱うため)
+ * 今日が属する週(目標開始日起点の7日区切り)の初日を返す。
+ * progress.ts の weekFlagInfo と同じ基礎計算(days % 7)を使い、週境界を一致させる
  */
-export function journeyDays(
+function weekStartKey(startKey: string, today: string): string {
+  const days = Math.max(0, diffDays(startKey, today));
+  return addDaysKey(startKey, days - (days % 7));
+}
+
+/**
+ * 通常レイアウト(第2週以降)用: 週アラインの14日分の飛び石データ(古い順)。
+ * 上段=先週7日、下段=今週7日。週境界は目標開始日起点の7日区切りで、
+ * weekFlagInfo(progress.ts)と同じ基礎計算を共有する。
+ * 今日より後の日は 'future'(点線の石)、目標開始前の日は 'beforeStart'
+ * (第2週以降の呼び出しでは通常発生しないが、防御的に維持する)
+ */
+export function weekAlignedJourneyDays(
+  startKey: string,
   reports: readonly ReportEntry[],
   graceUsedOn: readonly string[],
   today: string,
-  count = 14,
-  startKey?: string,
 ): JourneyDay[] {
   const reportMap = new Map(reports.map((r) => [r.dateKey, r.doneCount]));
   const graceSet = new Set(graceUsedOn);
-  return Array.from({ length: count }, (_, i) => {
-    const dateKey = addDaysKey(today, i - (count - 1));
+  const prevWeekStart = addDaysKey(weekStartKey(startKey, today), -7);
+  return Array.from({ length: 14 }, (_, i) => {
+    const dateKey = addDaysKey(prevWeekStart, i);
     const state: JourneyDayState =
-      startKey !== undefined && dateKey < startKey
+      dateKey < startKey
         ? 'beforeStart'
-        : dayState(reportMap, graceSet, dateKey);
-    return { dateKey, state, isToday: i === count - 1 };
+        : diffDays(today, dateKey) > 0
+          ? 'future'
+          : dayState(reportMap, graceSet, dateKey);
+    return { dateKey, state, isToday: dateKey === today };
   });
 }
 
@@ -431,8 +444,7 @@ export function coldStartJourneyDays(
 ): JourneyDay[] {
   const reportMap = new Map(reports.map((r) => [r.dateKey, r.doneCount]));
   const graceSet = new Set(graceUsedOn);
-  const days = Math.max(0, diffDays(startKey, today));
-  const weekStart = addDaysKey(startKey, days - (days % 7));
+  const weekStart = weekStartKey(startKey, today);
   return Array.from({ length: 7 }, (_, i) => {
     const dateKey = addDaysKey(weekStart, i);
     const isFuture = diffDays(today, dateKey) > 0;
@@ -449,7 +461,12 @@ export function journeySummaryLabel(days: readonly JourneyDay[], weekNo: number,
   const walked = days.filter((d) => d.state === 'walked').length;
   const reported = days.filter((d) => d.state === 'reported').length;
   const grace = days.filter((d) => d.state === 'grace').length;
-  // コールドスタートは未来日(点線の石)を含むため「直近N日」と言わず「今週」と読む
-  const range = days.some((d) => d.state === 'future') ? '今週' : `直近${days.length}日`;
+  // 未来日(点線の石)を含む窓は「直近N日」と言わず、週アライン14日=「先週と今週」/
+  // コールドスタート7日=「今週」と読む。未来日なし(旗の日)は従来どおり「直近N日」
+  const range = days.some((d) => d.state === 'future')
+    ? days.length > 7
+      ? '先週と今週'
+      : '今週'
+    : `直近${days.length}日`;
   return `${range}: 歩いた日${walked}、報告した日${reported}、おやすみ${grace}。第${weekNo}週の旗まであと${daysToFlag}日`;
 }
