@@ -11,12 +11,13 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { getWeeklyPlans, listReports } from '@/db/repo';
 import type { WeeklyPlan } from '@/db/schema';
-import { diffDays, toDateKey, todayKey } from '@/lib/dates';
+import { toDateKey, todayKey } from '@/lib/dates';
 import {
   buildTeaser,
   coldStartJourneyDays,
   computeInsightStats,
   firstReportDateKey,
+  isJourneyColdStart,
   journeyDays,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
@@ -61,11 +62,12 @@ export default function ProgressScreen() {
   // 目標開始日基準にすると observedDays<14 なのに「あと0日」表示になりうる(Issue #30)
   const schedule = notebookSchedule(firstReportDateKey(reports), today);
 
-  // コールドスタート(開始から2週未満)は「スタートの岸+第1週の旗」レイアウト
-  const coldStart = diffDays(startKey, today) + 1 < MIN_INSIGHT_DAYS;
+  // 第1週(開始から7日未満)のみ「スタートの岸+第1週の旗」レイアウト。
+  // 第2週からは通常の14日レイアウトに切り替え、目標開始前の日は石を描かない水面になる
+  const coldStart = isJourneyColdStart(startKey, today);
   const stones = coldStart
     ? coldStartJourneyDays(startKey, reports, streak.graceUsedOn, today)
-    : journeyDays(reports, streak.graceUsedOn, today);
+    : journeyDays(reports, streak.graceUsedOn, today, 14, startKey);
   const todayReport = reports.find((r) => r.dateKey === today);
   // ホームと同じ数え方: 未提出時は今日を含み、提出後は今日を除く(デザイン04は提出済みで「あと6日」)
   const daysToFlag = Math.max(0, week.daysToFlag - (todayReport ? 1 : 0));
