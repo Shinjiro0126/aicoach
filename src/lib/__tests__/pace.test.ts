@@ -9,20 +9,24 @@ import {
 const TITLE = '英単語を10個おぼえる';
 
 describe('effectivePace(宣言のスコープ)', () => {
-  const declaration: PaceDeclaration = { pace: 'lighter', forWeekNo: 3 };
+  const declaration: PaceDeclaration = { goalId: 'goal-a', pace: 'lighter', forWeekNo: 3 };
 
-  it('対象週(forWeekNo)だけに効く', () => {
-    expect(effectivePace(declaration, 3)).toBe('lighter');
+  it('宣言した目標(goalId)の対象週(forWeekNo)だけに効く', () => {
+    expect(effectivePace(declaration, 'goal-a', 3)).toBe('lighter');
   });
 
   it('対象週の前後には漏れない(前週・翌週とも keep)', () => {
-    expect(effectivePace(declaration, 2)).toBe('keep');
-    expect(effectivePace(declaration, 4)).toBe('keep');
+    expect(effectivePace(declaration, 'goal-a', 2)).toBe('keep');
+    expect(effectivePace(declaration, 'goal-a', 4)).toBe('keep');
+  });
+
+  it('別の目標には漏れない(目標リセット後、新目標の同じ週番号でも keep)', () => {
+    expect(effectivePace(declaration, 'goal-b', 3)).toBe('keep');
   });
 
   it('宣言が無ければ keep', () => {
-    expect(effectivePace(null, 3)).toBe('keep');
-    expect(effectivePace(undefined, 3)).toBe('keep');
+    expect(effectivePace(null, 'goal-a', 3)).toBe('keep');
+    expect(effectivePace(undefined, 'goal-a', 3)).toBe('keep');
   });
 });
 

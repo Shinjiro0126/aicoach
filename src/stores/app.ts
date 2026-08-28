@@ -40,8 +40,9 @@ type AppState = {
   /** 観察手帳の最新キャッシュ(端末内のみに保存) */
   insight: InsightCacheEntry | null;
   /**
-   * 来週の歩幅宣言(旗の日セレモニーの3択)。forWeekNo で対象週をスコープし、
-   * 効くのは翌週のみ(判定は lib/pace.ts の effectivePace)
+   * 来週の歩幅宣言(旗の日セレモニーの3択)。goalId・forWeekNo で対象目標・対象週をスコープし、
+   * 効くのは宣言した目標の翌週のみ(判定は lib/pace.ts の effectivePace。
+   * 目標リセット後の新目標には goalId 不一致で効かない)
    */
   nextWeekPace: PaceDeclaration | null;
 

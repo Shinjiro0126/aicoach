@@ -1,12 +1,18 @@
 /**
  * 来週の歩幅宣言(旗の日セレモニーの3択)の純関数群。
- * 宣言はストア(stores/app.ts)に { pace, forWeekNo } で永続化され、
- * 対象週(forWeekNo)にだけ効く。他の週には漏らさない。
+ * 宣言はストア(stores/app.ts)に { goalId, pace, forWeekNo } で永続化され、
+ * 宣言した目標(goalId)の対象週(forWeekNo)にだけ効く。他の週・他の目標には漏らさない。
  */
 
 export type NextWeekPace = 'keep' | 'lighter' | 'wider';
 
 export type PaceDeclaration = {
+  /**
+   * 宣言した目標のID。目標リセット(アーカイブ→新目標)後に旧目標の宣言が
+   * 新目標の同じ週番号へ漏れないよう、効かせる判定で必ず照合する
+   * (観察手帳キャッシュ InsightCacheEntry が goalId で照合するのと同じ方針)
+   */
+  goalId: string;
   pace: NextWeekPace;
   /** 宣言が効く週番号(1-based・クランプなしの実週番号)。翌週のみ */
   forWeekNo: number;
@@ -18,14 +24,17 @@ export const LIGHTER_SUFFIX = '(今週は5分版で十分です)';
 export const WIDER_SUFFIX = '(今週は、もう5分だけ足しましょう)';
 
 /**
- * その週に効く歩幅。宣言が無い・対象週が違う場合は 'keep'。
- * weekNo にはクランプなしの実週番号(weekIndex + 1)を渡すこと
+ * その週に効く歩幅。宣言が無い・目標が違う・対象週が違う場合は 'keep'。
+ * goalId には現在のアクティブ目標のID、weekNo にはクランプなしの実週番号(weekIndex + 1)を渡すこと
  */
 export function effectivePace(
   declaration: PaceDeclaration | null | undefined,
+  goalId: string,
   weekNo: number,
 ): NextWeekPace {
-  return declaration && declaration.forWeekNo === weekNo ? declaration.pace : 'keep';
+  return declaration && declaration.goalId === goalId && declaration.forWeekNo === weekNo
+    ? declaration.pace
+    : 'keep';
 }
 
 /**

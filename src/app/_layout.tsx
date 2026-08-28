@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { initPostHog } from '@/lib/analytics/posthog';
+import { toDateKey } from '@/lib/dates';
+import { scheduleDailyNotifications } from '@/lib/notifications';
 import { initSentry, wrapWithSentry } from '@/lib/observability/sentry';
 import { useAppStore } from '@/stores/app';
 
@@ -22,6 +24,28 @@ function RootLayout() {
   useEffect(() => {
     if (goalLoaded) SplashScreen.hideAsync();
   }, [goalLoaded]);
+
+  // 起動時に通知を再スケジュールする(通知ON かつ アクティブ目標がある場合のみ)。
+  // 通知定義の追加・変更(旗の日の週次通知など)を、設定画面を触らない既存ユーザーにも
+  // アプリ更新後の初回起動で反映するための経路。設定値は永続ストアの復元完了後に読む。
+  // 通知ONは過去に権限許可済みであることを意味するため、ここでは権限ダイアログを出さない
+  useEffect(() => {
+    const reschedule = () => {
+      const { notificationsEnabled, activeGoal, morningTime, eveningTime } = useAppStore.getState();
+      if (!notificationsEnabled || !activeGoal) return;
+      scheduleDailyNotifications(
+        activeGoal.title,
+        morningTime,
+        eveningTime,
+        toDateKey(new Date(activeGoal.createdAt)),
+      ).catch(() => {});
+    };
+    if (useAppStore.persist.hasHydrated()) {
+      reschedule();
+      return;
+    }
+    return useAppStore.persist.onFinishHydration(reschedule);
+  }, []);
 
   // 匿名の deviceId が確定(永続化ストアの復元完了)次第、行動分析を初期化する
   useEffect(() => {

@@ -155,13 +155,14 @@ export default function HomeScreen() {
     const planList = getWeeklyPlans(goal.id);
     const startKey = toDateKey(new Date(goal.createdAt));
     const weekNo = currentWeekNo(startKey, today, planList.length || ROADMAP_WEEKS);
-    // 歩幅宣言(旗の日の3択)は宣言時の forWeekNo と実週番号(クランプなし)が一致する週だけ効く
+    // 歩幅宣言(旗の日の3択)は宣言時の goalId・forWeekNo が現在の目標・実週番号(クランプなし)と
+    // 一致する週だけ効く(目標リセット後の新目標に旧宣言を漏らさない)
     const rawWeekNo = weekIndex(startKey, today) + 1;
     setTasks(
       ensureTasksForDate(goal.id, today, {
         goalTitle: goal.title,
         weekFocus: planList[weekNo - 1]?.focus,
-        pace: effectivePace(nextWeekPace, rawWeekNo),
+        pace: effectivePace(nextWeekPace, goal.id, rawWeekNo),
       }),
     );
     setReport(getReportForDate(goal.id, today) ?? null);
@@ -235,9 +236,11 @@ export default function HomeScreen() {
 
     // 旗の日(週の7日目)は通常の祝いの代わりに旗の日セレモニーを開く。
     // 週まとめ・観察は端末内集計のみ(AI呼び出しなし)。週の窓は
-    // coldStartJourneyDays(週アライン計算と同じ週境界)を共有する
+    // coldStartJourneyDays(週アライン計算と同じ週境界)を共有する。
+    // 期日到達後(summary.reached)は提出後コピーと同じく到達を最優先し、
+    // 週番号が増え続けるセレモニーは開かず通常の祝いへフォールバックする(D-2 終端体験までの暫定)
     let flag: FlagCeremonyData | null = null;
-    if (flagToday) {
+    if (flagToday && !summary.reached) {
       const weekNow = weekFlagInfo(startKey, today, dates);
       trackEvent(AnalyticsEvent.FlagDayReached, {
         weekNo: weekNow.weekNo,
@@ -295,8 +298,8 @@ export default function HomeScreen() {
               teaserText={flagData.teaserText}
               previewText={flagData.previewText}
               onSelectPace={(pace) => {
-                // 宣言が効くのは翌週のみ(forWeekNo でスコープ)
-                setNextWeekPace({ pace, forWeekNo: flagData.weekNo + 1 });
+                // 宣言が効くのは現在の目標の翌週のみ(goalId・forWeekNo でスコープ)
+                setNextWeekPace({ goalId: goal.id, pace, forWeekNo: flagData.weekNo + 1 });
                 trackEvent(AnalyticsEvent.NextWeekPaceSelected, { pace });
                 closeCelebration('pace_selected');
               }}
@@ -311,10 +314,11 @@ export default function HomeScreen() {
               copyMain={summary.copyMain}
               copySub={summary.copySub}
               onListen={() => {
-                setCelebrating(null);
+                // 閉じ経路は closeCelebration() に一本化(将来 flag 付きで開いても計測が漏れないように)
+                closeCelebration();
                 router.push({ pathname: '/coach', params: { autoReport: today } });
               }}
-              onClose={() => setCelebrating(null)}
+              onClose={() => closeCelebration()}
             />
           ))}
       </View>
