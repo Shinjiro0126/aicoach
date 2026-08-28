@@ -18,9 +18,9 @@ import {
   computeInsightStats,
   firstReportDateKey,
   isJourneyColdStart,
-  journeyDays,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
+  weekAlignedJourneyDays,
   type ReportEntry,
 } from '@/lib/insight-stats';
 import { progressSummary, weekFlagInfo } from '@/lib/progress';
@@ -63,14 +63,15 @@ export default function ProgressScreen() {
   const schedule = notebookSchedule(firstReportDateKey(reports), today);
 
   // 第1週(開始から7日未満)のみ「スタートの岸+第1週の旗」レイアウト。
-  // 第2週からは通常の14日レイアウトに切り替え、目標開始前の日は石を描かない水面になる
+  // 第2週からは週アラインの14日レイアウト(上段=先週、下段=今週)に切り替わる
   const coldStart = isJourneyColdStart(startKey, today);
   const stones = coldStart
     ? coldStartJourneyDays(startKey, reports, streak.graceUsedOn, today)
-    : journeyDays(reports, streak.graceUsedOn, today, 14, startKey);
+    : weekAlignedJourneyDays(startKey, reports, streak.graceUsedOn, today);
   const todayReport = reports.find((r) => r.dateKey === today);
-  // ホームと同じ数え方: 未提出時は今日を含み、提出後は今日を除く(デザイン04は提出済みで「あと6日」)
-  const daysToFlag = Math.max(0, week.daysToFlag - (todayReport ? 1 : 0));
+  // 「旗まであとn日」=今日より後の今週の日数。点線(これから)の石の数と常に一致させる
+  // (今日提出済みでも今日の石は点線にならないため、提出有無で数字を変えない)
+  const daysToFlag = week.daysToFlag - 1;
   const coldCaption =
     reports.length === 0
       ? 'ここから渡っていきます。最初の一歩を、今日の画面で。'

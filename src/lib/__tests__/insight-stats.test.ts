@@ -7,15 +7,16 @@ import {
   firstReportDateKey,
   insightGenerationPlan,
   isJourneyColdStart,
-  journeyDays,
   journeySummaryLabel,
   maxTimeBand,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
+  weekAlignedJourneyDays,
   type InsightCacheRef,
   type InsightStats,
   type ReportEntry,
 } from '../insight-stats';
+import { weekFlagInfo } from '../progress';
 import type { StreakResult } from '../streak';
 
 const NO_STREAK: StreakResult = { current: 0, best: 0, graceUsedOn: [] };
@@ -330,19 +331,79 @@ describe('firstReportDateKey', () => {
   });
 });
 
-describe('journeyDays / coldStartJourneyDays', () => {
-  it('直近14日を古い順に返し、状態を判定する', () => {
-    const days = journeyDays(
-      [report('2026-07-25', 1), report('2026-07-24', 0)],
-      ['2026-07-23'],
-      '2026-07-25',
-    );
+describe('weekAlignedJourneyDays / coldStartJourneyDays', () => {
+  // 開始 2026-07-19(第1週: 7/19〜7/25、第2週: 7/26〜8/1、第3週: 8/2〜8/8)
+  const start = '2026-07-19';
+
+  it('第2週は先週頭〜今週末の週アライン14日を古い順に返す', () => {
+    const days = weekAlignedJourneyDays(start, [], [], '2026-07-28');
     expect(days).toHaveLength(14);
-    expect(days[0].dateKey).toBe('2026-07-12');
-    expect(days[13]).toMatchObject({ dateKey: '2026-07-25', state: 'walked', isToday: true });
-    expect(days[12].state).toBe('reported');
-    expect(days[11].state).toBe('grace');
-    expect(days[10].state).toBe('missed');
+    expect(days[0].dateKey).toBe('2026-07-19'); // 先週(第1週)の初日
+    expect(days[6].dateKey).toBe('2026-07-25'); // 先週の最終日
+    expect(days[7].dateKey).toBe('2026-07-26'); // 今週(第2週)の初日
+    expect(days[13].dateKey).toBe('2026-08-01'); // 今週の旗の日
+    expect(days[9]).toMatchObject({ dateKey: '2026-07-28', isToday: true });
+    expect(days.filter((d) => d.isToday)).toHaveLength(1);
+  });
+
+  it('今日より後は future、今日以前は従来の state 判定になる', () => {
+    const days = weekAlignedJourneyDays(
+      start,
+      [report('2026-07-28', 1), report('2026-07-27', 0)],
+      ['2026-07-26'],
+      '2026-07-28',
+    );
+    expect(days[9]).toMatchObject({ dateKey: '2026-07-28', state: 'walked', isToday: true });
+    expect(days[8].state).toBe('reported');
+    expect(days[7].state).toBe('grace');
+    expect(days[6].state).toBe('missed'); // 先週の未提出日
+    expect(days.slice(10).every((d) => d.state === 'future')).toBe(true);
+  });
+
+  it('点線(future)の数は今日提出の有無に依らず weekFlagInfo.daysToFlag - 1 と一致する', () => {
+    // 週の1日目・4日目・7日目(旗の日)で検証
+    for (const today of ['2026-07-26', '2026-07-29', '2026-08-01']) {
+      const flag = weekFlagInfo(start, today, []);
+      const expected = flag.daysToFlag - 1; // ヘッダー表示「旗まであとn日」と同じ定義
+      const submitted = weekAlignedJourneyDays(start, [report(today, 1)], [], today);
+      const notSubmitted = weekAlignedJourneyDays(start, [], [], today);
+      expect(submitted.filter((d) => d.state === 'future')).toHaveLength(expected);
+      expect(notSubmitted.filter((d) => d.state === 'future')).toHaveLength(expected);
+      // 今日提出済みでも今日の石は点線にならない
+      expect(submitted.find((d) => d.isToday)?.state).toBe('walked');
+    }
+  });
+
+  it('週境界: 旗の日と翌週初日で窓が1週スライドする', () => {
+    // 第2週7日目(旗の日): 窓は第1週+第2週のまま、future は無い
+    const flagDay = weekAlignedJourneyDays(start, [], [], '2026-08-01');
+    expect(flagDay[0].dateKey).toBe('2026-07-19');
+    expect(flagDay[13]).toMatchObject({ dateKey: '2026-08-01', isToday: true });
+    expect(flagDay.filter((d) => d.state === 'future')).toHaveLength(0);
+    // 第3週初日: 窓が第2週+第3週へスライドし、今日は下段(今週)の先頭になる
+    const nextWeek = weekAlignedJourneyDays(start, [], [], '2026-08-02');
+    expect(nextWeek[0].dateKey).toBe('2026-07-26');
+    expect(nextWeek[7]).toMatchObject({ dateKey: '2026-08-02', isToday: true });
+    expect(nextWeek.filter((d) => d.state === 'future')).toHaveLength(6);
+  });
+
+  it('weekFlagInfo と同じ週境界を使う(下段7日=今週の dots と一致)', () => {
+    for (const today of ['2026-07-26', '2026-07-30', '2026-08-05']) {
+      const days = weekAlignedJourneyDays(start, [], [], today);
+      const flag = weekFlagInfo(start, today, []);
+      expect(days.slice(7).map((d) => d.dateKey)).toEqual(flag.dots.map((d) => d.dateKey));
+    }
+  });
+
+  it('第1週に呼ばれた場合(防御): 開始前の日は beforeStart になる', () => {
+    // 通常は第1週はコールドスタート側を使うが、呼ばれても開始前を missed にしない
+    const days = weekAlignedJourneyDays(start, [report('2026-07-20', 1)], [], '2026-07-21');
+    for (let i = 0; i < 7; i += 1) {
+      expect(days[i].state).toBe('beforeStart'); // 7/12〜7/18 は開始前
+    }
+    expect(days[7]).toMatchObject({ dateKey: '2026-07-19', state: 'missed' });
+    expect(days[8].state).toBe('walked');
+    expect(days[9]).toMatchObject({ dateKey: '2026-07-21', isToday: true });
   });
 
   it('コールドスタートは現在週7日分で、今日より先は future になる', () => {
@@ -360,14 +421,21 @@ describe('journeyDays / coldStartJourneyDays', () => {
     expect(days[1].isToday).toBe(true);
   });
 
-  it('accessibilityLabel 用の要約文に件数と旗までの日数が入る', () => {
-    const days = journeyDays(
-      [report('2026-07-25', 1), report('2026-07-24', 1), report('2026-07-23', 0)],
-      ['2026-07-22'],
-      '2026-07-25',
+  it('accessibilityLabel 用の要約文: 未来日を含む週アライン14日は「先週と今週」と読む', () => {
+    const days = weekAlignedJourneyDays(
+      start,
+      [report('2026-07-28', 1), report('2026-07-27', 1), report('2026-07-26', 0)],
+      ['2026-07-25'],
+      '2026-07-28',
     );
-    const label = journeySummaryLabel(days, 2, 3);
-    expect(label).toBe('直近14日: 歩いた日2、報告した日1、おやすみ1。第2週の旗まであと3日');
+    const label = journeySummaryLabel(days, 2, 4);
+    expect(label).toBe('先週と今週: 歩いた日2、報告した日1、おやすみ1。第2週の旗まであと4日');
+  });
+
+  it('旗の日は未来日が無いため要約文は「直近14日」と読む', () => {
+    const days = weekAlignedJourneyDays(start, [report('2026-08-01', 1)], [], '2026-08-01');
+    const label = journeySummaryLabel(days, 2, 0);
+    expect(label).toBe('直近14日: 歩いた日1、報告した日0、おやすみ0。第2週の旗まであと0日');
   });
 
   it('未来日を含むコールドスタートの要約は「直近N日」ではなく「今週」と読む', () => {
@@ -376,53 +444,11 @@ describe('journeyDays / coldStartJourneyDays', () => {
     expect(label).toBe('今週: 歩いた日1、報告した日0、おやすみ0。第1週の旗まであと6日');
   });
 
-  it('startKey を渡すと目標開始前の日は beforeStart になる(missed にしない)', () => {
-    // 開始8日目(第2週初日): 14日窓の先頭6日は開始前
-    const days = journeyDays(
-      [report('2026-07-25', 1), report('2026-07-19', 1)],
-      [],
-      '2026-07-26',
-      14,
-      '2026-07-19',
-    );
-    expect(days).toHaveLength(14);
-    // 開始前(7/13〜7/18)はすべて beforeStart
-    for (let i = 0; i < 6; i += 1) {
-      expect(days[i].state).toBe('beforeStart');
-    }
-    // 開始日当日以降は従来どおりの判定
-    expect(days[6]).toMatchObject({ dateKey: '2026-07-19', state: 'walked' });
-    expect(days[7].state).toBe('missed');
-    expect(days[13]).toMatchObject({ dateKey: '2026-07-26', state: 'missed', isToday: true });
-  });
-
-  it('startKey を渡しても開始日以降の状態判定は変わらない', () => {
-    const withStart = journeyDays(
-      [report('2026-07-25', 1), report('2026-07-24', 0)],
-      ['2026-07-23'],
-      '2026-07-25',
-      14,
-      '2026-07-01',
-    );
-    const withoutStart = journeyDays(
-      [report('2026-07-25', 1), report('2026-07-24', 0)],
-      ['2026-07-23'],
-      '2026-07-25',
-    );
-    // 開始日が窓より前なら、startKey の有無で結果は同一
-    expect(withStart).toEqual(withoutStart);
-  });
-
-  it('startKey 未指定(既存呼び出し互換)では従来どおり開始前も missed になる', () => {
-    const days = journeyDays([], [], '2026-07-26');
-    expect(days.every((d) => d.state === 'missed')).toBe(true);
-  });
-
-  it('journeySummaryLabel は beforeStart を歩いた日・報告した日・おやすみに数えない', () => {
-    const days = journeyDays([report('2026-07-26', 1)], [], '2026-07-26', 14, '2026-07-20');
-    const label = journeySummaryLabel(days, 2, 6);
-    // beforeStart は future ではないため「直近14日」のまま、各カウントにも含まれない
-    expect(label).toBe('直近14日: 歩いた日1、報告した日0、おやすみ0。第2週の旗まであと6日');
+  it('journeySummaryLabel は future / beforeStart を歩いた日・報告した日・おやすみに数えない', () => {
+    // 第1週の防御的呼び出し: beforeStart(先頭7日)と future(今日より後)が混在する
+    const days = weekAlignedJourneyDays(start, [report('2026-07-21', 1)], [], '2026-07-21');
+    const label = journeySummaryLabel(days, 1, 4);
+    expect(label).toBe('先週と今週: 歩いた日1、報告した日0、おやすみ0。第1週の旗まであと4日');
   });
 });
 
