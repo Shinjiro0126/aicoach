@@ -8,6 +8,7 @@ import type { Goal } from '@/db/schema';
 import type { InsightResponse } from '@/lib/ai/types';
 import { todayKey } from '@/lib/dates';
 import { makeId } from '@/lib/id';
+import type { PaceDeclaration } from '@/lib/pace';
 import { canSendMessage, consumeQuota, remainingQuota, type QuotaState } from '@/lib/quota';
 
 type NotificationTime = { hour: number; minute: number };
@@ -38,6 +39,11 @@ type AppState = {
   premium: boolean;
   /** 観察手帳の最新キャッシュ(端末内のみに保存) */
   insight: InsightCacheEntry | null;
+  /**
+   * 来週の歩幅宣言(旗の日セレモニーの3択)。forWeekNo で対象週をスコープし、
+   * 効くのは翌週のみ(判定は lib/pace.ts の effectivePace)
+   */
+  nextWeekPace: PaceDeclaration | null;
 
   // ---- セッション状態(非永続) ----
   activeGoal: Goal | null;
@@ -50,6 +56,7 @@ type AppState = {
   setNotificationsEnabled: (enabled: boolean) => void;
   setPremium: (premium: boolean) => void;
   setInsight: (entry: InsightCacheEntry | null) => void;
+  setNextWeekPace: (declaration: PaceDeclaration | null) => void;
   canSendAiMessage: () => boolean;
   remainingAiMessages: () => number;
   consumeAiMessage: () => void;
@@ -65,6 +72,7 @@ export const useAppStore = create<AppState>()(
       quota: { date: '', used: 0 },
       premium: false,
       insight: null,
+      nextWeekPace: null,
 
       activeGoal: null,
       goalLoaded: false,
@@ -78,6 +86,7 @@ export const useAppStore = create<AppState>()(
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       setPremium: (premium) => set({ premium }),
       setInsight: (entry) => set({ insight: entry }),
+      setNextWeekPace: (declaration) => set({ nextWeekPace: declaration }),
 
       canSendAiMessage: () => {
         const s = get();
@@ -100,6 +109,7 @@ export const useAppStore = create<AppState>()(
         quota: s.quota,
         premium: s.premium,
         insight: s.insight,
+        nextWeekPace: s.nextWeekPace,
       }),
     },
   ),
