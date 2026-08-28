@@ -145,11 +145,21 @@ type FlagCeremonyData = {
 };
 
 /**
+ * リプラン発火ガード(goalId:週番号)。閉じるボタンの二度押し等で同じ週に
+ * 二重発火しないよう、モジュールスコープに置く(notebook の inFlightInsightKeys と同じ方針)。
+ * 週を跨いだ再実行の要否は DB 側の1週1回ガード(shouldReplanNextWeek)が判定する
+ */
+const firedReplanKeys = new Set<string>();
+
+/**
  * 週次リプランの実行(fire-and-forget)。セレモニーを閉じる裏で走らせる。
  * - 成功: 次週フォーカス+7日分の行動を保存し、flagMessage をストアへ(週1回・無料。対話クォータは消費しない)
  * - 失敗・オフライン・応答不備: 何もしない=既存の前日コピーにフォールバックし、UIにエラーを出さない
  */
 async function runWeeklyReplan(req: ReplanRequest, goalId: string, startKey: string, deviceId: string): Promise<void> {
+  const key = `${goalId}:${req.nextWeekNo}`;
+  if (firedReplanKeys.has(key)) return;
+  firedReplanKeys.add(key);
   try {
     const res = await replanWeek(req, deviceId);
     const focus = res.nextWeekFocus?.trim();
