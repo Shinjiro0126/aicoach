@@ -8,6 +8,8 @@ import type {
   InsightResponse,
   PlanRequest,
   PlanResponse,
+  ReplanRequest,
+  ReplanResponse,
   SuggestRequest,
   SuggestResponse,
 } from './types';
@@ -34,6 +36,32 @@ export function mockPlan(req: PlanRequest): PlanResponse {
           : `「${req.goalTitle}」のための行動を10分続ける`,
     })),
     welcomeMessage: `はじめまして、コーチのホトリです。「${req.goalTitle}」への道は、私が先に歩いてきました。${weeksLabel(weeks)}の道のり、最初の1週間は小さく続けることだけ考えれば十分です。`,
+  };
+}
+
+/**
+ * 週次リプランのモック(API未設定時のフォールバック)。
+ * 決定的な軽い内容で、歩幅宣言(lighter/wider)を分数に反映する
+ */
+export function mockReplan(req: ReplanRequest): ReplanResponse {
+  const base = (Math.max(1, req.nextWeekNo) - 1) * 7;
+  const minutes = req.pace === 'lighter' ? '5分だけ' : req.pace === 'wider' ? '15分' : '10分';
+  const paceLine =
+    req.pace === 'lighter'
+      ? '今週は一段軽くして、確実に続けられる歩幅に整えました。'
+      : req.pace === 'wider'
+        ? '宣言のとおり、少しだけ歩幅を広げた道にしました。'
+        : 'いまの歩幅のまま、同じリズムで歩ける道にしました。';
+  return {
+    nextWeekFocus: `いまの歩幅で、第${req.nextWeekNo}週を積み重ねる`,
+    dailyActions: Array.from({ length: 7 }, (_, i) => ({
+      dayOffset: base + i,
+      description:
+        i === 0
+          ? `「${req.goalTitle}」に向けて、週の最初は${minutes}着手する`
+          : `「${req.goalTitle}」のための行動を${minutes}続ける`,
+    })),
+    flagMessage: `先週の歩き方は、確かに見届けました。${paceLine}明日の朝、最初の一歩で待っています。`,
   };
 }
 
