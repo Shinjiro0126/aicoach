@@ -213,6 +213,30 @@ function LetterCard({ letter }: { letter: string }) {
 }
 
 /**
+ * 今週の計画の意図(週次リプランの flagMessage)。プレミアムのみ・手帳が書けない週でも表示する。
+ * 内容は端末内の永続キャッシュ(stores/app.ts の replanLetter)から読む
+ */
+function PlanIntentCard({ weekNo, message }: { weekNo: number; message: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: Spacing.two }}>
+      <SectionLabel label={`今週の計画の意図(第${weekNo}週)`} />
+      <View style={[styles.letter, { backgroundColor: theme.sand }]}>
+        <ThemedText type="small" style={{ color: theme.sandText, lineHeight: 22 }}>
+          {message}
+        </ThemedText>
+        <View style={styles.letterSig}>
+          <Hotori variant="bust" size={18} />
+          <ThemedText type="small" style={{ color: theme.sandText, fontWeight: '700', fontSize: 12 }}>
+            ホトリ
+          </ThemedText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
  * 生成中ガード(goalId:週番号)。画面のアンマウント直後の再入で旧リクエストが生きたまま
  * 新規生成が走らないよう、ref ではなくモジュールスコープに置く
  */
@@ -225,6 +249,7 @@ export default function NotebookScreen() {
   const insightCache = useAppStore((s) => s.insight);
   const setInsight = useAppStore((s) => s.setInsight);
   const deviceId = useAppStore((s) => s.deviceId);
+  const replanLetter = useAppStore((s) => s.replanLetter);
 
   const [reports, setReports] = useState<ReportEntry[]>([]);
   const [streak, setStreak] = useState<StreakResult>({ current: 0, best: 0, graceUsedOn: [] });
@@ -294,6 +319,11 @@ export default function NotebookScreen() {
   }, [goal, premium, insightCache, deviceId, setInsight, cacheMatched]);
 
   if (!goal) return null;
+
+  // 今週の計画の意図(週次リプランの手紙)。プレミアムのみ・現在の目標の分だけ表示する。
+  // 手帳(データ2週)が書けない週でも、リプランが走っていれば読める
+  const planIntent =
+    premium && replanLetter !== null && replanLetter.goalId === goal.id ? replanLetter : null;
 
   // フォーカス反映前の空 state で観察中/ティザー画面を一瞬描画しないよう、読み込み完了まではヘッダーのみ
   if (!loaded) {
@@ -391,6 +421,8 @@ export default function NotebookScreen() {
           </View>
         </View>
 
+        {planIntent && <PlanIntentCard weekNo={planIntent.weekNo} message={planIntent.message} />}
+
         <SectionLabel label="ここまでにわかっていること" />
         <View style={styles.timeRow}>
           <View style={[styles.timeCell, { borderColor: theme.border, backgroundColor: theme.background }]}>
@@ -440,6 +472,7 @@ export default function NotebookScreen() {
             {stats.observedDays}日分の歩き方を、いま読み返しています。
           </ThemedText>
         </View>
+        {planIntent && <PlanIntentCard weekNo={planIntent.weekNo} message={planIntent.message} />}
         <PrivacyRow />
       </Screen>
     );
@@ -463,6 +496,8 @@ export default function NotebookScreen() {
       </View>
 
       <LetterCard letter={insight.letter} />
+
+      {planIntent && <PlanIntentCard weekNo={planIntent.weekNo} message={planIntent.message} />}
 
       <SectionLabel label="あなたの歩き方タイプ" />
       <View style={[styles.typeBadge, { backgroundColor: theme.tintSoft }]}>

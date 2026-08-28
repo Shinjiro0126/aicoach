@@ -47,7 +47,7 @@ function RecapRow({ k, v, ai }: { k: string; v: ReactNode; ai?: boolean }) {
 export default function PlanScreen() {
   const theme = useTheme();
   const { category, title, durationWeeks, why, hearingAnswers, reset } = useOnboardingStore();
-  const { deviceId, morningTime, eveningTime, notificationsEnabled, setActiveGoal } = useAppStore();
+  const { deviceId, morningTime, eveningTime, notificationsEnabled, premium, setActiveGoal } = useAppStore();
 
   // 期間画面で必ず確定されるが、念のためのフォールバック(3ヶ月相当)
   const weeks = durationWeeks ?? monthsToWeeks(3);
@@ -112,7 +112,7 @@ export default function PlanScreen() {
       );
       addCoachMessage(goal.id, 'assistant', plan.welcomeMessage);
       if (notificationsEnabled) {
-        await scheduleDailyNotifications(goal.title, morningTime, eveningTime, startDate);
+        await scheduleDailyNotifications(goal.title, morningTime, eveningTime, startDate, premium);
       }
       setActiveGoal(goal);
       reset();

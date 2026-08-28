@@ -13,11 +13,13 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import {
   addCustomTask,
+  applyWeeklyReplan,
   deleteCustomTask,
   ensureTasksForDate,
   getActionForDate,
   getReportForDate,
   getWeeklyPlans,
+  listActionsInRange,
   listReportDates,
   listReports,
   refreshReportCounts,
@@ -25,11 +27,21 @@ import {
   submitReport,
 } from '@/db/repo';
 import type { DailyReport, DailyTask } from '@/db/schema';
+import { replanWeek } from '@/lib/ai/client';
+import type { ReplanRequest } from '@/lib/ai/types';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
-import { addDaysKey, formatJP, toDateKey, todayKey } from '@/lib/dates';
+import { addDaysKey, diffDays, formatJP, toDateKey, todayKey } from '@/lib/dates';
 import { buildFlagWeekSummary, buildNextWeekPreview } from '@/lib/flag-day';
 import { buildTeaser, coldStartJourneyDays, computeInsightStats } from '@/lib/insight-stats';
-import { effectivePace } from '@/lib/pace';
+import { effectivePace, type NextWeekPace } from '@/lib/pace';
+import {
+  buildReplanStats,
+  collectPrevActions,
+  normalizeReplanActions,
+  replanActionsToDates,
+  shouldReplanNextWeek,
+  weekDateRange,
+} from '@/lib/replan';
 import { isFlagDay, progressSummary, weekFlagInfo, weekSegments } from '@/lib/progress';
 import { addWeeksKey, currentWeekNo, ROADMAP_WEEKS, weekIndex } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
@@ -125,7 +137,42 @@ type FlagCeremonyData = {
   summaryText: string;
   teaserText: string;
   previewText: string;
+  /**
+   * 週次リプランのリクエスト(pace はセレモニーの歩幅宣言で確定してから発火時に上書き)。
+   * 次週分の週次プランが既にある週(1週1回ガード)は null
+   */
+  replan: ReplanRequest | null;
 };
+
+/**
+ * 週次リプランの実行(fire-and-forget)。セレモニーを閉じる裏で走らせる。
+ * - 成功: 次週フォーカス+7日分の行動を保存し、flagMessage をストアへ(週1回・無料。対話クォータは消費しない)
+ * - 失敗・オフライン・応答不備: 何もしない=既存の前日コピーにフォールバックし、UIにエラーを出さない
+ */
+async function runWeeklyReplan(req: ReplanRequest, goalId: string, startKey: string, deviceId: string): Promise<void> {
+  try {
+    const res = await replanWeek(req, deviceId);
+    const focus = res.nextWeekFocus?.trim();
+    const actions = replanActionsToDates(startKey, normalizeReplanActions(req.nextWeekNo, res.dailyActions ?? []));
+    if (!focus || actions.length === 0) {
+      trackEvent(AnalyticsEvent.WeeklyReplanGenerated, { weekNo: req.nextWeekNo, fallback: true });
+      return;
+    }
+    applyWeeklyReplan(goalId, req.nextWeekNo, focus, actions);
+    // 「なぜこの計画にしたか」の手紙はプレミアムのみ観察手帳に表示する(保存は端末内のみ)
+    if (res.flagMessage?.trim()) {
+      useAppStore.getState().setReplanLetter({
+        goalId,
+        weekNo: req.nextWeekNo,
+        message: res.flagMessage.trim(),
+        generatedAt: Date.now(),
+      });
+    }
+    trackEvent(AnalyticsEvent.WeeklyReplanGenerated, { weekNo: req.nextWeekNo, fallback: false });
+  } catch {
+    trackEvent(AnalyticsEvent.WeeklyReplanGenerated, { weekNo: req.nextWeekNo, fallback: true });
+  }
+}
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -134,6 +181,8 @@ export default function HomeScreen() {
   const goal = useAppStore((s) => s.activeGoal);
   const nextWeekPace = useAppStore((s) => s.nextWeekPace);
   const setNextWeekPace = useAppStore((s) => s.setNextWeekPace);
+  const premium = useAppStore((s) => s.premium);
+  const deviceId = useAppStore((s) => s.deviceId);
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [report, setReport] = useState<DailyReport | null>(null);
@@ -249,22 +298,54 @@ export default function HomeScreen() {
       const reports = listReports(goal.id);
       const weekDays = coldStartJourneyDays(startKey, reports, result.graceUsedOn, today);
       const planList = getWeeklyPlans(goal.id);
-      const nextFocus = planList.find((p) => p.weekNo === weekNow.weekNo + 1)?.focus;
+      const nextWeekNo = weekNow.weekNo + 1;
+      const nextFocus = planList.find((p) => p.weekNo === nextWeekNo)?.focus;
+
+      // 週次リプラン(B-1)の入力を提出時点の最新データで組み立てる。
+      // 1週1回ガード: 次週分の週次プランが既にあればスキップ(replan: null)。
+      // プライバシー: 送るのは目標名・動機・カテゴリ・AI生成系 daily_actions の文言・数値統計のみ。
+      // customタスク・会話・ヒアリング回答は送らない(collectPrevActions が防御的に除外)
+      let replan: ReplanRequest | null = null;
+      if (shouldReplanNextWeek(planList.map((p) => p.weekNo), nextWeekNo)) {
+        const range = weekDateRange(startKey, weekNow.weekNo);
+        replan = {
+          goalTitle: goal.title,
+          why: goal.why,
+          category: goal.category,
+          nextWeekNo,
+          prevFocus: planList.find((p) => p.weekNo === weekNow.weekNo)?.focus ?? '',
+          prevActions: collectPrevActions(listActionsInRange(goal.id, range.fromKey, range.toKey), range),
+          stats: buildReplanStats(weekDays, result.current),
+          // pace はセレモニーの歩幅宣言で確定してから発火時に上書きする
+          pace: 'keep',
+          totalWeeks: Math.max(1, Math.round(diffDays(startKey, targetKey) / 7)),
+        };
+      }
+
       flag = {
         weekNo: weekNow.weekNo,
         summaryText: buildFlagWeekSummary(weekDays),
         teaserText: buildTeaser(computeInsightStats(reports, today, result)),
         previewText: buildNextWeekPreview(weekNow.weekNo, nextFocus !== undefined),
+        replan,
       };
     }
     setTimeout(() => setCelebrating({ streak: result.current, isBest, flag }), 450);
     refresh();
   };
 
-  /** セレモニー・祝い演出を閉じる(旗の日は完走計測つき) */
-  const closeCelebration = (action: 'pace_selected' | 'closed' = 'closed') => {
+  /**
+   * セレモニー・祝い演出を閉じる(旗の日は完走計測つき)。
+   * 旗の日は閉じる裏で週次リプラン(B-1)を fire-and-forget で発火する。
+   * 歩幅宣言が確定するのは閉じる瞬間のため、発火はここに一本化する
+   * (celebrating が null になるのはこの1回だけなので二重発火しない)
+   */
+  const closeCelebration = (action: 'pace_selected' | 'closed' = 'closed', pace: NextWeekPace = 'keep') => {
     if (celebrating?.flag) {
       trackEvent(AnalyticsEvent.FlagCeremonyClosed, { weekNo: celebrating.flag.weekNo, action });
+      if (celebrating.flag.replan) {
+        runWeeklyReplan({ ...celebrating.flag.replan, pace }, goal.id, startKey, deviceId);
+      }
     }
     setCelebrating(null);
   };
@@ -297,11 +378,28 @@ export default function HomeScreen() {
               summaryText={flagData.summaryText}
               teaserText={flagData.teaserText}
               previewText={flagData.previewText}
+              premium={premium}
               onSelectPace={(pace) => {
                 // 宣言が効くのは現在の目標の翌週のみ(goalId・forWeekNo でスコープ)
                 setNextWeekPace({ goalId: goal.id, pace, forWeekNo: flagData.weekNo + 1 });
                 trackEvent(AnalyticsEvent.NextWeekPaceSelected, { pace });
-                closeCelebration('pace_selected');
+                // 宣言した歩幅はリプランのプロンプト入力にもなる(閉じる裏で発火)
+                closeCelebration('pace_selected', pace);
+              }}
+              onOpenNotebook={() => {
+                // 手帳導線(C-3・プレミアム)。閉じ経路は closeCelebration() に一本化
+                trackEvent(AnalyticsEvent.NotebookOpened, {
+                  weekNo: flagData.weekNo,
+                  premium: true,
+                  from: 'ceremony',
+                });
+                closeCelebration();
+                router.push('/notebook');
+              }}
+              onOpenPaywall={() => {
+                // 手帳導線(C-3・無料)。ペイウォール表示の計測は paywall.tsx 側の PaywallViewed
+                closeCelebration();
+                router.push('/paywall');
               }}
               onClose={() => closeCelebration()}
             />

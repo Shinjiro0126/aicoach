@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { getWeeklyPlans, listReports } from '@/db/repo';
 import type { WeeklyPlan } from '@/db/schema';
+import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { toDateKey, todayKey } from '@/lib/dates';
 import {
   buildTeaser,
@@ -119,7 +120,15 @@ export default function ProgressScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="ホトリの観察手帳を開く"
-        onPress={() => router.push('/notebook')}
+        onPress={() => {
+          // 手帳導線の計測(数値・boolean・enumのみ)。ceremony 経由はホーム側で発火する
+          trackEvent(AnalyticsEvent.NotebookOpened, {
+            weekNo: schedule.availableWeekNo,
+            premium,
+            from: 'tab',
+          });
+          router.push('/notebook');
+        }}
         style={({ pressed }) => pressed && { opacity: 0.85 }}>
         <Card style={{ gap: Spacing.two }}>
           <View style={styles.bookHead}>
