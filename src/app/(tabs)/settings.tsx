@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { archiveGoal, deleteAllData, exportAllData } from '@/db/repo';
+import { toDateKey } from '@/lib/dates';
 import {
   cancelDailyNotifications,
   requestNotificationPermission,
@@ -53,7 +54,13 @@ export default function SettingsScreen() {
       return;
     }
     setNotificationsEnabled(true);
-    if (activeGoal) await scheduleDailyNotifications(activeGoal.title, morning, evening);
+    if (activeGoal)
+      await scheduleDailyNotifications(
+        activeGoal.title,
+        morning,
+        evening,
+        toDateKey(new Date(activeGoal.createdAt)),
+      );
   };
 
   const setMorning = (hour: number) => {

@@ -112,7 +112,7 @@ export default function PlanScreen() {
       );
       addCoachMessage(goal.id, 'assistant', plan.welcomeMessage);
       if (notificationsEnabled) {
-        await scheduleDailyNotifications(goal.title, morningTime, eveningTime);
+        await scheduleDailyNotifications(goal.title, morningTime, eveningTime, startDate);
       }
       setActiveGoal(goal);
       reset();
