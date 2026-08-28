@@ -1,4 +1,5 @@
-import { HEAD_START_PERCENT, progressSummary, weekFlagInfo, weekSegments } from '../progress';
+import { HEAD_START_PERCENT, isFlagDay, progressSummary, weekFlagInfo, weekSegments } from '../progress';
+import { addDaysKey } from '../dates';
 
 const START = '2026-07-01';
 /** 13週間(91日)後 */
@@ -92,6 +93,36 @@ describe('weekFlagInfo', () => {
     const w = weekFlagInfo(START, '2026-06-28', []);
     expect(w.weekNo).toBe(1);
     expect(w.dayIndex).toBe(0);
+  });
+});
+
+describe('isFlagDay', () => {
+  it('6日目(週内index 5)は旗の日ではない', () => {
+    expect(isFlagDay(START, '2026-07-06')).toBe(false);
+  });
+
+  it('7日目(週内index 6)は旗の日', () => {
+    expect(isFlagDay(START, '2026-07-07')).toBe(true);
+  });
+
+  it('8日目(第2週の1日目)は旗の日ではない', () => {
+    expect(isFlagDay(START, '2026-07-08')).toBe(false);
+  });
+
+  it('第2週以降の7日目も旗の日(第2週=14日目、第3週=21日目)', () => {
+    expect(isFlagDay(START, '2026-07-14')).toBe(true);
+    expect(isFlagDay(START, '2026-07-21')).toBe(true);
+  });
+
+  it('開始前は旗の日ではない(weekFlagInfo と同じく開始日扱いにクランプ)', () => {
+    expect(isFlagDay(START, '2026-06-28')).toBe(false);
+  });
+
+  it('weekFlagInfo の dayIndex === 6 と常に等価', () => {
+    for (let offset = 0; offset < 21; offset += 1) {
+      const today = addDaysKey(START, offset);
+      expect(isFlagDay(START, today)).toBe(weekFlagInfo(START, today, []).dayIndex === 6);
+    }
   });
 });
 
