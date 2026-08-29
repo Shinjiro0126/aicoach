@@ -9,8 +9,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { getWeeklyPlans, listReports } from '@/db/repo';
-import type { WeeklyPlan } from '@/db/schema';
+import { getMilestones, getWeeklyPlans, listReports } from '@/db/repo';
+import type { GoalMilestone, WeeklyPlan } from '@/db/schema';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { toDateKey, todayKey } from '@/lib/dates';
 import {
@@ -24,6 +24,7 @@ import {
   weekAlignedJourneyDays,
   type ReportEntry,
 } from '@/lib/insight-stats';
+import { milestonePhase, milestoneRangeLabel } from '@/lib/milestones';
 import { progressSummary, weekFlagInfo } from '@/lib/progress';
 import { addWeeksKey } from '@/lib/roadmap';
 import { computeStreak, type StreakResult } from '@/lib/streak';
@@ -38,6 +39,7 @@ export default function ProgressScreen() {
   const [reports, setReports] = useState<ReportEntry[]>([]);
   const [streak, setStreak] = useState<StreakResult>({ current: 0, best: 0, graceUsedOn: [] });
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
+  const [milestones, setMilestones] = useState<GoalMilestone[]>([]);
 
   const today = todayKey();
 
@@ -48,6 +50,7 @@ export default function ProgressScreen() {
     setReports(rows);
     setStreak(computeStreak(rows.map((r) => r.dateKey), todayKey()));
     setPlans(getWeeklyPlans(goal.id));
+    setMilestones(getMilestones(goal.id));
   }, [goal]);
 
   useFocusEffect(refresh);
@@ -144,22 +147,78 @@ export default function ProgressScreen() {
         </Card>
       </Pressable>
 
-      <View style={{ gap: Spacing.two }}>
-        <ThemedText type="smallBold">4週間のフォーカス</ThemedText>
-        {plans.map((plan) => (
-          <Card key={plan.id}>
-            <ThemedText type="small" themeColor="textSecondary">
-              第{plan.weekNo}週
-            </ThemedText>
-            <ThemedText>{plan.focus}</ThemedText>
+      {/* 道のりの全体図(全期間マイルストーン)。旧目標(保存なし)は節ごと非表示 */}
+      {milestones.length > 0 && (
+        <View style={{ gap: Spacing.two }}>
+          <ThemedText type="smallBold">道のりの全体図</ThemedText>
+          <Card style={{ gap: Spacing.one }}>
+            {milestones.map((m) => {
+              const phase = milestonePhase(m, week.weekNo);
+              return (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.milestoneRow,
+                    phase === 'current' && { backgroundColor: theme.tintSoft },
+                    phase === 'done' && styles.milestoneDone,
+                  ]}>
+                  <ThemedText
+                    type={phase === 'current' ? 'smallBold' : 'small'}
+                    themeColor="textSecondary"
+                    style={[styles.milestoneWeeks, phase === 'current' && { color: theme.tintDeep }]}>
+                    {milestoneRangeLabel(m)}
+                  </ThemedText>
+                  <ThemedText type={phase === 'current' ? 'smallBold' : 'small'} style={styles.milestoneTitle}>
+                    {m.title}
+                  </ThemedText>
+                </View>
+              );
+            })}
           </Card>
-        ))}
+        </View>
+      )}
+
+      {/* 週ごとのフォーカス(リプランで週が増えてもこの並びに追記される) */}
+      <View style={{ gap: Spacing.two }}>
+        <ThemedText type="smallBold">週ごとのフォーカス</ThemedText>
+        {plans.map((plan) => {
+          const isCurrentWeek = plan.weekNo === week.weekNo;
+          const isPastWeek = plan.weekNo < week.weekNo;
+          return (
+            <Card
+              key={plan.id}
+              style={[
+                isCurrentWeek && { backgroundColor: theme.tintSoft },
+                isPastWeek && styles.pastWeekCard,
+              ]}>
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={isCurrentWeek && { color: theme.tintDeep, fontWeight: '700' }}>
+                第{plan.weekNo}週{isCurrentWeek ? '(今週)' : ''}
+              </ThemedText>
+              <ThemedText>{plan.focus}</ThemedText>
+            </Card>
+          );
+        })}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  milestoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two - 2,
+  },
+  milestoneWeeks: { width: 84 },
+  milestoneTitle: { flex: 1 },
+  milestoneDone: { opacity: 0.5 },
+  pastWeekCard: { opacity: 0.6 },
   bookHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   premiumTag: { marginLeft: 'auto', borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 2 },
   premiumTagText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },

@@ -14,6 +14,7 @@ import {
   addCoachMessage,
   createGoal,
   insertDailyActions,
+  insertMilestones,
   insertWeeklyPlans,
 } from '@/db/repo';
 import { generatePlan } from '@/lib/ai/client';
@@ -106,6 +107,10 @@ export default function PlanScreen() {
         hearingAnswers: pairs.length > 0 ? JSON.stringify(pairs) : undefined,
       });
       insertWeeklyPlans(goal.id, plan.weeklyFocus);
+      // 道のりの全体図(全期間マイルストーン)。旧プロキシは返さないので無ければ何もしない
+      if (plan.milestones && plan.milestones.length > 0) {
+        insertMilestones(goal.id, plan.milestones);
+      }
       insertDailyActions(
         goal.id,
         plan.dailyActions.map((a) => ({ date: addDaysKey(startDate, a.dayOffset), description: a.description })),
