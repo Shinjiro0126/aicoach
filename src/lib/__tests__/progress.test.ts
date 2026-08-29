@@ -82,6 +82,17 @@ describe('weekFlagInfo', () => {
     expect(w.dots[6].dateKey).toBe('2026-07-14');
   });
 
+  it('旗の日(週の7日目)は daysToFlag=1(今日を含む)。今日より後は0日', () => {
+    // 画面の「旗まであとn日」はホーム・記録タブとも daysToFlag - 1(今日より後)で統一(Issue #42)。
+    // 週初日は daysToFlag=7 → 表示6日、旗の日は daysToFlag=1 → 表示は日数でなく「旗の日」の文言になる
+    const w = weekFlagInfo(START, '2026-07-07', []);
+    expect(w.weekNo).toBe(1);
+    expect(w.dayIndex).toBe(6);
+    expect(w.daysToFlag).toBe(1);
+    expect(w.daysToFlag - 1).toBe(0);
+    expect(isFlagDay(START, '2026-07-07')).toBe(true);
+  });
+
   it('提出済みの日だけドットが点灯する', () => {
     const today = '2026-07-12';
     const w = weekFlagInfo(START, today, ['2026-07-08', '2026-07-09', '2026-07-12', '2026-07-01']);
