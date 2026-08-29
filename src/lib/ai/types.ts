@@ -1,6 +1,7 @@
 /** アプリ⇔プロキシ間のAPI型定義(proxy/src/index.ts と対応) */
 
 import type { InsightContent, InsightStats } from '@/lib/insight-stats';
+import type { NextWeekPace } from '@/lib/pace';
 
 /** 現在地ヒアリングの回答1件(質問文と選んだチップの文言) */
 export type HearingPair = { question: string; answer: string };
@@ -28,6 +29,53 @@ export type PlanResponse = {
   dailyActions: { dayOffset: number; description: string }[];
   /** コーチからの初回メッセージ */
   welcomeMessage: string;
+};
+
+/** 週次リプランに送る前週の実績統計(端末内集計の数値のみ) */
+export type ReplanStats = {
+  /** 前週に歩いた日数(チェックあり提出) */
+  walkedDays: number;
+  /** 前週に報告のみだった日数(チェック0件提出) */
+  reportedDays: number;
+  /** 前週のおやすみ救済日数 */
+  graceDays: number;
+  /** 現在の連続日数 */
+  streakCurrent: number;
+};
+
+/**
+ * 週次リプラン(/v1/replan)のリクエスト。
+ * サーバーへ送ってよいのは goalTitle / why / category / AI自身が生成した行動文言 / 数値統計のみ。
+ * ユーザーが自分で追加したcustomタスクの文言・会話・ヒアリング回答は絶対に含めない
+ * (prevActions の組み立ては lib/replan.ts の collectPrevActions に一本化)
+ */
+export type ReplanRequest = {
+  goalTitle: string;
+  why: string;
+  /** 目標カテゴリ(GoalCategory の enum値) */
+  category?: string;
+  /** 計画対象の週番号(1-based) */
+  nextWeekNo: number;
+  /** 前週のフォーカステーマ(AI生成) */
+  prevFocus: string;
+  /** 前週の毎日の行動文言(AI生成系 daily_actions 由来のみ・最大7件) */
+  prevActions: string[];
+  /** 前週の実績統計 */
+  stats: ReplanStats;
+  /** 来週の歩幅宣言(旗の日セレモニーの3択。未宣言は keep) */
+  pace: NextWeekPace;
+  /** 達成期間の全週数(ペース配分の参考。不明なら省略) */
+  totalWeeks?: number;
+};
+
+/** 週次リプランのレスポンス */
+export type ReplanResponse = {
+  /** 次週のフォーカステーマ(1つ) */
+  nextWeekFocus: string;
+  /** 次週7日分の最小行動。dayOffset は目標開始日からのオフセット */
+  dailyActions: { dayOffset: number; description: string }[];
+  /** 「なぜこの計画にしたか」の手紙(3文以内)。プレミアムのみ観察手帳に表示する */
+  flagMessage: string;
 };
 
 export type CoachContext = {

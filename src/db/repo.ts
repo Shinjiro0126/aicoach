@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 
 import { makeId } from '@/lib/id';
 import { applyPaceToMain, type NextWeekPace } from '@/lib/pace';
@@ -66,6 +66,26 @@ export function insertWeeklyPlans(goalId: string, focuses: string[]): WeeklyPlan
   return rows;
 }
 
+/**
+ * 週次プランの単週upsert(週次リプラン用)。
+ * 既存の weekNo 行があれば focus を差し替え、同じ週の行を重複して作らない
+ */
+export function upsertWeeklyPlan(goalId: string, weekNo: number, focus: string): WeeklyPlan {
+  const existing = db
+    .select()
+    .from(weeklyPlans)
+    .where(and(eq(weeklyPlans.goalId, goalId), eq(weeklyPlans.weekNo, weekNo)))
+    .limit(1)
+    .all()[0];
+  if (existing) {
+    db.update(weeklyPlans).set({ focus }).where(eq(weeklyPlans.id, existing.id)).run();
+    return { ...existing, focus };
+  }
+  const row: WeeklyPlan = { id: makeId(), goalId, weekNo, focus, createdAt: Date.now() };
+  db.insert(weeklyPlans).values(row).run();
+  return row;
+}
+
 export function getWeeklyPlans(goalId: string): WeeklyPlan[] {
   return db
     .select()
@@ -104,6 +124,37 @@ export function upsertActionForDate(goalId: string, date: string, description: s
   const row: DailyAction = { id: makeId(), goalId, date, description, done: false, doneAt: null };
   db.insert(dailyActions).values(row).run();
   return row;
+}
+
+/**
+ * 指定期間(両端含む)の daily_actions。週次リプランの prevActions 用。
+ * daily_actions はAI生成系の行動のみを持つテーブルで、ユーザー追加のcustomタスク
+ * (daily_tasks)はここには入らない=サーバーへ流れない
+ */
+export function listActionsInRange(goalId: string, fromKey: string, toKey: string): DailyAction[] {
+  return db
+    .select()
+    .from(dailyActions)
+    .where(
+      and(eq(dailyActions.goalId, goalId), gte(dailyActions.date, fromKey), lte(dailyActions.date, toKey)),
+    )
+    .orderBy(asc(dailyActions.date))
+    .all();
+}
+
+/**
+ * 週次リプラン結果の保存: 次週フォーカスのupsert+次週7日分の行動のupsert。
+ * 既存の week 行・date 行と重複せず、既にある日は説明文だけ安全に差し替える
+ * (未来日のため通常は未達成だが、done は upsertActionForDate が既存値を保持する)
+ */
+export function applyWeeklyReplan(
+  goalId: string,
+  weekNo: number,
+  focus: string,
+  actions: { date: string; description: string }[],
+): void {
+  upsertWeeklyPlan(goalId, weekNo, focus);
+  for (const a of actions) upsertActionForDate(goalId, a.date, a.description);
 }
 
 /** 最後に登録された行動(8日目以降に「昨日と同じ行動」を提案するために使う) */

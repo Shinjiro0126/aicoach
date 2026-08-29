@@ -1,11 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { flagDayNotificationWeekday } from '@/lib/flag-day';
-
-const MORNING_ID = 'daily-morning-reminder';
-const EVENING_ID = 'daily-evening-reflection';
-const FLAG_ID = 'weekly-flag-day';
+import {
+  ALL_NOTIFICATION_IDS,
+  buildNotificationPlans,
+  type NotificationTime,
+  type NotificationTrigger,
+} from '@/lib/notification-plan';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -23,61 +24,51 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return result.granted;
 }
 
+/** 純関数側のトリガー表現を expo-notifications のトリガー入力へ変換する */
+function toTriggerInput(trigger: NotificationTrigger): Notifications.SchedulableNotificationTriggerInput {
+  if (trigger.type === 'daily') {
+    return {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: trigger.hour,
+      minute: trigger.minute,
+    };
+  }
+  return {
+    type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+    weekday: trigger.weekday,
+    hour: trigger.hour,
+    minute: trigger.minute,
+  };
+}
+
 /**
- * 朝リマインド・夜振り返りのデイリー通知と、旗の日の週次通知を(再)スケジュールする。
- * 旗の日通知は目標開始日+6日の曜日に週1回、既存2通知と衝突しない昼12:00に鳴らす
- * (ローカル通知は週番号を動的更新できないため「第N週」は文面に入れない)
+ * ローカル通知を(再)スケジュールする。内容の決定は lib/notification-plan.ts の純関数に一本化:
+ * 朝リマインド・夜振り返り(デイリー)、旗の日の週次通知(昼12:00)、
+ * そしてプレミアムのみ手帳更新通知(週初日の朝=朝リマインドの30分後)。
+ * 先に全IDをキャンセルするため、プレミアムOFFで再スケジュールすると手帳通知は消える
  */
 export async function scheduleDailyNotifications(
   goalTitle: string,
-  morning: { hour: number; minute: number },
-  evening: { hour: number; minute: number },
+  morning: NotificationTime,
+  evening: NotificationTime,
   startKey: string,
+  premium: boolean,
 ): Promise<void> {
   if (Platform.OS === 'web') return;
   await cancelDailyNotifications();
-  await Notifications.scheduleNotificationAsync({
-    identifier: MORNING_ID,
-    content: {
-      title: '今日の一歩',
-      body: `「${goalTitle}」— 今日の最小行動を確認しましょう`,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: morning.hour,
-      minute: morning.minute,
-    },
-  });
-  await Notifications.scheduleNotificationAsync({
-    identifier: EVENING_ID,
-    content: {
-      title: '今日はどうでしたか?',
-      body: 'コーチと1分だけ振り返りましょう',
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: evening.hour,
-      minute: evening.minute,
-    },
-  });
-  await Notifications.scheduleNotificationAsync({
-    identifier: FLAG_ID,
-    content: {
-      title: '今日は旗の日です',
-      body: '今週の旗が、すぐそこにあります。今週の歩みを、見に来てください。',
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-      weekday: flagDayNotificationWeekday(startKey),
-      hour: 12,
-      minute: 0,
-    },
-  });
+  for (const plan of buildNotificationPlans(goalTitle, morning, evening, startKey, premium)) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: plan.identifier,
+      content: { title: plan.title, body: plan.body },
+      trigger: toTriggerInput(plan.trigger),
+    });
+  }
 }
 
+/** 全通知の解除。手帳通知(プレミアム)も含む全IDを必ずキャンセルする */
 export async function cancelDailyNotifications(): Promise<void> {
   if (Platform.OS === 'web') return;
-  await Notifications.cancelScheduledNotificationAsync(MORNING_ID).catch(() => {});
-  await Notifications.cancelScheduledNotificationAsync(EVENING_ID).catch(() => {});
-  await Notifications.cancelScheduledNotificationAsync(FLAG_ID).catch(() => {});
+  for (const id of ALL_NOTIFICATION_IDS) {
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+  }
 }

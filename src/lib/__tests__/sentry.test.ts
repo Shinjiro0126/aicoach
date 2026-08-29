@@ -10,9 +10,11 @@ jest.mock('@sentry/react-native', () => ({
 }));
 
 describe('isCoachApiUrl', () => {
-  it('コーチAPIの既知エンドポイント(coach/plan/suggest/insight)を対象にする', () => {
+  it('コーチAPIの既知エンドポイント(coach/plan/replan/suggest/insight)を対象にする', () => {
     expect(isCoachApiUrl('https://coach.example.workers.dev/v1/coach')).toBe(true);
     expect(isCoachApiUrl('https://coach.example.workers.dev/v1/plan')).toBe(true);
+    // 週次リプランAPI(目標タイトル・AI生成の行動文言が乗る)
+    expect(isCoachApiUrl('https://coach.example.workers.dev/v1/replan')).toBe(true);
     // ヒアリング回答・目標タイトルが乗る期間おすすめAPI(Issue #15)
     expect(isCoachApiUrl('https://coach.example.workers.dev/v1/suggest')).toBe(true);
     // 観察手帳API(統計値のみだが、コーチAPI配下として一律サニタイズ対象に含める)

@@ -31,13 +31,14 @@ function RootLayout() {
   // 通知ONは過去に権限許可済みであることを意味するため、ここでは権限ダイアログを出さない
   useEffect(() => {
     const reschedule = () => {
-      const { notificationsEnabled, activeGoal, morningTime, eveningTime } = useAppStore.getState();
+      const { notificationsEnabled, activeGoal, morningTime, eveningTime, premium } = useAppStore.getState();
       if (!notificationsEnabled || !activeGoal) return;
       scheduleDailyNotifications(
         activeGoal.title,
         morningTime,
         eveningTime,
         toDateKey(new Date(activeGoal.createdAt)),
+        premium,
       ).catch(() => {});
     };
     if (useAppStore.persist.hasHydrated()) {

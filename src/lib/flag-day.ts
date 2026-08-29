@@ -56,3 +56,13 @@ export function flagDayNotificationWeekday(startKey: string): number {
   // 正午起点でDST等の日跨ぎ誤差を避ける(dates.ts と同じ方針)
   return new Date(y, m - 1, d, 12).getDay() + 1;
 }
+
+/**
+ * 週初日(旗の日の翌日)の曜日。開始日+7日は開始日と同じ曜日になる。
+ * 手帳更新通知(C-2)の WEEKLY トリガー用に 1=日曜〜7=土曜 で返す
+ */
+export function weekStartNotificationWeekday(startKey: string): number {
+  const [y, m, d] = startKey.split('-').map(Number);
+  // 正午起点でDST等の日跨ぎ誤差を避ける(dates.ts と同じ方針)
+  return new Date(y, m - 1, d, 12).getDay() + 1;
+}

@@ -36,12 +36,14 @@ export default function SettingsScreen() {
     setPremium,
     setActiveGoal,
     setNextWeekPace,
+    setReplanLetter,
   } = useAppStore();
 
   const applyNotifications = async (
     enabled: boolean,
     morning = morningTime,
     evening = eveningTime,
+    isPremium = premium,
   ) => {
     if (!enabled) {
       await cancelDailyNotifications();
@@ -61,7 +63,17 @@ export default function SettingsScreen() {
         morning,
         evening,
         toDateKey(new Date(activeGoal.createdAt)),
+        isPremium,
       );
+  };
+
+  /**
+   * プレミアム切替は手帳更新通知(プレミアムのみ)の有無に効くため、
+   * 通知ONなら即再スケジュールして反映する(OFF→再スケジュールで手帳通知は消える)
+   */
+  const togglePremium = (next: boolean) => {
+    setPremium(next);
+    if (notificationsEnabled) applyNotifications(true, morningTime, eveningTime, next);
   };
 
   const setMorning = (hour: number) => {
@@ -90,8 +102,10 @@ export default function SettingsScreen() {
           deleteAllData();
           await cancelDailyNotifications();
           setActiveGoal(null);
-          // 歩幅宣言は goalId 照合で新目標には効かないが、「すべて削除」の期待に合わせ永続ストアからも消す
+          // 歩幅宣言・リプランの手紙は goalId 照合で新目標には効かないが、
+          // 「すべて削除」の期待に合わせ永続ストアからも消す
           setNextWeekPace(null);
+          setReplanLetter(null);
           router.replace('/onboarding/category');
         },
       },
@@ -104,11 +118,15 @@ export default function SettingsScreen() {
       { text: 'キャンセル', style: 'cancel' },
       {
         text: 'リセットする',
-        onPress: () => {
+        onPress: async () => {
           archiveGoal(activeGoal.id);
+          // 旧目標の通知(旧目標名の文面・手帳通知含む)を確実に解除する。
+          // 新目標のオンボーディング完了時(plan.tsx)に通知ONなら再スケジュールされる
+          await cancelDailyNotifications();
           setActiveGoal(null);
-          // 旧目標の歩幅宣言は goalId 照合で新目標には効かないが、残しておく理由も無いので消す
+          // 旧目標の歩幅宣言・リプランの手紙は goalId 照合で新目標には効かないが、残しておく理由も無いので消す
           setNextWeekPace(null);
+          setReplanLetter(null);
           router.replace('/onboarding/category');
         },
       },
@@ -170,7 +188,7 @@ export default function SettingsScreen() {
           <Button
             title={`[DEV] プレミアム切替 (現在: ${premium ? 'ON' : 'OFF'})`}
             variant="ghost"
-            onPress={() => setPremium(!premium)}
+            onPress={() => togglePremium(!premium)}
           />
         )}
       </Card>

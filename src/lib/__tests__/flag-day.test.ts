@@ -1,5 +1,10 @@
 import { addDaysKey } from '../dates';
-import { buildFlagWeekSummary, buildNextWeekPreview, flagDayNotificationWeekday } from '../flag-day';
+import {
+  buildFlagWeekSummary,
+  buildNextWeekPreview,
+  flagDayNotificationWeekday,
+  weekStartNotificationWeekday,
+} from '../flag-day';
 import type { JourneyDay, JourneyDayState } from '../insight-stats';
 
 /** 週7日分の JourneyDay をテスト用に組み立てる */
@@ -73,5 +78,22 @@ describe('flagDayNotificationWeekday', () => {
     ['2026-07-07', 2], // 火曜開始 → 月曜(2)
   ])('開始日 %s の旗の日通知は weekday=%d', (startKey, expected) => {
     expect(flagDayNotificationWeekday(startKey)).toBe(expected);
+  });
+});
+
+describe('weekStartNotificationWeekday', () => {
+  it.each([
+    ['2026-07-01', 4], // 水曜開始 → 週初日も水曜(4)
+    ['2026-07-05', 1], // 日曜開始 → 日曜(1)
+    ['2026-07-04', 7], // 土曜開始 → 土曜(7)
+  ])('開始日 %s の手帳通知(週初日)は weekday=%d', (startKey, expected) => {
+    expect(weekStartNotificationWeekday(startKey)).toBe(expected);
+  });
+
+  it('週初日は旗の日の翌日に当たる(weekdayが常に1つ先)', () => {
+    for (const startKey of ['2026-07-01', '2026-07-05', '2026-07-06', '2026-07-07']) {
+      const flag = flagDayNotificationWeekday(startKey);
+      expect(weekStartNotificationWeekday(startKey)).toBe((flag % 7) + 1);
+    }
   });
 });

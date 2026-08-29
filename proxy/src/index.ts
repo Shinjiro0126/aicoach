@@ -7,6 +7,7 @@ import {
   CRISIS_RESPONSE,
   INSIGHT_SYSTEM,
   PLAN_SYSTEM,
+  REPLAN_SYSTEM,
   SUGGEST_SYSTEM,
 } from './prompts';
 
@@ -70,6 +71,30 @@ type SuggestRequest = {
   goalTitle: string;
   category?: string;
   hearingAnswers?: HearingPair[];
+};
+
+/**
+ * 週次リプラン(/v1/replan)のリクエスト。中継のみでどこにも保存しない。
+ * prevFocus / prevActions はAI自身が過去に生成した文言のみ(クライアント側で
+ * ユーザー追加のcustomタスク・会話・ヒアリング回答を含めない契約)。
+ * stats は端末内で集計された数値のみで、handleReplan で clampStat により正規化する
+ */
+type ReplanRequest = {
+  goalTitle: string;
+  why: string;
+  category?: string;
+  /** 計画対象の週番号(1-based) */
+  nextWeekNo: number;
+  /** 前週のフォーカステーマ(AI生成) */
+  prevFocus: string;
+  /** 前週の毎日の行動文言(AI生成系のみ・最大7件) */
+  prevActions: string[];
+  /** 前週の実績統計(数値のみ) */
+  stats: { walkedDays: number; reportedDays: number; graceDays: number; streakCurrent: number };
+  /** 来週の歩幅宣言(旗の日セレモニーの3択) */
+  pace: 'keep' | 'lighter' | 'wider';
+  /** 達成期間の全週数(あればペース配分の参考にする) */
+  totalWeeks?: number;
 };
 
 /**
@@ -247,6 +272,85 @@ async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promis
   });
 }
 
+const REPLAN_SCHEMA = {
+  type: 'object',
+  properties: {
+    nextWeekFocus: { type: 'string' },
+    dailyActions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          dayOffset: { type: 'integer' },
+          description: { type: 'string' },
+        },
+        required: ['dayOffset', 'description'],
+        additionalProperties: false,
+      },
+    },
+    flagMessage: { type: 'string' },
+  },
+  required: ['nextWeekFocus', 'dailyActions', 'flagMessage'],
+  additionalProperties: false,
+} as const;
+
+/** 歩幅宣言のenum → プロンプト用の日本語ラベル(未知値は keep 扱い) */
+const PACE_LABELS: Record<'keep' | 'lighter' | 'wider', string> = {
+  keep: 'この歩幅のまま',
+  lighter: '少し軽くする',
+  wider: '少し広げる',
+};
+
+/**
+ * 週次リプラン: 前週の実績と歩幅宣言から、次週のフォーカス1つ+7日分の最小行動を生成する。
+ * prevActions は文字列のみ・最大7件に正規化し、stats は clampStat で数値に丸めてからプロンプトに載せる
+ */
+async function handleReplan(env: Env, client: Anthropic, req: ReplanRequest): Promise<Response> {
+  const categoryLabel = req.category ? CATEGORY_LABELS[req.category] : undefined;
+  const nextWeekNo = Math.max(1, clampStat(req.nextWeekNo, 200));
+  const pace: keyof typeof PACE_LABELS =
+    req.pace === 'lighter' || req.pace === 'wider' ? req.pace : 'keep';
+  const stats = req.stats ?? { walkedDays: 0, reportedDays: 0, graceDays: 0, streakCurrent: 0 };
+  const prevActions = (Array.isArray(req.prevActions) ? req.prevActions : [])
+    .filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
+    .slice(0, 7);
+  const prevFocus = typeof req.prevFocus === 'string' ? req.prevFocus : '';
+  const totalWeeks = req.totalWeeks ? clampStat(req.totalWeeks, 200) : 0;
+  // dayOffset は目標開始日からのオフセット。次週初日 = (nextWeekNo - 1) * 7
+  const baseOffset = (nextWeekNo - 1) * 7;
+
+  const prompt = [
+    `第${nextWeekNo}週(次週)の計画を作ってください。`,
+    `目標: ${req.goalTitle}`,
+    categoryLabel ? `カテゴリ: ${categoryLabel}` : '',
+    `動機: ${req.why}`,
+    totalWeeks > 0 ? `達成期間: 全${totalWeeks}週間(いま第${nextWeekNo}週に入るところ)` : '',
+    prevFocus ? `前週のフォーカス: ${prevFocus}` : '',
+    prevActions.length > 0 ? `前週の毎日の行動:\n${prevActions.map((a) => `- ${a}`).join('\n')}` : '',
+    `前週の実績: 歩いた日${clampStat(stats.walkedDays, 7)}日 / 報告のみの日${clampStat(stats.reportedDays, 7)}日 / おやすみ${clampStat(stats.graceDays, 7)}日 / 現在の連続日数${clampStat(stats.streakCurrent)}日`,
+    `本人の歩幅宣言: ${PACE_LABELS[pace]}`,
+    `dailyActions は7件、dayOffset は ${baseOffset}(次週初日)から ${baseOffset + 6} までの連番にする`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const message = await client.messages.create({
+    model: PLAN_MODEL,
+    max_tokens: 2048,
+    thinking: { type: 'disabled' },
+    // カテゴリが分かる場合は分野別の定石を連結する(未知・未指定なら空文字で無変化)
+    system: REPLAN_SYSTEM + categoryPlaybookSection(req.category),
+    output_config: { format: { type: 'json_schema', schema: REPLAN_SCHEMA } },
+    messages: [{ role: 'user', content: prompt }],
+  });
+  if (message.stop_reason === 'refusal') {
+    return json({ error: 'replan_refused' }, 422);
+  }
+  return new Response(extractText(message), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 const SUGGEST_SCHEMA = {
   type: 'object',
   properties: {
@@ -382,6 +486,9 @@ export default {
       }
       if (url.pathname === '/v1/plan') {
         return await handlePlan(env, client, (await request.json()) as PlanRequest);
+      }
+      if (url.pathname === '/v1/replan') {
+        return await handleReplan(env, client, (await request.json()) as ReplanRequest);
       }
       if (url.pathname === '/v1/suggest') {
         return await handleSuggest(env, client, (await request.json()) as SuggestRequest);

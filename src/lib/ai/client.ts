@@ -1,7 +1,7 @@
 import { Config } from '@/constants/config';
 import { buildInsightFallback, INSIGHT_TIMEOUT_MS } from '@/lib/insight-stats';
 import { clampWeeks } from '@/lib/roadmap';
-import { mockCoach, mockInsight, mockPlan, mockSuggest } from './mock';
+import { mockCoach, mockInsight, mockPlan, mockReplan, mockSuggest } from './mock';
 import { fallbackSuggestion, SUGGEST_TIMEOUT_MS, withTimeout } from './suggest-fallback';
 import {
   AiError,
@@ -11,6 +11,8 @@ import {
   type InsightResponse,
   type PlanRequest,
   type PlanResponse,
+  type ReplanRequest,
+  type ReplanResponse,
   type SuggestRequest,
   type SuggestResponse,
 } from './types';
@@ -49,6 +51,16 @@ async function post<T>(path: string, body: unknown, deviceId: string): Promise<T
 export async function generatePlan(req: PlanRequest, deviceId: string): Promise<PlanResponse> {
   if (isMockMode()) return mockPlan(req);
   return post<PlanResponse>('/v1/plan', req, deviceId);
+}
+
+/**
+ * 週次リプラン(/v1/replan)。旗の日セレモニーから週1回・無料で呼ぶ。
+ * 対話クォータ(canSendAiMessage)は消費しない(プロキシ側レート制限のみ)。
+ * 失敗時のフォールバック(何もしない=前日コピー)は呼び出し側で扱う
+ */
+export async function replanWeek(req: ReplanRequest, deviceId: string): Promise<ReplanResponse> {
+  if (isMockMode()) return mockReplan(req);
+  return post<ReplanResponse>('/v1/replan', req, deviceId);
 }
 
 /** コーチ対話(1往復) */
