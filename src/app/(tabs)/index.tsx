@@ -542,8 +542,14 @@ export default function HomeScreen() {
             <View style={[styles.flagCount, { backgroundColor: theme.background }]}>
               <SymbolView name="flag.fill" size={12} tintColor={theme.tintDeep} />
               <ThemedText type="small" style={{ fontSize: 12, fontWeight: '700', color: theme.tintDeep }}>
-                {/* 期日到達後は週の旗でなくゴール到達を語る */}
-                {summary.reached ? 'ゴールまで、歩き切りました' : `第${week.weekNo}週の旗まで、あと${week.daysToFlag}日`}
+                {/* 期日到達後は週の旗でなくゴール到達を語る。
+                    「あとn日」は記録タブ・提出後ホームと同じ「今日より後」の数え方に統一し、
+                    旗の日(残り0日)は日数でなく旗の日そのものを告げる(Issue #42) */}
+                {summary.reached
+                  ? 'ゴールまで、歩き切りました'
+                  : flagToday
+                    ? `今日は、第${week.weekNo}週の旗の日`
+                    : `第${week.weekNo}週の旗まで、あと${week.daysToFlag - 1}日`}
               </ThemedText>
             </View>
           </View>

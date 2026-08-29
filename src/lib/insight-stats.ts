@@ -468,5 +468,8 @@ export function journeySummaryLabel(days: readonly JourneyDay[], weekNo: number,
       ? '先週と今週'
       : '今週'
     : `直近${days.length}日`;
-  return `${range}: 歩いた日${walked}、報告した日${reported}、おやすみ${grace}。第${weekNo}週の旗まであと${daysToFlag}日`;
+  // 旗の日(daysToFlag=0)は「あと0日」と読まず、画面の見出しと同じく旗の日そのものを告げる(Issue #42)
+  const flagPart =
+    daysToFlag <= 0 ? `今日は第${weekNo}週の旗の日` : `第${weekNo}週の旗まであと${daysToFlag}日`;
+  return `${range}: 歩いた日${walked}、報告した日${reported}、おやすみ${grace}。${flagPart}`;
 }
