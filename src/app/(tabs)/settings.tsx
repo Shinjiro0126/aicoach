@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { archiveGoal, deleteAllData, exportAllData } from '@/db/repo';
+import { toDateKey } from '@/lib/dates';
 import {
   cancelDailyNotifications,
   requestNotificationPermission,
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
     setNotificationsEnabled,
     setPremium,
     setActiveGoal,
+    setNextWeekPace,
   } = useAppStore();
 
   const applyNotifications = async (
@@ -53,7 +55,13 @@ export default function SettingsScreen() {
       return;
     }
     setNotificationsEnabled(true);
-    if (activeGoal) await scheduleDailyNotifications(activeGoal.title, morning, evening);
+    if (activeGoal)
+      await scheduleDailyNotifications(
+        activeGoal.title,
+        morning,
+        evening,
+        toDateKey(new Date(activeGoal.createdAt)),
+      );
   };
 
   const setMorning = (hour: number) => {
@@ -82,6 +90,8 @@ export default function SettingsScreen() {
           deleteAllData();
           await cancelDailyNotifications();
           setActiveGoal(null);
+          // 歩幅宣言は goalId 照合で新目標には効かないが、「すべて削除」の期待に合わせ永続ストアからも消す
+          setNextWeekPace(null);
           router.replace('/onboarding/category');
         },
       },
@@ -97,6 +107,8 @@ export default function SettingsScreen() {
         onPress: () => {
           archiveGoal(activeGoal.id);
           setActiveGoal(null);
+          // 旧目標の歩幅宣言は goalId 照合で新目標には効かないが、残しておく理由も無いので消す
+          setNextWeekPace(null);
           router.replace('/onboarding/category');
         },
       },

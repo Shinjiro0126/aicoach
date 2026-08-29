@@ -40,8 +40,8 @@ type CelebrationProps = {
   onClose: () => void;
 };
 
-/** 遅延つきのスケールイン(プロトタイプの pop 相当)。reduce motion 時は即時表示 */
-function PopIn({ delay, children }: { delay: number; children: ReactNode }) {
+/** 遅延つきのスケールイン(プロトタイプの pop 相当)。reduce motion 時は即時表示。旗の日セレモニーでも使う */
+export function PopIn({ delay, children }: { delay: number; children: ReactNode }) {
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
@@ -96,8 +96,8 @@ function Bubble({ left, size, delay, height }: { left: number; size: number; del
   );
 }
 
-/** 明滅するきらめき。reduce motion 時は静止表示 */
-function Sparkle({ top, left, size, delay }: { top: number; left: number; size: number; delay: number }) {
+/** 明滅するきらめき。reduce motion 時は静止表示。旗の日セレモニーでも使う */
+export function Sparkle({ top, left, size, delay }: { top: number; left: number; size: number; delay: number }) {
   const theme = useTheme();
   const reduceMotion = useReduceMotion();
   const opacity = useSharedValue(reduceMotion ? 0.8 : 0.15);

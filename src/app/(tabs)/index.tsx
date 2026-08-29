@@ -5,6 +5,7 @@ import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Celebration } from '@/components/celebration';
+import { FlagCelebration } from '@/components/flag-celebration';
 import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
   getReportForDate,
   getWeeklyPlans,
   listReportDates,
+  listReports,
   refreshReportCounts,
   setTaskDone,
   submitReport,
@@ -25,8 +27,11 @@ import {
 import type { DailyReport, DailyTask } from '@/db/schema';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { addDaysKey, formatJP, toDateKey, todayKey } from '@/lib/dates';
-import { progressSummary, weekFlagInfo, weekSegments } from '@/lib/progress';
-import { addWeeksKey, currentWeekNo, ROADMAP_WEEKS } from '@/lib/roadmap';
+import { buildFlagWeekSummary, buildNextWeekPreview } from '@/lib/flag-day';
+import { buildTeaser, coldStartJourneyDays, computeInsightStats } from '@/lib/insight-stats';
+import { effectivePace } from '@/lib/pace';
+import { isFlagDay, progressSummary, weekFlagInfo, weekSegments } from '@/lib/progress';
+import { addWeeksKey, currentWeekNo, ROADMAP_WEEKS, weekIndex } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
@@ -114,18 +119,32 @@ function ReportRow({ task, onToggle }: { task: DailyTask; onToggle?: () => void 
   );
 }
 
+/** 旗の日セレモニーの表示データ(提出時に純関数で組み立てて渡す) */
+type FlagCeremonyData = {
+  weekNo: number;
+  summaryText: string;
+  teaserText: string;
+  previewText: string;
+};
+
 export default function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const goal = useAppStore((s) => s.activeGoal);
+  const nextWeekPace = useAppStore((s) => s.nextWeekPace);
+  const setNextWeekPace = useAppStore((s) => s.setNextWeekPace);
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [report, setReport] = useState<DailyReport | null>(null);
   const [reportDates, setReportDates] = useState<string[]>([]);
   const [streak, setStreak] = useState({ current: 0, best: 0 });
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [celebrating, setCelebrating] = useState<{ streak: number; isBest: boolean } | null>(null);
+  const [celebrating, setCelebrating] = useState<{
+    streak: number;
+    isBest: boolean;
+    flag: FlagCeremonyData | null;
+  } | null>(null);
   const [adding, setAdding] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
 
@@ -136,10 +155,14 @@ export default function HomeScreen() {
     const planList = getWeeklyPlans(goal.id);
     const startKey = toDateKey(new Date(goal.createdAt));
     const weekNo = currentWeekNo(startKey, today, planList.length || ROADMAP_WEEKS);
+    // 歩幅宣言(旗の日の3択)は宣言時の goalId・forWeekNo が現在の目標・実週番号(クランプなし)と
+    // 一致する週だけ効く(目標リセット後の新目標に旧宣言を漏らさない)
+    const rawWeekNo = weekIndex(startKey, today) + 1;
     setTasks(
       ensureTasksForDate(goal.id, today, {
         goalTitle: goal.title,
         weekFocus: planList[weekNo - 1]?.focus,
+        pace: effectivePace(nextWeekPace, goal.id, rawWeekNo),
       }),
     );
     setReport(getReportForDate(goal.id, today) ?? null);
@@ -147,7 +170,7 @@ export default function HomeScreen() {
     setReportDates(dates);
     const result = computeStreak(dates, today);
     setStreak({ current: result.current, best: result.best });
-  }, [goal, today]);
+  }, [goal, today, nextWeekPace]);
 
   useFocusEffect(refresh);
 
@@ -159,6 +182,8 @@ export default function HomeScreen() {
   const week = weekFlagInfo(startKey, today, reportDates);
   const segments = weekSegments(startKey, targetKey, today);
   const submitted = report !== null;
+  // 旗の日判定はここに一本化(提出後コピー・セレモニー分岐で共用)
+  const flagToday = isFlagDay(startKey, today);
 
   const mainTask = tasks.find((t) => t.kind === 'main');
   const extraTasks = tasks.filter((t) => t.kind !== 'main');
@@ -208,20 +233,54 @@ export default function HomeScreen() {
     // 祝いは全画面Modal: 確認シート(Modal)の閉じ処理と表示が競合しないよう、閉じ切ってから開く
     // (デザイン00「提出→0.5秒で祝い演出」の間にもなる)
     const isBest = result.current > prevBest && result.current > 1;
-    setTimeout(() => setCelebrating({ streak: result.current, isBest }), 450);
+
+    // 旗の日(週の7日目)は通常の祝いの代わりに旗の日セレモニーを開く。
+    // 週まとめ・観察は端末内集計のみ(AI呼び出しなし)。週の窓は
+    // coldStartJourneyDays(週アライン計算と同じ週境界)を共有する。
+    // 期日到達後(summary.reached)は提出後コピーと同じく到達を最優先し、
+    // 週番号が増え続けるセレモニーは開かず通常の祝いへフォールバックする(D-2 終端体験までの暫定)
+    let flag: FlagCeremonyData | null = null;
+    if (flagToday && !summary.reached) {
+      const weekNow = weekFlagInfo(startKey, today, dates);
+      trackEvent(AnalyticsEvent.FlagDayReached, {
+        weekNo: weekNow.weekNo,
+        weekDoneCount: weekNow.doneCount,
+      });
+      const reports = listReports(goal.id);
+      const weekDays = coldStartJourneyDays(startKey, reports, result.graceUsedOn, today);
+      const planList = getWeeklyPlans(goal.id);
+      const nextFocus = planList.find((p) => p.weekNo === weekNow.weekNo + 1)?.focus;
+      flag = {
+        weekNo: weekNow.weekNo,
+        summaryText: buildFlagWeekSummary(weekDays),
+        teaserText: buildTeaser(computeInsightStats(reports, today, result)),
+        previewText: buildNextWeekPreview(weekNow.weekNo, nextFocus !== undefined),
+      };
+    }
+    setTimeout(() => setCelebrating({ streak: result.current, isBest, flag }), 450);
     refresh();
+  };
+
+  /** セレモニー・祝い演出を閉じる(旗の日は完走計測つき) */
+  const closeCelebration = (action: 'pace_selected' | 'closed' = 'closed') => {
+    if (celebrating?.flag) {
+      trackEvent(AnalyticsEvent.FlagCeremonyClosed, { weekNo: celebrating.flag.weekNo, action });
+    }
+    setCelebrating(null);
   };
 
   const hour = new Date().getHours();
   const greeting = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
 
   // ---- 祝い演出(提出直後)----
-  // デザイン03はタブバー非表示の全画面演出のため、タブ内表示でなくフルスクリーンModalで重ねる
+  // デザイン03はタブバー非表示の全画面演出のため、タブ内表示でなくフルスクリーンModalで重ねる。
+  // 旗の日は通常の Celebration の代わりに FlagCelebration(週の締めセレモニー)を出す
+  const flagData = celebrating?.flag ?? null;
   const celebrationModal = (
     <Modal
       visible={celebrating !== null}
       animationType={reduceMotion ? 'none' : 'fade'}
-      onRequestClose={() => setCelebrating(null)}>
+      onRequestClose={() => closeCelebration()}>
       <View
         style={[
           styles.celebrationRoot,
@@ -231,21 +290,37 @@ export default function HomeScreen() {
             paddingBottom: insets.bottom + Spacing.two,
           },
         ]}>
-        {celebrating && (
-          <Celebration
-            streak={celebrating.streak}
-            isBest={celebrating.isBest}
-            week={week}
-            segments={segments}
-            copyMain={summary.copyMain}
-            copySub={summary.copySub}
-            onListen={() => {
-              setCelebrating(null);
-              router.push({ pathname: '/coach', params: { autoReport: today } });
-            }}
-            onClose={() => setCelebrating(null)}
-          />
-        )}
+        {celebrating &&
+          (flagData ? (
+            <FlagCelebration
+              weekNo={flagData.weekNo}
+              summaryText={flagData.summaryText}
+              teaserText={flagData.teaserText}
+              previewText={flagData.previewText}
+              onSelectPace={(pace) => {
+                // 宣言が効くのは現在の目標の翌週のみ(goalId・forWeekNo でスコープ)
+                setNextWeekPace({ goalId: goal.id, pace, forWeekNo: flagData.weekNo + 1 });
+                trackEvent(AnalyticsEvent.NextWeekPaceSelected, { pace });
+                closeCelebration('pace_selected');
+              }}
+              onClose={() => closeCelebration()}
+            />
+          ) : (
+            <Celebration
+              streak={celebrating.streak}
+              isBest={celebrating.isBest}
+              week={week}
+              segments={segments}
+              copyMain={summary.copyMain}
+              copySub={summary.copySub}
+              onListen={() => {
+                // 閉じ経路は closeCelebration() に一本化(将来 flag 付きで開いても計測が漏れないように)
+                closeCelebration();
+                router.push({ pathname: '/coach', params: { autoReport: today } });
+              }}
+              onClose={() => closeCelebration()}
+            />
+          ))}
       </View>
     </Modal>
   );
@@ -273,12 +348,13 @@ export default function HomeScreen() {
             </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-            {/* 期日到達後は週の旗でなくゴール到達を語る(「第N週の旗まで」が増え続けないように) */}
+            {/* 期日到達後は週の旗でなくゴール到達を語る(「第N週の旗まで」が増え続けないように)。
+                旗の日判定はセレモニーと同じ isFlagDay に一本化 */}
             {summary.reached
               ? 'ゴールまで、歩き切りました。'
-              : restDays > 0
-                ? `第${week.weekNo}週の旗まで、あと${restDays}日。`
-                : `第${week.weekNo}週の旗に、たどり着きました。`}
+              : flagToday
+                ? `第${week.weekNo}週の旗に、たどり着きました。`
+                : `第${week.weekNo}週の旗まで、あと${restDays}日。`}
             {'\n'}ここまで続く人は多くありません。
           </ThemedText>
         </View>
@@ -339,11 +415,21 @@ export default function HomeScreen() {
           <Hotori variant="bust" size={40} />
           <View style={styles.kickoffBody}>
             <ThemedText type="small" style={{ lineHeight: 22 }}>
-              {greeting}。{summary.elapsedDays}日目の今日は、
-              <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
-                「{goal.why}」への一歩
-              </ThemedText>
-              を積む日です。
+              {/* 週初日(第2週以降)は fresh start の朝ひとことに切り替える(B-2) */}
+              {week.dayIndex === 0 && week.weekNo >= 2 && !summary.reached ? (
+                <>
+                  {greeting}。今日から第{week.weekNo}週です。
+                  {'まっさらな7日を、いまの歩幅で歩きましょう。'}
+                </>
+              ) : (
+                <>
+                  {greeting}。{summary.elapsedDays}日目の今日は、
+                  <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                    「{goal.why}」への一歩
+                  </ThemedText>
+                  を積む日です。
+                </>
+              )}
             </ThemedText>
             <View style={[styles.flagCount, { backgroundColor: theme.background }]}>
               <SymbolView name="flag.fill" size={12} tintColor={theme.tintDeep} />

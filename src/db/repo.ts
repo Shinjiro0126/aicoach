@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 
 import { makeId } from '@/lib/id';
+import { applyPaceToMain, type NextWeekPace } from '@/lib/pace';
 import { db, sqlite } from './client';
 import {
   checkins,
@@ -156,18 +157,23 @@ export function getTasksForDate(goalId: string, dateKey: string): DailyTask[] {
  * 今日のタスクが未生成なら、既存の計画データから生成する。
  * - 今日の一歩(main): 当日の daily_actions → なければ直近の行動を引き継ぐ → 最後は目標名から組み立てる
  * - プラスワン(plus)2件: 今週のフォーカステーマから1件+振り返りの記録1件
+ * - pace: 来週の歩幅宣言(旗の日セレモニーの3択)。UI層がストアから対象週の値を渡す
+ *   (repo からストアを直接参照しない)。main の説明文に接尾で反映され、keep は無変更
  */
 export function ensureTasksForDate(
   goalId: string,
   dateKey: string,
-  opts: { goalTitle: string; weekFocus?: string },
+  opts: { goalTitle: string; weekFocus?: string; pace?: NextWeekPace },
 ): DailyTask[] {
   const existing = getTasksForDate(goalId, dateKey);
   if (existing.length > 0) return existing;
 
   const todayAction = getActionForDate(goalId, dateKey);
   const action = todayAction ?? getLatestAction(goalId);
-  const mainTitle = action?.description ?? `「${opts.goalTitle}」のために10分取り組む`;
+  const mainTitle = applyPaceToMain(
+    action?.description ?? `「${opts.goalTitle}」のために10分取り組む`,
+    opts.pace ?? 'keep',
+  );
   // 当日の daily_actions が達成済みなら done を引き継ぐ。
   // v4マイグレーションは達成済み daily_actions を当日分も含めて daily_reports にバックフィルするため、
   // ここで引き継がないと「提出済み(done_count=1)なのに全行未チェック」という矛盾表示になる。

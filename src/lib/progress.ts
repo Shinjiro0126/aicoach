@@ -59,6 +59,14 @@ export function progressSummary(startKey: string, targetKey: string, today: stri
   };
 }
 
+/**
+ * 旗の日(目標の週の7日目)かどうか。weekFlagInfo の dayIndex === 6 と等価。
+ * ホームの提出後コピーと旗の日セレモニーの判定はこの関数に一本化する
+ */
+export function isFlagDay(startKey: string, today: string): boolean {
+  return Math.max(0, diffDays(startKey, today)) % 7 === 6;
+}
+
 export type WeekDot = {
   dateKey: string;
   /** その日が記録(提出)済みか */

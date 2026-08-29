@@ -27,6 +27,12 @@ export const AnalyticsEvent = {
    * ホームv2以降は「提出」時に発火する(doneCount=0 の提出でも発火)。分析側は doneCount で達成/0件提出を区別する
    */
   StreakAchieved: 'streak_achieved',
+  /** プロパティ: weekNo, weekDoneCount(いずれも数値のみ)。旗の日(週の7日目)の提出時に発火 */
+  FlagDayReached: 'flag_day_reached',
+  /** プロパティ: weekNo(数値), action('pace_selected' | 'closed' のenumのみ)。セレモニーを閉じたときに発火 */
+  FlagCeremonyClosed: 'flag_ceremony_closed',
+  /** プロパティ: pace('keep' | 'lighter' | 'wider' のenumのみ)。歩幅選択時に発火 */
+  NextWeekPaceSelected: 'next_week_pace_selected',
   PaywallViewed: 'paywall_viewed',
   QuotaExceeded: 'quota_exceeded',
 } as const;
