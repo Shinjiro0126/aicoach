@@ -144,10 +144,50 @@ const PLAN_SCHEMA = {
       },
     },
     welcomeMessage: { type: 'string' },
+    milestones: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          fromWeek: { type: 'integer' },
+          toWeek: { type: 'integer' },
+          title: { type: 'string' },
+        },
+        required: ['fromWeek', 'toWeek', 'title'],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ['weeklyFocus', 'dailyActions', 'welcomeMessage'],
+  required: ['weeklyFocus', 'dailyActions', 'welcomeMessage', 'milestones'],
   additionalProperties: false,
 } as const;
+
+/** 道のりの全体図の1フェーズ(週番号は1-based・両端を含む) */
+type Milestone = { fromWeek: number; toWeek: number; title: string };
+
+/**
+ * milestones の安全弁: 週番号を 1〜maxWeek の整数に丸め、from > to や
+ * タイトルが空の要素は捨てる。配列でない・有効要素が無い場合は undefined
+ * (クライアントは milestones 無しの従来動作にフォールバックする)
+ */
+function sanitizeMilestones(value: unknown, maxWeek: number): Milestone[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .map((m): Milestone | undefined => {
+      if (typeof m !== 'object' || m === null) return undefined;
+      const rec = m as Record<string, unknown>;
+      if (typeof rec.title !== 'string') return undefined;
+      const title = rec.title.trim().slice(0, 30);
+      if (!title) return undefined;
+      const fromWeek = Math.max(1, clampStat(rec.fromWeek, maxWeek));
+      const toWeek = Math.max(1, clampStat(rec.toWeek, maxWeek));
+      if (toWeek < fromWeek) return undefined;
+      return { fromWeek, toWeek, title };
+    })
+    .filter((m): m is Milestone => m !== undefined)
+    .sort((a, b) => a.fromWeek - b.fromWeek);
+  return items.length > 0 ? items : undefined;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -267,9 +307,25 @@ async function handlePlan(env: Env, client: Anthropic, req: PlanRequest): Promis
   if (message.stop_reason === 'refusal') {
     return json({ error: 'plan_refused' }, 422);
   }
-  return new Response(extractText(message), {
-    headers: { 'content-type': 'application/json' },
-  });
+  const raw = extractText(message);
+  // milestones の週番号をサーバー側でクランプしてから返す(それ以外は生成結果をそのまま中継)。
+  // 万一パースできない場合は従来どおり生成結果をそのまま返す
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // 達成期間が分かればその週数を上限に、不明・不正値なら 200 を上限にする
+    const totalWeeks = clampStat(weeks ?? (months ? months * 4.33 : 0), 200);
+    const milestones = sanitizeMilestones(parsed.milestones, totalWeeks > 0 ? totalWeeks : 200);
+    if (milestones) {
+      parsed.milestones = milestones;
+    } else {
+      delete parsed.milestones;
+    }
+    return json(parsed);
+  } catch {
+    return new Response(raw, {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 }
 
 const REPLAN_SCHEMA = {

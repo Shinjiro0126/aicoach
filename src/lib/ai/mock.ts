@@ -19,9 +19,33 @@ import type {
  * オフライン時のフォールバック応答にも使う。
  */
 
+/**
+ * 道のりの全体図のモック。達成期間の全週数を隙間なく等分して、
+ * ブランド語彙のフェーズ名を付ける(短い期間は2フェーズ、8週以上は3フェーズ)
+ */
+function mockMilestones(weeks: number): NonNullable<PlanResponse['milestones']> {
+  const titles =
+    weeks < 8
+      ? ['小さく始める基礎固め', '仕上げの総まとめ']
+      : ['小さく始める基礎固め', '歩幅を広げる', '仕上げの総まとめ'];
+  const base = Math.floor(weeks / titles.length);
+  const rem = weeks % titles.length;
+  let from = 1;
+  return titles
+    .map((title, i) => {
+      const len = base + (i < rem ? 1 : 0);
+      const milestone = { fromWeek: from, toWeek: from + len - 1, title };
+      from += len;
+      return milestone;
+    })
+    // 週数がフェーズ数より少ない場合の長さ0フェーズは落とす(週数1などの異常値対策)
+    .filter((m) => m.toWeek >= m.fromWeek);
+}
+
 export function mockPlan(req: PlanRequest): PlanResponse {
   const weeks = req.durationWeeks ?? monthsToWeeks(req.durationMonths ?? 3);
   return {
+    milestones: mockMilestones(weeks),
     weeklyFocus: [
       'まずは小さく始める習慣づくり',
       'リズムを安定させる',

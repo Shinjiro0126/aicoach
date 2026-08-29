@@ -18,6 +18,19 @@ export const goals = sqliteTable('goals', {
   createdAt: integer('created_at').notNull(),
 });
 
+/**
+ * 道のりの全体図(全期間マイルストーン)。計画生成時にAIが作るフェーズ概要。
+ * fromWeek / toWeek は目標開始日起点の1-based週番号(両端を含む)
+ */
+export const goalMilestones = sqliteTable('goal_milestones', {
+  id: text('id').primaryKey(),
+  goalId: text('goal_id').notNull(),
+  fromWeek: integer('from_week').notNull(),
+  toWeek: integer('to_week').notNull(),
+  title: text('title').notNull(),
+  sortNo: integer('sort_no').notNull().default(0),
+});
+
 /** AIが生成した週ごとのフォーカステーマ */
 export const weeklyPlans = sqliteTable('weekly_plans', {
   id: text('id').primaryKey(),
@@ -88,6 +101,7 @@ export const coachMessages = sqliteTable('coach_messages', {
 });
 
 export type Goal = typeof goals.$inferSelect;
+export type GoalMilestone = typeof goalMilestones.$inferSelect;
 export type WeeklyPlan = typeof weeklyPlans.$inferSelect;
 export type DailyAction = typeof dailyActions.$inferSelect;
 export type DailyTask = typeof dailyTasks.$inferSelect;

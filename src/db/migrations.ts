@@ -84,6 +84,19 @@ const MIGRATIONS: string[] = [
     SELECT lower(hex(randomblob(16))), goal_id, date, COALESCE(MAX(done_at), 0), 1, 1
     FROM daily_actions WHERE done = 1 GROUP BY goal_id, date;
   `,
+  // v5: 道のりの全体図(全期間マイルストーン)。計画生成時にAIが作るフェーズ概要。
+  // from_week / to_week は目標開始日起点の1-based週番号(両端を含む)
+  `
+  CREATE TABLE IF NOT EXISTS goal_milestones (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL,
+    from_week INTEGER NOT NULL,
+    to_week INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    sort_no INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_goal_milestones_goal ON goal_milestones (goal_id, sort_no);
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {

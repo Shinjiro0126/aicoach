@@ -29,6 +29,11 @@ export type PlanResponse = {
   dailyActions: { dayOffset: number; description: string }[];
   /** コーチからの初回メッセージ */
   welcomeMessage: string;
+  /**
+   * 道のりの全体図(全期間のフェーズ概要)。週番号は1-basedで両端を含む。
+   * 旧プロキシは返さないため optional(無ければクライアントは従来どおり動く)
+   */
+  milestones?: { fromWeek: number; toWeek: number; title: string }[];
 };
 
 /** 週次リプランに送る前週の実績統計(端末内集計の数値のみ) */

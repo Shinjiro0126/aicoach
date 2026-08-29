@@ -9,6 +9,7 @@ import {
   dailyActions,
   dailyReports,
   dailyTasks,
+  goalMilestones,
   goals,
   weeklyPlans,
   type Checkin,
@@ -17,6 +18,7 @@ import {
   type DailyReport,
   type DailyTask,
   type Goal,
+  type GoalMilestone,
   type WeeklyPlan,
 } from './schema';
 
@@ -50,6 +52,38 @@ export function createGoal(input: {
 
 export function archiveGoal(goalId: string): void {
   db.update(goals).set({ status: 'archived' }).where(eq(goals.id, goalId)).run();
+}
+
+// ---- Goal milestones(道のりの全体図)----
+
+/**
+ * 道のりの全体図(全期間マイルストーン)の一括保存。計画生成時に1回だけ呼ぶ。
+ * 表示順は配列順(sort_no)を正とする
+ */
+export function insertMilestones(
+  goalId: string,
+  items: { fromWeek: number; toWeek: number; title: string }[],
+): GoalMilestone[] {
+  const rows: GoalMilestone[] = items.map((m, i) => ({
+    id: makeId(),
+    goalId,
+    fromWeek: m.fromWeek,
+    toWeek: m.toWeek,
+    title: m.title,
+    sortNo: i,
+  }));
+  for (const row of rows) db.insert(goalMilestones).values(row).run();
+  return rows;
+}
+
+/** 道のりの全体図の取得(sort_no 順)。旧目標(保存なし)は空配列 */
+export function getMilestones(goalId: string): GoalMilestone[] {
+  return db
+    .select()
+    .from(goalMilestones)
+    .where(eq(goalMilestones.goalId, goalId))
+    .orderBy(asc(goalMilestones.sortNo))
+    .all();
 }
 
 // ---- Weekly plans / daily actions ----
@@ -405,6 +439,7 @@ export function exportAllData(): string {
   const data = {
     exportedAt: new Date().toISOString(),
     goals: db.select().from(goals).all(),
+    goalMilestones: db.select().from(goalMilestones).all(),
     weeklyPlans: db.select().from(weeklyPlans).all(),
     dailyActions: db.select().from(dailyActions).all(),
     dailyTasks: db.select().from(dailyTasks).all(),
@@ -418,7 +453,7 @@ export function exportAllData(): string {
 export function deleteAllData(): void {
   sqlite.withTransactionSync(() => {
     sqlite.execSync(
-      'DELETE FROM coach_messages; DELETE FROM checkins; DELETE FROM daily_reports; DELETE FROM daily_tasks; DELETE FROM daily_actions; DELETE FROM weekly_plans; DELETE FROM goals;',
+      'DELETE FROM coach_messages; DELETE FROM checkins; DELETE FROM daily_reports; DELETE FROM daily_tasks; DELETE FROM daily_actions; DELETE FROM weekly_plans; DELETE FROM goal_milestones; DELETE FROM goals;',
     );
   });
 }
