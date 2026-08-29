@@ -15,7 +15,8 @@ import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 
 const BENEFITS: { symbol: SFSymbol; text: string }[] = [
   { symbol: 'infinity', text: 'ホトリとの対話が無制限に' },
-  { symbol: 'chart.bar', text: '週次レビューで1週間をまとめて振り返り' },
+  // 週の締め(旗の日セレモニー)自体は無料化されたため、プレミアムの実態である観察手帳を語る
+  { symbol: 'book.closed', text: '観察手帳 — ホトリがあなたの歩き方を見立てる、週に一度の手紙' },
   { symbol: 'target', text: '複数の目標を同時に進行(近日提供)' },
 ];
 

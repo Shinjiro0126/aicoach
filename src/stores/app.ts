@@ -29,6 +29,20 @@ export type InsightCacheEntry = {
   fallback: boolean;
 };
 
+/**
+ * 週次リプランの flagMessage(「なぜこの計画にしたか」の手紙)の永続キャッシュ。
+ * goalId+weekNo でスコープした最新1件のみ持つ(InsightCacheEntry と同じ思想)。
+ * 端末の中だけに保存され、プレミアムのみ観察手帳に表示する
+ */
+export type ReplanLetterEntry = {
+  goalId: string;
+  /** 計画対象の週番号(1-based) */
+  weekNo: number;
+  /** 手紙本文(3文以内) */
+  message: string;
+  generatedAt: number;
+};
+
 type AppState = {
   // ---- 永続化される設定 ----
   deviceId: string;
@@ -39,6 +53,8 @@ type AppState = {
   premium: boolean;
   /** 観察手帳の最新キャッシュ(端末内のみに保存) */
   insight: InsightCacheEntry | null;
+  /** 週次リプランの手紙の最新キャッシュ(端末内のみに保存) */
+  replanLetter: ReplanLetterEntry | null;
   /**
    * 来週の歩幅宣言(旗の日セレモニーの3択)。goalId・forWeekNo で対象目標・対象週をスコープし、
    * 効くのは宣言した目標の翌週のみ(判定は lib/pace.ts の effectivePace。
@@ -57,6 +73,7 @@ type AppState = {
   setNotificationsEnabled: (enabled: boolean) => void;
   setPremium: (premium: boolean) => void;
   setInsight: (entry: InsightCacheEntry | null) => void;
+  setReplanLetter: (entry: ReplanLetterEntry | null) => void;
   setNextWeekPace: (declaration: PaceDeclaration | null) => void;
   canSendAiMessage: () => boolean;
   remainingAiMessages: () => number;
@@ -73,6 +90,7 @@ export const useAppStore = create<AppState>()(
       quota: { date: '', used: 0 },
       premium: false,
       insight: null,
+      replanLetter: null,
       nextWeekPace: null,
 
       activeGoal: null,
@@ -87,6 +105,7 @@ export const useAppStore = create<AppState>()(
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       setPremium: (premium) => set({ premium }),
       setInsight: (entry) => set({ insight: entry }),
+      setReplanLetter: (entry) => set({ replanLetter: entry }),
       setNextWeekPace: (declaration) => set({ nextWeekPace: declaration }),
 
       canSendAiMessage: () => {
@@ -110,6 +129,7 @@ export const useAppStore = create<AppState>()(
         quota: s.quota,
         premium: s.premium,
         insight: s.insight,
+        replanLetter: s.replanLetter,
         nextWeekPace: s.nextWeekPace,
       }),
     },

@@ -33,6 +33,13 @@ export const AnalyticsEvent = {
   FlagCeremonyClosed: 'flag_ceremony_closed',
   /** プロパティ: pace('keep' | 'lighter' | 'wider' のenumのみ)。歩幅選択時に発火 */
   NextWeekPaceSelected: 'next_week_pace_selected',
+  /**
+   * プロパティ: weekNo(数値), fallback(boolean)。
+   * 週次リプランの成功時(fallback=false)/ 失敗して前日コピーへフォールバックした時(fallback=true)に発火
+   */
+  WeeklyReplanGenerated: 'weekly_replan_generated',
+  /** プロパティ: weekNo(数値), premium(boolean), from('ceremony' | 'tab' のenumのみ)。観察手帳を開いたときに発火 */
+  NotebookOpened: 'notebook_opened',
   PaywallViewed: 'paywall_viewed',
   QuotaExceeded: 'quota_exceeded',
 } as const;

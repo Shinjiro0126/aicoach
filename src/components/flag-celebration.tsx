@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -35,8 +35,14 @@ type FlagCelebrationProps = {
   teaserText: string;
   /** 次週プレビュー(lib/flag-day.ts の buildNextWeekPreview) */
   previewText: string;
+  /** プレミアムなら手帳への直行導線、無料ならペイウォールへの導線を出す(C-3) */
+  premium: boolean;
   /** 歩幅を選んだとき(保存・計測・クローズは呼び出し側) */
   onSelectPace: (pace: NextWeekPace) => void;
+  /** 観察手帳をひらく(プレミアムのみ。遷移・計測・クローズは呼び出し側) */
+  onOpenNotebook: () => void;
+  /** ホトリの見立てを読む(無料のみ。ペイウォールへの遷移・クローズは呼び出し側) */
+  onOpenPaywall: () => void;
   onClose: () => void;
 };
 
@@ -89,7 +95,10 @@ export function FlagCelebration({
   summaryText,
   teaserText,
   previewText,
+  premium,
   onSelectPace,
+  onOpenNotebook,
+  onOpenPaywall,
   onClose,
 }: FlagCelebrationProps) {
   const theme = useTheme();
@@ -151,6 +160,21 @@ export function FlagCelebration({
             <ThemedText type="small" style={styles.cardText}>
               {teaserText}
             </ThemedText>
+            {/* 手帳への入口(C-3)。プレミアム=手帳へ直行 / 無料=ペイウォールへ */}
+            <Pressable
+              accessibilityRole="button"
+              onPress={premium ? onOpenNotebook : onOpenPaywall}
+              style={({ pressed }) => [styles.notebookLink, pressed && { opacity: 0.7 }]}>
+              <SymbolView
+                name={premium ? 'book.closed' : 'lock.fill'}
+                size={12}
+                tintColor={theme.tintDeep}
+              />
+              <ThemedText type="smallBold" style={{ fontSize: 12, color: theme.tintDeep }}>
+                {premium ? '観察手帳をひらく' : 'ホトリの見立てを読む(プレミアム)'}
+              </ThemedText>
+              <SymbolView name="chevron.right" size={10} tintColor={theme.tintDeep} />
+            </Pressable>
           </View>
         </PopIn>
         <PopIn delay={1200}>
@@ -182,6 +206,13 @@ const styles = StyleSheet.create({
   cardText: { lineHeight: 21 },
   teaserHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   teaserLabel: { fontSize: 12, fontWeight: '700' },
+  notebookLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    alignSelf: 'flex-start',
+    paddingTop: 2,
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.two },
   bottom: { gap: Spacing.one, paddingBottom: Spacing.two },
 });
