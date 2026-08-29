@@ -31,13 +31,13 @@ export function PrivacyBadge({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.row}>
-        <SymbolView name="lock.fill" size={12} tintColor={theme.textSecondary} />
-        <ThemedText type={bold ? 'smallBold' : 'small'} themeColor="textSecondary" style={styles.text}>
+        <SymbolView name="lock.fill" size={11} tintColor={theme.textSecondary} />
+        <ThemedText type={bold ? 'smallBold' : 'small'} themeColor="textSecondary" style={[styles.text, styles.compact]}>
           {text}
         </ThemedText>
       </View>
       {sub !== undefined && (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" style={styles.compact}>
           {sub}
         </ThemedText>
       )}
@@ -49,4 +49,6 @@ const styles = StyleSheet.create({
   container: { gap: Spacing.half },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   text: { flexShrink: 1 },
+  // バッジは控えめな注記なので、標準のsmall(14)より一段小さくする
+  compact: { fontSize: 12, lineHeight: 16 },
 });

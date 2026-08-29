@@ -17,8 +17,8 @@ import { Hotori } from '@/components/hotori';
 import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
-import { Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
+import { Spacing } from '@/constants/theme';
 import {
   addCheckin,
   addCoachMessage,
@@ -30,6 +30,7 @@ import {
   recentActionSummary,
 } from '@/db/repo';
 import type { CoachMessage } from '@/db/schema';
+import { useTheme } from '@/hooks/use-theme';
 import { chatWithCoach } from '@/lib/ai/client';
 import { OFFLINE_FALLBACK_MESSAGE } from '@/lib/ai/mock';
 import { AiError, type CoachContext } from '@/lib/ai/types';
@@ -37,7 +38,6 @@ import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
 import { addDaysKey, toDateKey, todayKey } from '@/lib/dates';
 import { currentWeekNo, ROADMAP_WEEKS } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
-import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
 
 /** 振り返り応答後のチップ。「休む」は正当な選択肢としてAIを呼ばずに完結する */
@@ -229,6 +229,7 @@ export default function CoachScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               あなたの目標の、先を歩いてきたコーチ
             </ThemedText>
+            <PrivacyBadge text="対話の履歴は、この端末の中だけに保存されます" style={styles.privacyRow} />
           </View>
         </View>
         {!premium && (
@@ -236,11 +237,6 @@ export default function CoachScreen() {
             今日あと{remaining}回
           </ThemedText>
         )}
-      </View>
-
-      {/* 対話が端末内にとどまることを、話すその場で伝える控えめな一行 */}
-      <View style={styles.privacyRow}>
-        <PrivacyBadge text="対話の履歴は、この端末の中だけに保存されます" />
       </View>
 
       <FlatList
@@ -358,7 +354,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexShrink: 1 },
-  privacyRow: { alignItems: 'center', paddingTop: Spacing.two, paddingHorizontal: Spacing.three },
+  privacyRow: { paddingTop: Spacing.one },
   list: { padding: Spacing.three, gap: Spacing.two },
   bubble: {
     maxWidth: '82%',
