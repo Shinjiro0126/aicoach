@@ -435,7 +435,8 @@ describe('weekAlignedJourneyDays / coldStartJourneyDays', () => {
   it('旗の日(daysToFlag=0)は「あと0日」でなく「今日は旗の日」と読み、未来日が無いため「直近14日」と読む', () => {
     const days = weekAlignedJourneyDays(start, [report('2026-08-01', 1)], [], '2026-08-01');
     const label = journeySummaryLabel(days, 2, 0);
-    expect(label).toBe('直近14日: 歩いた日1、報告した日0、おやすみ0。今日は第2週の旗の日');
+    // 旗の日の文はホーム朝画面の表示と読点まで一致させる
+    expect(label).toBe('直近14日: 歩いた日1、報告した日0、おやすみ0。今日は、第2週の旗の日');
   });
 
   it('旗の前日(daysToFlag=1)は境界でも従来どおり「あと1日」と読む', () => {
