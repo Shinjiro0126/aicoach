@@ -45,7 +45,8 @@
           "organization": "TODO-sentry-org",
           "project": "TODO-sentry-project"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
