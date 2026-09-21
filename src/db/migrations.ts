@@ -97,6 +97,12 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX IF NOT EXISTS idx_goal_milestones_goal ON goal_milestones (goal_id, sort_no);
   `,
+  // v6: 参照頻度の高い weekly_plans(目標×週番号)と checkins(目標×日付)にインデックスを追加。
+  // 既存データはそのまま(スキーマ変更なし・インデックスのみ)
+  `
+  CREATE INDEX IF NOT EXISTS idx_weekly_plans_goal_week ON weekly_plans (goal_id, week_no);
+  CREATE INDEX IF NOT EXISTS idx_checkins_goal_date ON checkins (goal_id, date);
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {
