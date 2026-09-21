@@ -75,6 +75,8 @@ type AppState = {
   setInsight: (entry: InsightCacheEntry | null) => void;
   setReplanLetter: (entry: ReplanLetterEntry | null) => void;
   setNextWeekPace: (declaration: PaceDeclaration | null) => void;
+  /** 「すべてのデータを削除」用: premium 以外のストア状態を初期化する(deviceId は新規生成) */
+  resetForDataDeletion: () => void;
   canSendAiMessage: () => boolean;
   remainingAiMessages: () => number;
   consumeAiMessage: () => void;
@@ -107,6 +109,26 @@ export const useAppStore = create<AppState>()(
       setInsight: (entry) => set({ insight: entry }),
       setReplanLetter: (entry) => set({ replanLetter: entry }),
       setNextWeekPace: (declaration) => set({ nextWeekPace: declaration }),
+
+      /**
+       * 「すべてのデータを削除」に合わせてストアも初期状態へ戻す。
+       * deviceId は新規生成し、削除前の利用状況と紐付かないようにする。
+       * premium だけは維持する: 課金済みユーザーの購入状態はDBの記録とは別物で、
+       * ここで消すと支払い済みなのに無料プラン表示へ戻ってしまうため
+       */
+      resetForDataDeletion: () =>
+        set({
+          deviceId: makeId(),
+          morningTime: Config.defaultMorningTime,
+          eveningTime: Config.defaultEveningTime,
+          notificationsEnabled: false,
+          quota: { date: '', used: 0 },
+          insight: null,
+          replanLetter: null,
+          nextWeekPace: null,
+          activeGoal: null,
+          goalLoaded: true,
+        }),
 
       canSendAiMessage: () => {
         const s = get();
