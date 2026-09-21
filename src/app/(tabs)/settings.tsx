@@ -14,6 +14,7 @@ import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { archiveGoal, deleteAllData, exportAllData } from '@/db/repo';
 import { toDateKey, todayKey } from '@/lib/dates';
+import type { ThemePreference } from '@/lib/theme-preference';
 import {
   cancelDailyNotifications,
   requestNotificationPermission,
@@ -25,6 +26,13 @@ import { useAppStore } from '@/stores/app';
 const MORNING_OPTIONS = [6, 7, 8, 9];
 const EVENING_OPTIONS = [20, 21, 22, 23];
 
+/** 外観の3択。既定は「システムに合わせる」(OS設定に追従) */
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'システムに合わせる' },
+  { value: 'light', label: 'ライト' },
+  { value: 'dark', label: 'ダーク' },
+];
+
 export default function SettingsScreen() {
   const theme = useTheme();
   const {
@@ -33,9 +41,11 @@ export default function SettingsScreen() {
     eveningTime,
     notificationsEnabled,
     premium,
+    themePreference,
     setNotificationTimes,
     setNotificationsEnabled,
     setPremium,
+    setThemePreference,
     setActiveGoal,
     setNextWeekPace,
     setReplanLetter,
@@ -211,6 +221,23 @@ export default function SettingsScreen() {
             </View>
           </>
         )}
+      </Card>
+
+      <Card>
+        <View style={styles.sectionLabel}>
+          <SymbolView name="circle.lefthalf.filled" size={14} tintColor={theme.textSecondary} />
+          <ThemedText type="smallBold">外観</ThemedText>
+        </View>
+        <View style={styles.chips}>
+          {THEME_OPTIONS.map((option) => (
+            <Chip
+              key={option.value}
+              label={option.label}
+              selected={themePreference === option.value}
+              onPress={() => setThemePreference(option.value)}
+            />
+          ))}
+        </View>
       </Card>
 
       <Card>

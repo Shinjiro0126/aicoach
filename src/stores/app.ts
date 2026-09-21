@@ -10,6 +10,7 @@ import { todayKey } from '@/lib/dates';
 import { makeId } from '@/lib/id';
 import type { PaceDeclaration } from '@/lib/pace';
 import { canSendMessage, consumeQuota, remainingQuota, type QuotaState } from '@/lib/quota';
+import type { ThemePreference } from '@/lib/theme-preference';
 
 type NotificationTime = { hour: number; minute: number };
 
@@ -51,6 +52,8 @@ type AppState = {
   notificationsEnabled: boolean;
   quota: QuotaState;
   premium: boolean;
+  /** 外観設定(システムに合わせる / ライト / ダーク)。端末内のみに保存 */
+  themePreference: ThemePreference;
   /** 観察手帳の最新キャッシュ(端末内のみに保存) */
   insight: InsightCacheEntry | null;
   /** 週次リプランの手紙の最新キャッシュ(端末内のみに保存) */
@@ -72,6 +75,7 @@ type AppState = {
   setNotificationTimes: (morning: NotificationTime, evening: NotificationTime) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setPremium: (premium: boolean) => void;
+  setThemePreference: (preference: ThemePreference) => void;
   setInsight: (entry: InsightCacheEntry | null) => void;
   setReplanLetter: (entry: ReplanLetterEntry | null) => void;
   setNextWeekPace: (declaration: PaceDeclaration | null) => void;
@@ -91,6 +95,7 @@ export const useAppStore = create<AppState>()(
       notificationsEnabled: false,
       quota: { date: '', used: 0 },
       premium: false,
+      themePreference: 'system',
       insight: null,
       replanLetter: null,
       nextWeekPace: null,
@@ -106,6 +111,7 @@ export const useAppStore = create<AppState>()(
       setNotificationTimes: (morning, evening) => set({ morningTime: morning, eveningTime: evening }),
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       setPremium: (premium) => set({ premium }),
+      setThemePreference: (preference) => set({ themePreference: preference }),
       setInsight: (entry) => set({ insight: entry }),
       setReplanLetter: (entry) => set({ replanLetter: entry }),
       setNextWeekPace: (declaration) => set({ nextWeekPace: declaration }),
@@ -114,7 +120,9 @@ export const useAppStore = create<AppState>()(
        * 「すべてのデータを削除」に合わせてストアも初期状態へ戻す。
        * deviceId は新規生成し、削除前の利用状況と紐付かないようにする。
        * premium だけは維持する: 課金済みユーザーの購入状態はDBの記録とは別物で、
-       * ここで消すと支払い済みなのに無料プラン表示へ戻ってしまうため
+       * ここで消すと支払い済みなのに無料プラン表示へ戻ってしまうため。
+       * themePreference も維持する: 外観設定は記録・対話などのプライバシーに関わるデータではなく
+       * 端末の見た目の好みなので、データ削除で勝手にライト/ダークが切り替わらないようにする
        */
       resetForDataDeletion: () =>
         set({
@@ -150,6 +158,7 @@ export const useAppStore = create<AppState>()(
         notificationsEnabled: s.notificationsEnabled,
         quota: s.quota,
         premium: s.premium,
+        themePreference: s.themePreference,
         insight: s.insight,
         replanLetter: s.replanLetter,
         nextWeekPace: s.nextWeekPace,

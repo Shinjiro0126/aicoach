@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initPostHog } from '@/lib/analytics/posthog';
 import { toDateKey } from '@/lib/dates';
 import { scheduleDailyNotifications } from '@/lib/notifications';
@@ -61,6 +62,8 @@ function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      {/* style="auto" だとOS設定に追従してしまうため、外観設定を反映した解決後テーマに合わせる */}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
