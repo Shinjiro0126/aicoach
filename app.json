@@ -8,7 +8,6 @@
     "scheme": "aicoach",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "dev.shinji.aicoach",
       "infoPlist": {
         "CFBundleDevelopmentRegion": "ja",
