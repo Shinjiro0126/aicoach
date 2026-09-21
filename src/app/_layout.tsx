@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { LaunchOverlay } from '@/components/launch-overlay';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initPostHog } from '@/lib/analytics/posthog';
 import { toDateKey } from '@/lib/dates';
@@ -22,9 +23,11 @@ function RootLayout() {
     loadGoal();
   }, [loadGoal]);
 
-  useEffect(() => {
-    if (goalLoaded) SplashScreen.hideAsync();
-  }, [goalLoaded]);
+  // ネイティブスプラッシュはローディングオーバーレイの初回描画後に隠し、
+  // 「ネイティブスプラッシュ → オーバーレイ → アプリ」を白画面を挟まずにつなぐ
+  const handleOverlayShown = () => {
+    SplashScreen.hideAsync();
+  };
 
   // 起動時に通知を再スケジュールする(通知ON かつ アクティブ目標がある場合のみ)。
   // 通知定義の追加・変更(旗の日の週次通知など)を、設定画面を触らない既存ユーザーにも
@@ -58,18 +61,22 @@ function RootLayout() {
     return useAppStore.persist.onFinishHydration((state) => initPostHog(state.deviceId));
   }, []);
 
-  if (!goalLoaded) return null;
-
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       {/* style="auto" だとOS設定に追従してしまうため、外観設定を反映した解決後テーマに合わせる */}
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="notebook" />
-      </Stack>
+      {/* 目標の読み込み前はオーバーレイだけを描画する(従来の return null と同じ扱い) */}
+      {goalLoaded && (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="notebook" />
+        </Stack>
+      )}
+      {/* コールドスタート時のブランドローディング。ルートレイアウトのマウント時に
+          一度だけ表示され、バックグラウンド復帰では再表示されない */}
+      <LaunchOverlay ready={goalLoaded} onShown={handleOverlayShown} />
     </ThemeProvider>
   );
 }
