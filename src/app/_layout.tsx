@@ -26,7 +26,8 @@ function RootLayout() {
   // ネイティブスプラッシュはローディングオーバーレイの初回描画後に隠し、
   // 「ネイティブスプラッシュ → オーバーレイ → アプリ」を白画面を挟まずにつなぐ
   const handleOverlayShown = () => {
-    SplashScreen.hideAsync();
+    // 既に隠れている等で失敗しても起動継続に影響させない
+    SplashScreen.hideAsync().catch(() => {});
   };
 
   // 起動時に通知を再スケジュールする(通知ON かつ アクティブ目標がある場合のみ)。

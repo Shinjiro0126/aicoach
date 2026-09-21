@@ -1,7 +1,7 @@
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, useAnimatedValue } from 'react-native';
+import { Animated, Easing, StyleSheet, useAnimatedValue } from 'react-native';
 
-import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import {
   LAUNCH_MIN_VISIBLE_MS,
@@ -12,7 +12,10 @@ import {
 /** フェードアウトの長さ(ms) */
 const FADE_OUT_MS = 300;
 
-const splashIcon = require('../../assets/images/splash-icon.png');
+// キービジュアル(852×1846)。タイトルロゴ・キャッチコピー・進捗バー・
+// 「今日も、いい一歩を。」まですべて描き込み済みの1枚絵なので、
+// ネイティブUIのテキストや進捗バーをこの上に重ねない(二重表示になるため)
+const launchHero = require('../../assets/images/launch-hero.jpg');
 
 type Props = {
   /** アプリ本体の準備(目標の読み込み等)が完了したか */
@@ -23,8 +26,8 @@ type Props = {
 
 /**
  * コールドスタート時のブランドローディング画面。
- * ネイティブスプラッシュ(app.json の expo-splash-screen 設定)と同じ背景色・アイコンで
- * 途切れなく引き継ぎ、準備完了と最小表示時間の両方を満たしたらフェードアウトする。
+ * ホトリが川辺の道を散歩するフルスクリーンのキービジュアル1枚を表示し、
+ * 準備完了と最小表示時間の両方を満たしたらフェードアウトする。
  * ルートレイアウトのマウント時に一度だけ表示される設計で、AppState の監視や
  * 復帰時の再表示ロジックを持たないため、バックグラウンド復帰では表示されない。
  */
@@ -70,6 +73,9 @@ export function LaunchOverlay({ ready, onShown }: Props) {
   return (
     <Animated.View
       style={[styles.container, { opacity }]}
+      // 装飾専用のオーバーレイなのでタッチを一切奪わない。
+      // 特にフェードアウト中に下のアプリ本体への操作をブロックしないための指定
+      pointerEvents="none"
       onLayout={() => {
         if (notifiedRef.current) return;
         notifiedRef.current = true;
@@ -77,8 +83,7 @@ export function LaunchOverlay({ ready, onShown }: Props) {
       }}
       accessibilityLabel="ホトリを準備しています"
     >
-      <Image source={splashIcon} style={styles.icon} resizeMode="contain" />
-      <Text style={styles.name}>ホトリ</Text>
+      <Image source={launchHero} style={styles.hero} contentFit="cover" />
     </Animated.View>
   );
 }
@@ -90,23 +95,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    // ネイティブスプラッシュ(app.json: backgroundColor)と同じブランド色(水辺ブルー)で
-    // 途切れなくつなぐ。テーマ非依存の固定色なので、外観設定がダーク固定でも
-    // 直前のネイティブスプラッシュと同色のまま破綻しない
-    backgroundColor: Colors.light.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
+    // 画像アスペクト比(0.4615)とiPhoneの19.5:9はほぼ一致するためクロップは僅少だが、
+    // 読み込みの一瞬や比率差で縁が見えた場合に備え、イラストの空に近い色を敷く
+    backgroundColor: '#BEE3F5',
   },
-  icon: {
-    // app.json の imageWidth と同じ幅にして、ネイティブスプラッシュと同じ見た目を保つ
-    width: 76,
-    height: 76,
-  },
-  name: {
-    marginTop: Spacing.three,
-    color: Colors.light.onTint,
-    fontFamily: Fonts.rounded,
-    fontSize: 15,
-    letterSpacing: 4,
+  hero: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
