@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 
+import { buildExportPayload } from '@/lib/export';
 import { makeId } from '@/lib/id';
 import { applyPaceToMain, type NextWeekPace } from '@/lib/pace';
 import { db, sqlite } from './client';
@@ -72,7 +73,10 @@ export function insertMilestones(
     title: m.title,
     sortNo: i,
   }));
-  for (const row of rows) db.insert(goalMilestones).values(row).run();
+  // 途中で失敗したとき歯抜けの全体図が残らないよう、複数行INSERTは1トランザクションで確定する
+  sqlite.withTransactionSync(() => {
+    for (const row of rows) db.insert(goalMilestones).values(row).run();
+  });
   return rows;
 }
 
@@ -96,7 +100,10 @@ export function insertWeeklyPlans(goalId: string, focuses: string[]): WeeklyPlan
     focus,
     createdAt: Date.now(),
   }));
-  for (const row of rows) db.insert(weeklyPlans).values(row).run();
+  // 週の欠けた計画が残らないよう、複数行INSERTは1トランザクションで確定する
+  sqlite.withTransactionSync(() => {
+    for (const row of rows) db.insert(weeklyPlans).values(row).run();
+  });
   return rows;
 }
 
@@ -133,11 +140,14 @@ export function insertDailyActions(
   goalId: string,
   actions: { date: string; description: string }[],
 ): void {
-  for (const a of actions) {
-    db.insert(dailyActions)
-      .values({ id: makeId(), goalId, date: a.date, description: a.description, done: false, doneAt: null })
-      .run();
-  }
+  // 日単位で歯抜けの計画が残らないよう、複数行INSERTは1トランザクションで確定する
+  sqlite.withTransactionSync(() => {
+    for (const a of actions) {
+      db.insert(dailyActions)
+        .values({ id: makeId(), goalId, date: a.date, description: a.description, done: false, doneAt: null })
+        .run();
+    }
+  });
 }
 
 export function getActionForDate(goalId: string, date: string): DailyAction | undefined {
@@ -285,7 +295,10 @@ export function ensureTasksForDate(
       createdAt: now,
     })),
   ];
-  for (const row of rows) db.insert(dailyTasks).values(row).run();
+  // main だけ入って plus が欠ける等の中途半端な生成が残らないよう、1トランザクションで確定する
+  sqlite.withTransactionSync(() => {
+    for (const row of rows) db.insert(dailyTasks).values(row).run();
+  });
   return rows;
 }
 
@@ -371,21 +384,39 @@ export function refreshReportCounts(goalId: string, dateKey: string): void {
   if (getReportForDate(goalId, dateKey)) submitReport(goalId, dateKey);
 }
 
-/** 提出済みの日付キー一覧(ストリーク・カレンダー用)。提出=その日の記録 */
-export function listReportDates(goalId: string): string[] {
+/** 日付キー範囲(両端含む)。省略した側は制限なし */
+export type DateKeyRange = { fromKey?: string; toKey?: string };
+
+/** 範囲指定を daily_reports のWHERE条件に変換する(listActionsInRange と同じ方針でSQL側で絞る) */
+function reportRangeConditions(goalId: string, range?: DateKeyRange) {
+  const conditions = [eq(dailyReports.goalId, goalId)];
+  if (range?.fromKey !== undefined) conditions.push(gte(dailyReports.dateKey, range.fromKey));
+  if (range?.toKey !== undefined) conditions.push(lte(dailyReports.dateKey, range.toKey));
+  return and(...conditions);
+}
+
+/**
+ * 提出済みの日付キー一覧(ストリーク・カレンダー用)。提出=その日の記録。
+ * range 指定時はSQL側で日付範囲(両端含む)に絞る。全履歴が必要な用途(ストリーク等)は省略する
+ */
+export function listReportDates(goalId: string, range?: DateKeyRange): string[] {
   return db
     .select({ dateKey: dailyReports.dateKey })
     .from(dailyReports)
-    .where(eq(dailyReports.goalId, goalId))
+    .where(reportRangeConditions(goalId, range))
     .all()
     .map((r) => r.dateKey);
 }
 
 /**
  * 提出記録の一覧(観察手帳の集計用)。
- * 日付キー・提出時刻・チェック件数のみ返す(タスク名などのテキストは含めない)
+ * 日付キー・提出時刻・チェック件数のみ返す(タスク名などのテキストは含めない)。
+ * range 指定時はSQL側で日付範囲(両端含む)に絞る。全履歴が必要な用途(全期間統計等)は省略する
  */
-export function listReports(goalId: string): { dateKey: string; submittedAt: number; doneCount: number }[] {
+export function listReports(
+  goalId: string,
+  range?: DateKeyRange,
+): { dateKey: string; submittedAt: number; doneCount: number }[] {
   return db
     .select({
       dateKey: dailyReports.dateKey,
@@ -393,7 +424,7 @@ export function listReports(goalId: string): { dateKey: string; submittedAt: num
       doneCount: dailyReports.doneCount,
     })
     .from(dailyReports)
-    .where(eq(dailyReports.goalId, goalId))
+    .where(reportRangeConditions(goalId, range))
     .all();
 }
 
@@ -435,9 +466,13 @@ export function listCoachMessages(goalId: string, limit = 100): CoachMessage[] {
 
 // ---- Data management (設定画面: エクスポート / 全削除) ----
 
-export function exportAllData(): string {
-  const data = {
-    exportedAt: new Date().toISOString(),
+/**
+ * 全データのJSONエクスポート。
+ * includeConversations=false(記録のみ)では対話履歴・ヒアリング回答・振り返りメモを含めない。
+ * 除外ロジックは純関数 `src/lib/export.ts` の buildExportPayload に集約(テストあり)
+ */
+export function exportAllData(includeConversations: boolean): string {
+  const tables = {
     goals: db.select().from(goals).all(),
     goalMilestones: db.select().from(goalMilestones).all(),
     weeklyPlans: db.select().from(weeklyPlans).all(),
@@ -447,7 +482,11 @@ export function exportAllData(): string {
     checkins: db.select().from(checkins).all(),
     coachMessages: db.select().from(coachMessages).all(),
   };
-  return JSON.stringify(data, null, 2);
+  const payload = buildExportPayload(tables, {
+    includeConversations,
+    exportedAt: new Date().toISOString(),
+  });
+  return JSON.stringify(payload, null, 2);
 }
 
 export function deleteAllData(): void {
@@ -456,4 +495,7 @@ export function deleteAllData(): void {
       'DELETE FROM coach_messages; DELETE FROM checkins; DELETE FROM daily_reports; DELETE FROM daily_tasks; DELETE FROM daily_actions; DELETE FROM weekly_plans; DELETE FROM goal_milestones; DELETE FROM goals;',
     );
   });
+  // 削除済みデータの断片をDBファイル上からも消し、領域を実際に解放する。
+  // VACUUM はトランザクション内では実行できないため、必ず withTransactionSync の外で実行する
+  sqlite.execSync('VACUUM');
 }

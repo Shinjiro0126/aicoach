@@ -1,7 +1,9 @@
 import Constants from 'expo-constants';
+import { File, Paths } from 'expo-file-system';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { SymbolView } from 'expo-symbols';
-import { Alert, Share, StyleSheet, Switch, View } from 'react-native';
+import { Alert, StyleSheet, Switch, View } from 'react-native';
 
 import { PrivacyBadge } from '@/components/privacy-badge';
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +13,7 @@ import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { archiveGoal, deleteAllData, exportAllData } from '@/db/repo';
-import { toDateKey } from '@/lib/dates';
+import { toDateKey, todayKey } from '@/lib/dates';
 import {
   cancelDailyNotifications,
   requestNotificationPermission,
@@ -37,6 +39,7 @@ export default function SettingsScreen() {
     setActiveGoal,
     setNextWeekPace,
     setReplanLetter,
+    resetForDataDeletion,
   } = useAppStore();
 
   const applyNotifications = async (
@@ -88,8 +91,44 @@ export default function SettingsScreen() {
     if (notificationsEnabled) applyNotifications(true, morningTime, evening);
   };
 
-  const exportData = async () => {
-    await Share.share({ message: exportAllData(), title: 'コーチデータのエクスポート' });
+  /**
+   * エクスポートJSONを一時ファイルに書き出し、ファイルとして共有する。
+   * 生テキスト共有(Share.share の message)ではチャット等へ全文が貼り付いて
+   * 誤共有しやすいため、ファイル共有に統一した。
+   * 一時ファイルは共有完了後(エラー時も)必ず削除する
+   */
+  const shareExportFile = async (includeConversations: boolean) => {
+    const file = new File(Paths.cache, `hotori-export-${todayKey()}.json`);
+    try {
+      file.create({ intermediates: true, overwrite: true });
+      file.write(exportAllData(includeConversations));
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/json',
+        UTI: 'public.json',
+        dialogTitle: 'ホトリのデータをエクスポート',
+      });
+    } catch {
+      Alert.alert('エクスポートできませんでした', '少し時間をおいて、もう一度お試しください。');
+    } finally {
+      try {
+        file.delete();
+      } catch {
+        // 書き出し前に失敗した場合など。キャッシュ領域はOSが回収するため放置してよい
+      }
+    }
+  };
+
+  /** エクスポート内容の選択。既定は記録のみ(対話全文を渡したい人だけ「すべて」を選ぶ) */
+  const exportData = () => {
+    Alert.alert(
+      'データをエクスポート',
+      'エクスポートに含める内容を選べます。「すべて」には、ホトリとの対話の全文とヒアリングの回答が含まれます。',
+      [
+        { text: '記録のみ(推奨)', onPress: () => shareExportFile(false) },
+        { text: 'すべて(対話履歴を含む)', onPress: () => shareExportFile(true) },
+        { text: 'キャンセル', style: 'cancel' },
+      ],
+    );
   };
 
   const confirmDeleteAll = () => {
@@ -101,11 +140,9 @@ export default function SettingsScreen() {
         onPress: async () => {
           deleteAllData();
           await cancelDailyNotifications();
-          setActiveGoal(null);
-          // 歩幅宣言・リプランの手紙は goalId 照合で新目標には効かないが、
-          // 「すべて削除」の期待に合わせ永続ストアからも消す
-          setNextWeekPace(null);
-          setReplanLetter(null);
+          // 永続ストアも初期状態へ戻す(deviceId 新規生成・無料枠や歩幅宣言もリセット。
+          // premium=購入状態のみ維持)。activeGoal のクリアも含む
+          resetForDataDeletion();
           router.replace('/onboarding/category');
         },
       },

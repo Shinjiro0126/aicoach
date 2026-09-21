@@ -306,7 +306,12 @@ export default function HomeScreen() {
         weekDoneCount: weekNow.doneCount,
       });
       const reports = listReports(goal.id);
-      const weekDays = coldStartJourneyDays(startKey, reports, result.graceUsedOn, today);
+      // 週まとめ(セレモニー・リプラン統計)の窓は今週7日分だけなので、SQL側で範囲を絞って読む。
+      // weekDateRange は coldStartJourneyDays の週境界(目標開始日起点の7日区切り)と一致する。
+      // ティーザー(computeInsightStats)は全期間統計が必要なため、全件の reports を使い続ける
+      const range = weekDateRange(startKey, weekNow.weekNo);
+      const weekReports = listReports(goal.id, range);
+      const weekDays = coldStartJourneyDays(startKey, weekReports, result.graceUsedOn, today);
       const planList = getWeeklyPlans(goal.id);
       const nextWeekNo = weekNow.weekNo + 1;
       const nextFocus = planList.find((p) => p.weekNo === nextWeekNo)?.focus;
@@ -317,7 +322,6 @@ export default function HomeScreen() {
       // customタスク・会話・ヒアリング回答は送らない(collectPrevActions が防御的に除外)
       let replan: ReplanRequest | null = null;
       if (shouldReplanNextWeek(planList.map((p) => p.weekNo), nextWeekNo)) {
-        const range = weekDateRange(startKey, weekNow.weekNo);
         replan = {
           goalTitle: goal.title,
           why: goal.why,
