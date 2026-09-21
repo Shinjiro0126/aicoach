@@ -11,7 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { archiveGoal, deleteAllData, exportAllData, listReportDates } from '@/db/repo';
+import { archiveGoal, deleteAllData, exportAllData, listReports } from '@/db/repo';
 import { toDateKey, todayKey } from '@/lib/dates';
 import { cancelDailyNotifications } from '@/lib/notifications';
 import { progressSummary } from '@/lib/progress';
@@ -80,9 +80,9 @@ export default function ProfileScreen() {
   const applyNotifications = useApplyNotifications();
 
   // 統計ピル(連続・ベスト・歩いた日)は提出記録から計算するため、タブ表示のたびに読み直す
-  const [reportDates, setReportDates] = useState<string[]>([]);
+  const [reports, setReports] = useState<ReturnType<typeof listReports>>([]);
   const refresh = useCallback(() => {
-    if (activeGoal) setReportDates(listReportDates(activeGoal.id));
+    if (activeGoal) setReports(listReports(activeGoal.id));
   }, [activeGoal]);
   useFocusEffect(refresh);
 
@@ -184,7 +184,10 @@ export default function ProfileScreen() {
   // elapsedDays は progressSummary、週番号は weekFlagInfo.weekNo と同じ weekIndex+1(クランプなし)
   const elapsedDays = progressSummary(startKey, targetKey, today).elapsedDays;
   const weekNo = weekIndex(startKey, today) + 1;
-  const streak = computeStreak(reportDates, today);
+  // ストリークは全提出日(0件提出も含む)で計算し、「歩いた日」はチェック1件以上の提出日のみ数える。
+  // 観察手帳(computeInsightStats の walkedDays)と同じ定義に揃え、画面間で数字がズレないようにする
+  const streak = computeStreak(reports.map((r) => r.dateKey), today);
+  const walkedDays = reports.filter((r) => r.doneCount > 0).length;
 
   const fmtTime = (t: { hour: number; minute: number }) => `${t.hour}:${String(t.minute).padStart(2, '0')}`;
   const notificationValue = notificationsEnabled ? `朝 ${fmtTime(morningTime)} · 夜 ${fmtTime(eveningTime)}` : 'オフ';
@@ -215,7 +218,7 @@ export default function ProfileScreen() {
         <View style={styles.pills}>
           <StatPill label={`連続 ${streak.current}日`} />
           <StatPill label={`ベスト ${streak.best}日`} />
-          <StatPill label={`歩いた日 ${reportDates.length}日`} />
+          <StatPill label={`歩いた日 ${walkedDays}日`} />
         </View>
         <Pressable
           accessibilityRole="button"
