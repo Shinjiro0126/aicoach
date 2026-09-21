@@ -276,7 +276,7 @@ export default function ProfileScreen() {
           </ThemedText>
         </View>
         <ThemedText style={styles.privacyDesc} themeColor="textSecondary">
-          目標・記録・対話はすべて端末内に保存。品質改善のための匿名の診断データに、会話の内容は含まれません。
+          目標・記録・対話はすべて端末内に保存。AI応答の生成時にのみ必要なメッセージが中継されますが、サーバーには保存されません。品質改善のための匿名の診断データに、会話の内容は含まれません。
         </ThemedText>
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
         <SettingRow icon="square.and.arrow.up" label="データをエクスポート" onPress={exportData} />
