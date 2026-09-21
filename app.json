@@ -46,7 +46,11 @@
           "project": "TODO-sentry-project"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
