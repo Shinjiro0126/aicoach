@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, useAnimatedValue } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View, useAnimatedValue } from 'react-native';
 
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import {
@@ -11,10 +11,12 @@ import {
 
 /** フェードアウトの長さ(ms) */
 const FADE_OUT_MS = 300;
+/** 進捗バーが9割まで満ちるのにかける時間(ms)。残り1割は準備完了の合図で満たす */
+const PROGRESS_CRUISE_MS = 2500;
 
-// キービジュアル(852×1846)。タイトルロゴ・キャッチコピー・進捗バー・
-// 「今日も、いい一歩を。」まですべて描き込み済みの1枚絵なので、
-// ネイティブUIのテキストや進捗バーをこの上に重ねない(二重表示になるため)
+// キービジュアル(852×1846)。タイトルロゴとキャッチコピーは描き込み済みなので
+// ネイティブUIで重ねない。進捗バーとキャプションだけは実際の進行に合わせて
+// 動かすため、画像には含めずここでネイティブ描画する
 const launchHero = require('../../assets/images/launch-hero.jpg');
 
 type Props = {
@@ -34,10 +36,30 @@ type Props = {
 export function LaunchOverlay({ ready, onShown }: Props) {
   const reduceMotion = useReduceMotion();
   const opacity = useAnimatedValue(1);
+  const progress = useAnimatedValue(0);
   const shownAtRef = useRef<number | null>(null);
   const notifiedRef = useRef(false);
   const [minVisibleReached, setMinVisibleReached] = useState(false);
   const [hidden, setHidden] = useState(false);
+
+  // 進捗バー: 表示中は9割までゆっくり満ち、準備完了の合図(フェード開始)で満タンになる。
+  // 実際の読み込み進捗は計測できないため、体感に合わせた演出として動かす。
+  // reduce motion 設定時はアニメーションせず満タンの静止表示にする
+  useEffect(() => {
+    if (reduceMotion) {
+      progress.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: 0.9,
+      duration: PROGRESS_CRUISE_MS,
+      easing: Easing.out(Easing.quad),
+      // width の補間に使うため JS ドライバで動かす(小さなバー1本なので負荷は無視できる)
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [reduceMotion, progress]);
 
   // 最小表示時間の経過を計る。準備が先に終わってもここまでは表示を保持してチラつきを防ぐ
   useEffect(() => {
@@ -56,17 +78,26 @@ export function LaunchOverlay({ ready, onShown }: Props) {
         ? 0
         : Date.now() - shownAt;
     if (!shouldDismissLaunchOverlay({ ready, elapsedMs })) return;
-    const animation = Animated.timing(opacity, {
-      toValue: 0,
-      duration: reduceMotion ? 0 : FADE_OUT_MS,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    });
+    // フェードと同時に進捗バーを満タンにして「準備が終わった」合図にする
+    const animation = Animated.parallel([
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: reduceMotion ? 0 : 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : FADE_OUT_MS,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }),
+    ]);
     animation.start(({ finished }) => {
       if (finished) setHidden(true);
     });
     return () => animation.stop();
-  }, [ready, minVisibleReached, reduceMotion, opacity]);
+  }, [ready, minVisibleReached, reduceMotion, opacity, progress]);
 
   if (hidden) return null;
 
@@ -84,6 +115,22 @@ export function LaunchOverlay({ ready, onShown }: Props) {
       accessibilityLabel="ホトリを準備しています"
     >
       <Image source={launchHero} style={styles.hero} contentFit="cover" />
+      <View style={styles.footer}>
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[
+              styles.progressFill,
+              {
+                width: progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.caption}>今日も、いい一歩を。</Text>
+      </View>
     </Animated.View>
   );
 }
@@ -105,5 +152,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  // 進捗バーとキャプション。イラストの小道の上に重なるため、
+  // 色はブランドの水辺ブルー系で固定する(このオーバーレイはテーマ非依存)
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 72,
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressTrack: {
+    width: '34%',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#2E9FD6',
+  },
+  caption: {
+    fontSize: 14,
+    letterSpacing: 1,
+    color: '#17638F',
   },
 });
