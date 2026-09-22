@@ -91,6 +91,7 @@ export default function ProfileScreen() {
     setActiveGoal,
     setNextWeekPace,
     setReplanLetter,
+    setComebackLetter,
     resetForDataDeletion,
   } = useAppStore();
   const applyNotifications = useApplyNotifications();
@@ -199,6 +200,7 @@ export default function ProfileScreen() {
           // 旧目標の歩幅宣言・リプランの手紙は goalId 照合で新目標には効かないが、残しておく理由も無いので消す
           setNextWeekPace(null);
           setReplanLetter(null);
+          setComebackLetter(null);
           router.replace('/onboarding/category');
         },
       },
