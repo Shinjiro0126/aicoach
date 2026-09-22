@@ -16,15 +16,14 @@ export default function AppTabs() {
       // ガラスの明暗をアプリの外観設定に強制追従させる。OS外観任せ(systemDefault)だと
       // 「アプリはライトなのにOSがダークでタブだけ暗い」という食い違いが起きる
       blurEffect={isDark ? 'systemMaterialDark' : 'systemMaterialLight'}
-      // ダークは黒背景+白文字(選択中は一段明るいピルで区別)。
-      // ライトはOSがダークでも白ガラス+黒文字で固定する
+      // 非選択はダーク=白/ライト=黒、選択中(アクティブ)はブランドの水辺ブルーで際立たせる。
+      // ピル(ダークは一段明るいbackgroundSelected)と青のアイコンの二段構えで現在地を示す
       indicatorColor={isDark ? colors.backgroundSelected : colors.backgroundElement}
-      iconColor={isDark ? '#FFFFFF' : colors.text}
-      labelStyle={
-        isDark
-          ? { default: { color: '#FFFFFF' }, selected: { color: '#FFFFFF' } }
-          : { default: { color: colors.text }, selected: { color: colors.text } }
-      }>
+      iconColor={{ default: isDark ? '#FFFFFF' : colors.text, selected: colors.tint }}
+      labelStyle={{
+        default: { color: isDark ? '#FFFFFF' : colors.text },
+        selected: { color: colors.tint },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>今日</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="checkmark.circle.fill" />
