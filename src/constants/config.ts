@@ -9,6 +9,18 @@ export const Config = {
   coachAppToken: process.env.EXPO_PUBLIC_COACH_APP_TOKEN ?? '',
   /** 無料プランの1日あたりAI対話回数 */
   freeDailyMessageLimit: 10,
+  /**
+   * プレミアムの1日あたりAI対話回数(ソフトリミット)。
+   * UIに残数カウンタは出さないが、使い切ると無料枠と同じく翌日まで送信不可になる。
+   * プロキシ側ハードリミット(proxy/src/index.ts の HARD_DAILY_LIMIT)より小さくしておくこと
+   */
+  premiumDailyMessageLimit: 100,
+  /**
+   * RevenueCat の iOS 用公開APIキー。
+   * 未設定(またはExpo Goなどネイティブモジュール不在)の場合、課金は「未接続モード」になり
+   * ペイウォール・復元は従来どおり準備中の案内を出す(coachApiUrl のモックフォールバックと同じ思想)
+   */
+  revenueCatIosApiKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? '',
   /** AI応答のタイムアウト(ms) */
   aiTimeoutMs: 30_000,
   /** コーチに送る直近履歴の件数 */

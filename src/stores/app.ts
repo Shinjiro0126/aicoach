@@ -15,6 +15,13 @@ import type { ThemePreference } from '@/lib/theme-preference';
 type NotificationTime = { hour: number; minute: number };
 
 /**
+ * 1日あたりのAI対話上限。無料は10回、プレミアムも100回のソフトリミットを持つ
+ * (使い切ると無料枠と同じく翌日まで送信不可。プレミアムUIに残数カウンタは出さない)
+ */
+const dailyLimit = (premium: boolean): number =>
+  premium ? Config.premiumDailyMessageLimit : Config.freeDailyMessageLimit;
+
+/**
  * 観察手帳のキャッシュ(最新1件)。
  * DBでなく永続ストアに置く理由: 週1回更新の最新スナップショットのみで履歴・リレーションが不要なため、
  * SQLiteマイグレーション(末尾追加のみ)を増やさず AsyncStorage 永続で持つ。
@@ -161,11 +168,11 @@ export const useAppStore = create<AppState>()(
 
       canSendAiMessage: () => {
         const s = get();
-        return canSendMessage(s.quota, todayKey(), Config.freeDailyMessageLimit, s.premium);
+        return canSendMessage(s.quota, todayKey(), dailyLimit(s.premium));
       },
       remainingAiMessages: () => {
         const s = get();
-        return remainingQuota(s.quota, todayKey(), Config.freeDailyMessageLimit, s.premium);
+        return remainingQuota(s.quota, todayKey(), dailyLimit(s.premium));
       },
       consumeAiMessage: () => set((s) => ({ quota: consumeQuota(s.quota, todayKey()) })),
     }),

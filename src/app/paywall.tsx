@@ -9,25 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { Config } from '@/constants/config';
+import { useApplyNotifications } from '@/hooks/use-apply-notifications';
 import { useTheme } from '@/hooks/use-theme';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
+import { getMonthlyPlan, purchaseMonthly, restorePremium, type MonthlyPlan } from '@/lib/purchases';
+import { useAppStore } from '@/stores/app';
 
 /**
  * ペイウォール「手帳の売り場」(デザイン原本 Main.dc.html 準拠)。
  * 売るのは回数無制限ではなく「ホトリの観察手帳」。見本の手紙を最上部に置き、
- * 便益 → 観察期間の開示 → プライバシー → プラン選択 → CTA の順に並べる。
+ * 便益 → 観察期間の開示 → プライバシー → プラン → CTA の順に並べる。
+ *
+ * プランは月額一本。表示価格はハードコードせず、必ずRevenueCatのpriceString
+ * (ストアのローカライズ済み価格)から取る。未接続モード(Expo Go・APIキー未設定)では
+ * 価格を「準備中」とし、CTA・復元は従来どおり準備中の案内を出す
  */
-
-/**
- * プラン表示価格(いずれも予定)。
- * TODO: RevenueCat(react-native-purchases)接続後、Offering の localizedPrice に差し替える
- */
-const PLANS = {
-  annual: { label: '年額', price: '¥4,800', caption: '月あたり ¥400' },
-  monthly: { label: '月額', price: '¥600', caption: 'まずは1ヶ月から' },
-} as const;
-
-type PlanKey = keyof typeof PLANS;
 
 const BENEFITS: { symbol: SFSymbol; title: string; caption: string }[] = [
   {
@@ -43,55 +39,9 @@ const BENEFITS: { symbol: SFSymbol; title: string; caption: string }[] = [
   {
     symbol: 'ellipsis.bubble',
     title: '対話をもっと深く',
-    caption: '回数の上限なしで、いつでもホトリに話せます',
+    caption: '回数を気にせず、いつでもホトリに話せます',
   },
 ];
-
-/** プラン選択カード(選択状態はチェックマークで明示し、タップで切替) */
-function PlanCard({
-  plan,
-  selected,
-  onPress,
-}: {
-  plan: (typeof PLANS)[PlanKey];
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${plan.label} ${plan.price}(${plan.caption})`}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.planCard,
-        selected
-          ? { borderWidth: 2, borderColor: theme.tintDeep, backgroundColor: theme.background }
-          : { borderWidth: 1, borderColor: theme.border },
-        pressed && { opacity: 0.85 },
-      ]}>
-      <View
-        style={[
-          styles.planCheck,
-          selected
-            ? { backgroundColor: theme.tintDeep }
-            : { borderWidth: 1.5, borderColor: theme.textSecondary },
-        ]}>
-        {selected && <SymbolView name="checkmark" size={11} tintColor={theme.background} weight="bold" />}
-      </View>
-      <ThemedText
-        type="smallBold"
-        style={{ fontSize: 12, color: selected ? theme.tintDeep : theme.textSecondary }}>
-        {plan.label}
-      </ThemedText>
-      <ThemedText style={styles.planPrice}>{plan.price}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-        {plan.caption}
-      </ThemedText>
-    </Pressable>
-  );
-}
 
 /** フッターの規約・復元リンク(44ptタップ領域) */
 function FooterLink({ label, onPress }: { label: string; onPress: () => void }) {
@@ -110,31 +60,89 @@ function FooterLink({ label, onPress }: { label: string; onPress: () => void }) 
 
 export default function PaywallScreen() {
   const theme = useTheme();
-  const [plan, setPlan] = useState<PlanKey>('annual');
+  // 購入成功時にプレミアム向け通知(手帳更新通知)を即反映するため、通知ON状態のみ購読する
+  const notificationsEnabled = useAppStore((s) => s.notificationsEnabled);
+  const applyNotifications = useApplyNotifications();
+  /** 月額プランの表示情報。null = 未接続モードまたは読み込み前(準備中の振る舞い) */
+  const [plan, setPlan] = useState<MonthlyPlan | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     trackEvent(AnalyticsEvent.PaywallViewed);
   }, []);
 
-  /**
-   * 購入CTA。RevenueCat接続後は Purchases.purchasePackage() に差し替える。
-   * それまでは、決済自体が未公開である旨を正直に案内する(設定画面の「購入を復元」と同じ方針)
-   */
-  const startPurchase = () => {
-    Alert.alert(
-      '準備中です',
-      'プレミアムの提供開始まで、もう少しだけお待ちください。最初の手帳は、いまもどなたにも無料でお読みいただけます。',
-    );
+  // Offeringから価格・トライアル有無を取得する(未接続モードでは即nullが返り、準備中表示のまま)
+  useEffect(() => {
+    let cancelled = false;
+    getMonthlyPlan().then((p) => {
+      if (!cancelled && p) setPlan(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 購入成功・復元成功後の共通処理(通知ONならプレミアム向け通知を即反映して閉じる) */
+  const finishAsPremium = async () => {
+    if (notificationsEnabled) await applyNotifications(true, undefined, undefined, true);
+    router.back();
   };
 
-  /** 購入の復元。RevenueCat接続後は Purchases.restorePurchases() に差し替える(設定画面と同文) */
-  const restorePurchases = () => {
-    Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+  /** 購入CTA。未接続モードでは決済が未公開である旨を正直に案内する(従来どおり) */
+  const startPurchase = async () => {
+    if (purchasing) return;
+    setPurchasing(true);
+    try {
+      const result = await purchaseMonthly();
+      if (result === null) {
+        Alert.alert(
+          '準備中です',
+          'プレミアムの提供開始まで、もう少しだけお待ちください。最初の手帳は、いまもどなたにも無料でお読みいただけます。',
+        );
+      } else if (result === 'purchased') {
+        await finishAsPremium();
+      } else if (result === 'failed') {
+        Alert.alert('購入できませんでした', '通信環境をご確認のうえ、もう一度お試しください。');
+      }
+      // 'cancelled'(ユーザーが購入シートを閉じた)は何もしない
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  /** 購入の復元。未接続モードでは従来の案内文のまま(設定画面と同方針) */
+  const restorePurchases = async () => {
+    const result = await restorePremium();
+    if (result === null) {
+      Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+      return;
+    }
+    if (result === 'restored') {
+      Alert.alert('復元しました', 'おかえりなさい。プレミアムをご利用いただけます。', [
+        { text: 'OK', onPress: () => void finishAsPremium() },
+      ]);
+    } else if (result === 'none') {
+      Alert.alert('復元できる購入が見つかりません', 'このApple Accountでの購入履歴が見つかりませんでした。');
+    } else {
+      Alert.alert('復元できませんでした', '通信環境をご確認のうえ、もう一度お試しください。');
+    }
   };
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {});
   };
+
+  // CTAと審査必須の自動更新表記(価格は必ずpriceStringから。ハードコード禁止)
+  const ctaTitle = !plan
+    ? 'プレミアムをはじめる'
+    : plan.hasIntroOffer
+      ? '7日間無料ではじめる'
+      : `${plan.priceString}/月ではじめる`;
+  const renewalNote = !plan
+    ? '自動更新の購読です。期間終了の24時間前までに、App Storeの設定からいつでも解約できます。'
+    : plan.hasIntroOffer
+      ? `7日間の無料期間終了後、${plan.priceString}/月で自動更新されます。期間終了の24時間前までに、App Storeの設定からいつでも解約できます。`
+      : `${plan.priceString}/月で自動更新されます。期間終了の24時間前までに、App Storeの設定からいつでも解約できます。`;
 
   return (
     <Screen scroll>
@@ -210,25 +218,28 @@ export default function PaywallScreen() {
         </ThemedText>
       </View>
 
-      {/* プラン選択(初期選択=年額) */}
-      <View style={styles.planRow} accessibilityRole="radiogroup">
-        <PlanCard plan={PLANS.annual} selected={plan === 'annual'} onPress={() => setPlan('annual')} />
-        <PlanCard plan={PLANS.monthly} selected={plan === 'monthly'} onPress={() => setPlan('monthly')} />
+      {/* プラン(月額一本)。価格はストアのローカライズ済み価格のみを表示する */}
+      <View style={[styles.planCard, { borderColor: theme.tintDeep, backgroundColor: theme.background }]}>
+        <ThemedText type="smallBold" style={{ fontSize: 12, color: theme.tintDeep }}>
+          月額プラン
+        </ThemedText>
+        <ThemedText style={styles.planPrice}>{plan ? `${plan.priceString}/月` : '準備中'}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+          {!plan
+            ? '提供開始まで、もう少しだけお待ちください'
+            : plan.hasIntroOffer
+              ? 'はじめの7日間は無料'
+              : 'いつでも解約できます'}
+        </ThemedText>
       </View>
-      <ThemedText
-        type="small"
-        themeColor="textSecondary"
-        style={{ fontSize: 11, textAlign: 'center', marginTop: -Spacing.two }}>
-        表示している価格は(予定)です。
-      </ThemedText>
 
-      {/* CTA(ラベルは選択プランを反映) */}
-      <Button title={`${PLANS[plan].label} ${PLANS[plan].price} ではじめる`} onPress={startPurchase} />
+      {/* CTA(色は theme.tint = #2E9FD6 のまま) */}
+      <Button title={ctaTitle} loading={purchasing} onPress={() => void startPurchase()} />
       <ThemedText
         type="small"
         themeColor="textSecondary"
         style={{ fontSize: 11, lineHeight: 18, textAlign: 'center', marginTop: -Spacing.two }}>
-        自動更新の購読です。期間終了の24時間前までに、App Storeの設定からいつでも解約できます。
+        {renewalNote}
       </ThemedText>
 
       {/* 脚注+リンク行 */}
@@ -236,14 +247,14 @@ export default function PaywallScreen() {
         複数の目標の同時進行は、準備ができ次第プレミアムに加わります。
       </ThemedText>
       <View style={styles.footerRow}>
-        {/* 規約・ポリシーのURLはRevenueCat接続時に config.ts で設定する。未設定の間は行を出さない */}
+        {/* 規約・ポリシーのURLは課金提供開始時に config.ts で設定する。未設定の間は行を出さない */}
         {Config.termsOfUseUrl.length > 0 && (
           <FooterLink label="利用規約" onPress={() => openUrl(Config.termsOfUseUrl)} />
         )}
         {Config.privacyPolicyUrl.length > 0 && (
           <FooterLink label="プライバシーポリシー" onPress={() => openUrl(Config.privacyPolicyUrl)} />
         )}
-        <FooterLink label="購入を復元" onPress={restorePurchases} />
+        <FooterLink label="購入を復元" onPress={() => void restorePurchases()} />
       </View>
     </Screen>
   );
@@ -280,19 +291,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingHorizontal: Spacing.one,
   },
-  planRow: { flexDirection: 'row', gap: Spacing.two + 2 },
-  planCard: { flex: 1, borderRadius: 14, padding: Spacing.three - 2, gap: 3 },
-  planCheck: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planPrice: { fontSize: 20, fontWeight: '800', lineHeight: 26 },
+  planCard: { borderRadius: 14, borderWidth: 2, padding: Spacing.three - 2, gap: 3, alignItems: 'center' },
+  planPrice: { fontSize: 22, fontWeight: '800', lineHeight: 28 },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',

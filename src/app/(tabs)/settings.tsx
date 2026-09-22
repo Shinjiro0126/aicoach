@@ -15,6 +15,7 @@ import { archiveGoal, deleteAllData, exportAllData, listReports } from '@/db/rep
 import { toDateKey, todayKey } from '@/lib/dates';
 import { cancelDailyNotifications } from '@/lib/notifications';
 import { progressSummary } from '@/lib/progress';
+import { getPremiumRenewalInfo, restorePremium, type PremiumRenewalInfo } from '@/lib/purchases';
 import { addWeeksKey, weekIndex } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
 import { THEME_PREFERENCE_OPTIONS } from '@/lib/theme-preference';
@@ -103,6 +104,25 @@ export default function ProfileScreen() {
   }, [activeGoal]);
   useFocusEffect(refresh);
 
+  // 更新情報(RevenueCat接続時のみ取得できる)。未接続・無料プランでは null のまま
+  // 「プレミアムをご利用中です」の表記にフォールバックする。
+  // 復元成功直後にも呼び直せるよう、取得処理を useFocusEffect の外に持つ
+  const [renewal, setRenewal] = useState<PremiumRenewalInfo | null>(null);
+  const refreshRenewal = useCallback(async () => {
+    setRenewal(await getPremiumRenewalInfo());
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getPremiumRenewalInfo().then((info) => {
+        if (!cancelled) setRenewal(info);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
   /**
    * プレミアム切替は手帳更新通知(プレミアムのみ)の有無に効くため、
    * 通知ONなら即再スケジュールして反映する(OFF→再スケジュールで手帳通知は消える)
@@ -171,11 +191,26 @@ export default function ProfileScreen() {
   };
 
   /**
-   * 購入の復元。RevenueCat接続後は Purchases.restorePurchases() に差し替える。
-   * それまでは、決済自体が未公開である旨を正直に案内する(ペイウォールの「準備中」と同じ方針)
+   * 購入の復元(RevenueCat)。未接続モード(Expo Go・APIキー未設定)では
+   * 決済自体が未公開である旨を正直に案内する(ペイウォールの「準備中」と同じ方針)。
+   * 復元できたら、プレミアム向け通知(手帳更新通知)も togglePremium と同様に即反映する
    */
-  const restorePurchases = () => {
-    Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+  const restorePurchases = async () => {
+    const result = await restorePremium();
+    if (result === null) {
+      Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+      return;
+    }
+    if (result === 'restored') {
+      if (notificationsEnabled) await applyNotifications(true, undefined, undefined, true);
+      // タブを離れなくてもプランカードの更新日が出るよう、その場で取り直す
+      await refreshRenewal();
+      Alert.alert('復元しました', 'おかえりなさい。プレミアムをご利用いただけます。');
+    } else if (result === 'none') {
+      Alert.alert('復元できる購入が見つかりません', 'このApple Accountでの購入履歴が見つかりませんでした。');
+    } else {
+      Alert.alert('復元できませんでした', '通信環境をご確認のうえ、もう一度お試しください。');
+    }
   };
 
   /** App Storeのサブスクリプション管理画面を開く(OS標準の管理場所へ誘導する) */
@@ -263,7 +298,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* プランカード: 契約状態の確認・管理の場所。他カードと同じ行リスト様式で統一する。
-          RevenueCat接続後は、更新日の表示と復元・管理の実処理をここに差し込む */}
+          更新日はRevenueCatのcustomerInfoから取れる場合のみ表示する */}
       <View style={[styles.card, styles.listCard, styles.outlined, { borderColor: theme.border, backgroundColor: theme.background }]}>
         <SettingRow
           icon="sparkles"
@@ -275,8 +310,12 @@ export default function ProfileScreen() {
         />
         <ThemedText style={styles.planCaption} themeColor="textSecondary">
           {premium
-            ? // TODO(RevenueCat): 接続後は「年額プラン · 次回の更新は◯月◯日」を表示する
-              'プレミアムをご利用中です'
+            ? renewal
+              ? // 解約済み(自動更新オフ)のときは expirationDate は更新日ではなく利用終了日
+                renewal.willRenew
+                ? `月額プラン · 次回の更新は${renewal.date.getMonth() + 1}月${renewal.date.getDate()}日`
+                : `月額プラン · ${renewal.date.getMonth() + 1}月${renewal.date.getDate()}日まで利用できます`
+              : 'プレミアムをご利用中です'
             : 'プレミアムにすると、観察手帳とホトリの深掘りが開きます'}
         </ThemedText>
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -288,7 +327,7 @@ export default function ProfileScreen() {
             onPress={openSubscriptionManagement}
           />
         ) : (
-          <SettingRow icon="arrow.clockwise" label="購入を復元" trailing="none" onPress={restorePurchases} />
+          <SettingRow icon="arrow.clockwise" label="購入を復元" trailing="none" onPress={() => void restorePurchases()} />
         )}
         {__DEV__ && (
           <Button
