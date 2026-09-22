@@ -72,7 +72,7 @@ describe('buildComebackLetter', () => {
   it('止まった日数と歩いた日数から3文で組み立てる(決定的)', () => {
     const letter = buildComebackLetter(2, 14);
     expect(letter).toBe(
-      '2日ぶりに、この道で会えました。これまで歩いた14日は、止まっていた間も消えずにここに残っています。今日の一歩は、いつもより軽い版で十分です。',
+      '止まっていた2日のあと、また会えました。これまで歩いた14日は、止まっていた間も消えずにここに残っています。今日の一歩は、いつもより軽い版で十分です。',
     );
     // 決定的テンプレート: 同じ入力なら常に同じ手紙
     expect(buildComebackLetter(2, 14)).toBe(letter);
@@ -86,7 +86,12 @@ describe('buildComebackLetter', () => {
   it('歩いた日が0日でも「歩いた0日」とは書かない', () => {
     const letter = buildComebackLetter(3, 0);
     expect(letter).not.toContain('0日');
-    expect(letter).toContain('3日ぶりに');
+    expect(letter).toContain('止まっていた3日のあと');
+  });
+
+  it('「N日ぶり」表現を使わない — stoppedDays は空いた丸1日の数で「ぶり」と1日ずれるため', () => {
+    // 最終提出 9/19・今日 9/22 → 空き2日(実際は「3日ぶり」)。「2日ぶり」と出さない
+    expect(buildComebackLetter(comebackGapDays(['2026-09-19'], TODAY), 5)).not.toContain('日ぶり');
   });
 
   it('責め語・救済専用語を含まない', () => {

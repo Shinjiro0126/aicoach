@@ -41,12 +41,14 @@ export function isComebackDay(reportDateKeys: readonly string[], today: string):
  * 復帰の手紙(3文以内・責めない・断定調)。
  * 統計値(止まった日数・これまで歩いた日数)だけから決定的に組み立てる。
  * 「おやすみ」は救済で守られた日の専用語なので、復帰文脈では使わない。
+ * 「N日ぶり」表現は使わない: stoppedDays は空いた丸1日の数(comebackGapDays)であり、
+ * 「ぶり」の日数(diffDays = stoppedDays + 1)と1日ずれるため、止まっていた日数として語る。
  *
  * @param stoppedDays 止まっていた日数(comebackGapDays の戻り値)
  * @param walkedDays これまで歩いた日数(チェック1件以上の提出日数)
  */
 export function buildComebackLetter(stoppedDays: number, walkedDays: number): string {
-  const s1 = `${stoppedDays}日ぶりに、この道で会えました。`;
+  const s1 = `止まっていた${stoppedDays}日のあと、また会えました。`;
   const s2 =
     walkedDays > 0
       ? `これまで歩いた${walkedDays}日は、止まっていた間も消えずにここに残っています。`

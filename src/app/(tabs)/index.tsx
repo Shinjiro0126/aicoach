@@ -239,14 +239,16 @@ export default function HomeScreen() {
     // 一致する週だけ効く(目標リセット後の新目標に旧宣言を漏らさない)
     const rawWeekNo = weekIndex(startKey, today) + 1;
     const dates = listReportDates(goal.id);
-    // 復帰の日(旗の日と重なる場合は旗の日を優先)は今日の一歩を軽い版で生成する。
+    // 復帰の日(旗の日と重なる場合は旗の日を優先)は、タスク題に週単位の歩幅接尾を付けない
+    // (デザイン Comeback.dc.html 準拠。軽い版はその日限りで、「今週は…」の接尾は実態と矛盾するため
+    // 'keep' で歩幅宣言の接尾ごと抑止し、「軽い版」はカード下のラベルだけで示す)。
     // ensureTasksForDate は既にタスク生成済みの日は既存行をそのまま返すため、既存データは書き換えない
     const comebackToday = !isFlagDay(startKey, today) && isComebackDay(dates, today);
     setTasks(
       ensureTasksForDate(goal.id, today, {
         goalTitle: goal.title,
         weekFocus: planList[weekNo - 1]?.focus,
-        pace: comebackToday ? 'lighter' : effectivePace(nextWeekPace, goal.id, rawWeekNo),
+        pace: comebackToday ? 'keep' : effectivePace(nextWeekPace, goal.id, rawWeekNo),
       }),
     );
     setReport(getReportForDate(goal.id, today) ?? null);
@@ -669,7 +671,7 @@ export default function HomeScreen() {
           <TaskRow
             task={mainTask}
             onToggle={() => toggleTask(mainTask)}
-            // 復帰の日は軽い版であることをラベルでも添える(タスク生成は refresh 側で 'lighter')
+            // 復帰の日は軽い版であることをこのラベルだけで示す(タスク題には接尾を付けない。refresh 側参照)
             labelSuffix={comebackDay ? ' · 今日はいつもより軽い版' : undefined}
           />
         )}
