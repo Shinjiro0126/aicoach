@@ -42,6 +42,8 @@ export const AnalyticsEvent = {
   NotebookOpened: 'notebook_opened',
   PaywallViewed: 'paywall_viewed',
   QuotaExceeded: 'quota_exceeded',
+  /** プロパティなし。ホームの復帰の日カードを表示したとき(goalId×日付で1回)に発火 */
+  ComebackCardShown: 'comeback_card_shown',
 } as const;
 
 export type EventProperties = Record<string, string | number | boolean>;
