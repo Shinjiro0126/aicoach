@@ -34,11 +34,11 @@ const WATER_COLORS = {
 } as const;
 
 /**
- * スタートの岸(陸地)の塗り色。ライトモードは theme.sand(#F6EFE3)だと
- * 水面(#D5EEFB)に対して淡く沈むため、一段濃い砂色で岸をはっきりさせる。
- * 動機カード等が使う theme.sand 本体には影響させない(風景専用色)
+ * ライトモードの岸まわりは反転配色にする(風景専用色。theme.sand 本体には影響させない):
+ * - 岸(陸地)の塗り = theme.sandText の濃い砂色。水面(#D5EEFB)に対して輪郭をはっきりさせる
+ * - 看板・草・小石・支柱 = この明るい砂色(看板の文字色は岸と同じ濃い砂色になる)
  */
-const SHORE_SAND_LIGHT = '#EDDFC5';
+const SHORE_ACCENT_LIGHT = '#EDDFC5';
 
 export type JourneyStonesProps = {
   /** 飛び石の日別データ(古い順)。通常は週アライン14日(先週+今週)/ コールドスタートは現在週7日 */
@@ -314,7 +314,14 @@ export function JourneyStones({ days, weekNo, daysToFlag, reached, coldStart, ca
 
       <View style={{ aspectRatio: 316 / viewHeight }}>
         {coldStart ? (
-          <ColdJourneySvg days={days} colors={colors} sand={scheme === 'dark' ? theme.sand : SHORE_SAND_LIGHT} sandText={theme.sandText} />
+          <ColdJourneySvg
+            days={days}
+            colors={colors}
+            // ライトは反転配色: 岸=濃い砂色(theme.sandText)、看板・草=明るい砂色。
+            // ColdJourneySvg 内では sand が岸の塗りと看板の文字色、sandText が看板・草・小石に使われる
+            sand={scheme === 'dark' ? theme.sand : theme.sandText}
+            sandText={scheme === 'dark' ? theme.sandText : SHORE_ACCENT_LIGHT}
+          />
         ) : (
           <FullJourneySvg days={days} colors={colors} />
         )}
