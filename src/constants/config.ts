@@ -16,4 +16,11 @@ export const Config = {
   /** 通知のデフォルト時刻 */
   defaultMorningTime: { hour: 8, minute: 0 },
   defaultEveningTime: { hour: 21, minute: 30 },
+  /**
+   * 利用規約・プライバシーポリシーのURL。
+   * TODO: RevenueCat接続(課金提供開始)時に公開URLを設定する。
+   * 空文字の間、ペイウォールのリンク行は非表示になる
+   */
+  termsOfUseUrl: '',
+  privacyPolicyUrl: '',
 } as const;
