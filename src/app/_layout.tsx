@@ -31,7 +31,8 @@ function RootLayout() {
   // (iOS 26のリキッドグラスは blurEffect 指定を無視してトレイトに従うため、
   //  JS側の色指定だけでは揃えられない)
   useEffect(() => {
-    Appearance.setColorScheme(themePreference === 'system' ? null : themePreference);
+    // RN 0.86の型では「システム追従に戻す」は null ではなく 'unspecified'
+    Appearance.setColorScheme(themePreference === 'system' ? 'unspecified' : themePreference);
   }, [themePreference]);
 
   // ネイティブスプラッシュはローディングオーバーレイの初回描画後に隠し、
