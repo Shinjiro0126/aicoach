@@ -10,6 +10,12 @@ export const Config = {
   /** 無料プランの1日あたりAI対話回数 */
   freeDailyMessageLimit: 10,
   /**
+   * プレミアムの1日あたりAI対話回数(ソフトリミット)。
+   * UIに残数カウンタは出さないが、使い切ると無料枠と同じく翌日まで送信不可になる。
+   * プロキシ側ハードリミット(proxy/src/index.ts の HARD_DAILY_LIMIT)より小さくしておくこと
+   */
+  premiumDailyMessageLimit: 100,
+  /**
    * RevenueCat の iOS 用公開APIキー。
    * 未設定(またはExpo Goなどネイティブモジュール不在)の場合、課金は「未接続モード」になり
    * ペイウォール・復元は従来どおり準備中の案内を出す(coachApiUrl のモックフォールバックと同じ思想)
