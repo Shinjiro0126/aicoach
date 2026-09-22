@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
@@ -32,17 +32,25 @@ function StatPill({ label }: { label: string }) {
   );
 }
 
-/** iOS標準パターンの設定行(アイコンチップ+ラベル+現在値+chevron) */
+/**
+ * iOS標準パターンの設定行(アイコンチップ+ラベル+現在値+末尾アイコン)。
+ * trailing: chevron=画面内遷移 / external=外部アプリへ / none=その場で完結する操作。
+ * valueTone: accent は契約中プランなど「良い状態」の強調表示に使う
+ */
 function SettingRow({
   icon,
   label,
   value,
   onPress,
+  trailing = 'chevron',
+  valueTone,
 }: {
   icon: SymbolViewProps['name'];
   label: string;
   value?: string;
   onPress: () => void;
+  trailing?: 'chevron' | 'external' | 'none';
+  valueTone?: 'accent';
 }) {
   const theme = useTheme();
   return (
@@ -54,10 +62,18 @@ function SettingRow({
         <SymbolView name={icon} size={15} tintColor={theme.tintDeep} />
       </View>
       <ThemedText style={styles.settingLabel}>{label}</ThemedText>
-      <ThemedText style={styles.settingValue} themeColor="textSecondary" numberOfLines={1}>
+      <ThemedText
+        style={[styles.settingValue, valueTone === 'accent' && { color: theme.tintDeep, fontWeight: '700' }]}
+        themeColor={valueTone === 'accent' ? undefined : 'textSecondary'}
+        numberOfLines={1}>
         {value ?? ''}
       </ThemedText>
-      <SymbolView name="chevron.right" size={13} tintColor={theme.textSecondary} weight="semibold" />
+      {trailing === 'chevron' && (
+        <SymbolView name="chevron.right" size={13} tintColor={theme.textSecondary} weight="semibold" />
+      )}
+      {trailing === 'external' && (
+        <SymbolView name="arrow.up.right" size={12} tintColor={theme.textSecondary} weight="semibold" />
+      )}
     </Pressable>
   );
 }
@@ -153,6 +169,21 @@ export default function ProfileScreen() {
     ]);
   };
 
+  /**
+   * 購入の復元。RevenueCat接続後は Purchases.restorePurchases() に差し替える。
+   * それまでは、決済自体が未公開である旨を正直に案内する(ペイウォールの「準備中」と同じ方針)
+   */
+  const restorePurchases = () => {
+    Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+  };
+
+  /** App Storeのサブスクリプション管理画面を開く(OS標準の管理場所へ誘導する) */
+  const openSubscriptionManagement = () => {
+    Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {
+      Alert.alert('開けませんでした', 'App Storeの「サブスクリプション」から確認できます。');
+    });
+  };
+
   const confirmArchiveGoal = () => {
     if (!activeGoal) return;
     Alert.alert('目標をリセット', '現在の目標をアーカイブして、新しい目標を設定します。記録は残ります。', [
@@ -229,18 +260,34 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      {/* プレミアムカード */}
-      <View style={[styles.card, { backgroundColor: theme.sand }]}>
-        <View style={styles.rowBetween}>
-          <ThemedText style={[styles.premiumHead, { color: theme.sandText }]}>プレミアム</ThemedText>
-          <ThemedText style={[styles.premiumStatus, { color: theme.sandText }]}>
-            現在: {premium ? 'プレミアム' : '無料プラン'}
-          </ThemedText>
-        </View>
-        <ThemedText style={[styles.premiumLead, { color: theme.sandText }]}>
-          ホトリの観察手帳で、あなたの歩き方を深く知る
+      {/* プランカード: 契約状態の確認・管理の場所。他カードと同じ行リスト様式で統一する。
+          RevenueCat接続後は、更新日の表示と復元・管理の実処理をここに差し込む */}
+      <View style={[styles.card, styles.listCard, styles.outlined, { borderColor: theme.border, backgroundColor: theme.background }]}>
+        <SettingRow
+          icon="sparkles"
+          label="プラン"
+          value={premium ? 'プレミアム' : '無料'}
+          valueTone={premium ? 'accent' : undefined}
+          trailing={premium ? 'none' : 'chevron'}
+          onPress={premium ? openSubscriptionManagement : () => router.push('/paywall')}
+        />
+        <ThemedText style={styles.planCaption} themeColor="textSecondary">
+          {premium
+            ? // TODO(RevenueCat): 接続後は「年額プラン · 次回の更新は◯月◯日」を表示する
+              'プレミアムをご利用中です'
+            : 'プレミアムにすると、観察手帳とホトリの深掘りが開きます'}
         </ThemedText>
-        {!premium && <Button title="プレミアムを見る" onPress={() => router.push('/paywall')} />}
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        {premium ? (
+          <SettingRow
+            icon="gearshape"
+            label="サブスクリプションを管理"
+            trailing="external"
+            onPress={openSubscriptionManagement}
+          />
+        ) : (
+          <SettingRow icon="arrow.clockwise" label="購入を復元" trailing="none" onPress={restorePurchases} />
+        )}
         {__DEV__ && (
           <Button
             title={`[DEV] プレミアム切替 (現在: ${premium ? 'ON' : 'OFF'})`}
@@ -321,10 +368,8 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 12, fontWeight: '700', lineHeight: 16 },
   identityFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, alignSelf: 'flex-start' },
   footerLink: { fontSize: 13, fontWeight: '700', lineHeight: 18 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  premiumHead: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  premiumStatus: { fontSize: 12, fontWeight: '600' },
-  premiumLead: { fontSize: 15, fontWeight: '700', lineHeight: 22 },
+  // プラン行の補足(アイコンチップ幅28+gap10=38でラベルに揃える)
+  planCaption: { fontSize: 12, lineHeight: 17, paddingLeft: 38, paddingBottom: Spacing.two + 2, marginTop: -Spacing.one },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two + 2, paddingVertical: Spacing.two + 2 },
   iconChip: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { fontSize: 15, fontWeight: '700' },
