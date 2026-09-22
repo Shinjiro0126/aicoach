@@ -1,39 +1,84 @@
 import Constants from 'expo-constants';
 import { File, Paths } from 'expo-file-system';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { SymbolView } from 'expo-symbols';
-import { Alert, StyleSheet, Switch, View } from 'react-native';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { PrivacyBadge } from '@/components/privacy-badge';
+import { Hotori } from '@/components/hotori';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { archiveGoal, deleteAllData, exportAllData } from '@/db/repo';
+import { archiveGoal, deleteAllData, exportAllData, listReports } from '@/db/repo';
 import { toDateKey, todayKey } from '@/lib/dates';
-import type { ThemePreference } from '@/lib/theme-preference';
-import {
-  cancelDailyNotifications,
-  requestNotificationPermission,
-  scheduleDailyNotifications,
-} from '@/lib/notifications';
+import { cancelDailyNotifications } from '@/lib/notifications';
+import { progressSummary } from '@/lib/progress';
+import { addWeeksKey, weekIndex } from '@/lib/roadmap';
+import { computeStreak } from '@/lib/streak';
+import { THEME_PREFERENCE_OPTIONS } from '@/lib/theme-preference';
+import { useApplyNotifications } from '@/hooks/use-apply-notifications';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/stores/app';
 
-const MORNING_OPTIONS = [6, 7, 8, 9];
-const EVENING_OPTIONS = [20, 21, 22, 23];
+/** アイデンティティカードの統計ピル(白背景・tintDeep文字) */
+function StatPill({ label }: { label: string }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.pill, { backgroundColor: theme.background }]}>
+      <ThemedText style={[styles.pillText, { color: theme.tintDeep }]}>{label}</ThemedText>
+    </View>
+  );
+}
 
-/** 外観の3択。既定は「システムに合わせる」(OS設定に追従) */
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'system', label: 'システムに合わせる' },
-  { value: 'light', label: 'ライト' },
-  { value: 'dark', label: 'ダーク' },
-];
+/**
+ * iOS標準パターンの設定行(アイコンチップ+ラベル+現在値+末尾アイコン)。
+ * trailing: chevron=画面内遷移 / external=外部アプリへ / none=その場で完結する操作。
+ * valueTone: accent は契約中プランなど「良い状態」の強調表示に使う
+ */
+function SettingRow({
+  icon,
+  label,
+  value,
+  onPress,
+  trailing = 'chevron',
+  valueTone,
+}: {
+  icon: SymbolViewProps['name'];
+  label: string;
+  value?: string;
+  onPress: () => void;
+  trailing?: 'chevron' | 'external' | 'none';
+  valueTone?: 'accent';
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.settingRow, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.iconChip, { backgroundColor: theme.tintSoft }]}>
+        <SymbolView name={icon} size={15} tintColor={theme.tintDeep} />
+      </View>
+      <ThemedText style={styles.settingLabel}>{label}</ThemedText>
+      <ThemedText
+        style={[styles.settingValue, valueTone === 'accent' && { color: theme.tintDeep, fontWeight: '700' }]}
+        themeColor={valueTone === 'accent' ? undefined : 'textSecondary'}
+        numberOfLines={1}>
+        {value ?? ''}
+      </ThemedText>
+      {trailing === 'chevron' && (
+        <SymbolView name="chevron.right" size={13} tintColor={theme.textSecondary} weight="semibold" />
+      )}
+      {trailing === 'external' && (
+        <SymbolView name="arrow.up.right" size={12} tintColor={theme.textSecondary} weight="semibold" />
+      )}
+    </Pressable>
+  );
+}
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   const theme = useTheme();
   const {
     activeGoal,
@@ -42,43 +87,20 @@ export default function SettingsScreen() {
     notificationsEnabled,
     premium,
     themePreference,
-    setNotificationTimes,
-    setNotificationsEnabled,
     setPremium,
-    setThemePreference,
     setActiveGoal,
     setNextWeekPace,
     setReplanLetter,
     resetForDataDeletion,
   } = useAppStore();
+  const applyNotifications = useApplyNotifications();
 
-  const applyNotifications = async (
-    enabled: boolean,
-    morning = morningTime,
-    evening = eveningTime,
-    isPremium = premium,
-  ) => {
-    if (!enabled) {
-      await cancelDailyNotifications();
-      setNotificationsEnabled(false);
-      return;
-    }
-    const granted = await requestNotificationPermission();
-    if (!granted) {
-      Alert.alert('通知が許可されていません', 'iOSの設定アプリから通知を許可してください。');
-      setNotificationsEnabled(false);
-      return;
-    }
-    setNotificationsEnabled(true);
-    if (activeGoal)
-      await scheduleDailyNotifications(
-        activeGoal.title,
-        morning,
-        evening,
-        toDateKey(new Date(activeGoal.createdAt)),
-        isPremium,
-      );
-  };
+  // 統計ピル(連続・ベスト・歩いた日)は提出記録から計算するため、タブ表示のたびに読み直す
+  const [reports, setReports] = useState<ReturnType<typeof listReports>>([]);
+  const refresh = useCallback(() => {
+    if (activeGoal) setReports(listReports(activeGoal.id));
+  }, [activeGoal]);
+  useFocusEffect(refresh);
 
   /**
    * プレミアム切替は手帳更新通知(プレミアムのみ)の有無に効くため、
@@ -87,18 +109,6 @@ export default function SettingsScreen() {
   const togglePremium = (next: boolean) => {
     setPremium(next);
     if (notificationsEnabled) applyNotifications(true, morningTime, eveningTime, next);
-  };
-
-  const setMorning = (hour: number) => {
-    const morning = { hour, minute: 0 };
-    setNotificationTimes(morning, eveningTime);
-    if (notificationsEnabled) applyNotifications(true, morning, eveningTime);
-  };
-
-  const setEvening = (hour: number) => {
-    const evening = { hour, minute: 30 };
-    setNotificationTimes(morningTime, evening);
-    if (notificationsEnabled) applyNotifications(true, morningTime, evening);
   };
 
   /**
@@ -159,6 +169,21 @@ export default function SettingsScreen() {
     ]);
   };
 
+  /**
+   * 購入の復元。RevenueCat接続後は Purchases.restorePurchases() に差し替える。
+   * それまでは、決済自体が未公開である旨を正直に案内する(ペイウォールの「準備中」と同じ方針)
+   */
+  const restorePurchases = () => {
+    Alert.alert('購入を復元', 'プレミアムの提供開始と同時に、ここから購入を復元できるようになります。');
+  };
+
+  /** App Storeのサブスクリプション管理画面を開く(OS標準の管理場所へ誘導する) */
+  const openSubscriptionManagement = () => {
+    Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {
+      Alert.alert('開けませんでした', 'App Storeの「サブスクリプション」から確認できます。');
+    });
+  };
+
   const confirmArchiveGoal = () => {
     if (!activeGoal) return;
     Alert.alert('目標をリセット', '現在の目標をアーカイブして、新しい目標を設定します。記録は残ります。', [
@@ -180,74 +205,89 @@ export default function SettingsScreen() {
     ]);
   };
 
+  // アクティブ目標が無い間((tabs)/_layout がオンボーディングへ戻す直前)は何も描かない
+  if (!activeGoal) return null;
+
+  const today = todayKey();
+  const startKey = toDateKey(new Date(activeGoal.createdAt));
+  const targetKey = activeGoal.targetDate ?? addWeeksKey(startKey, 13);
+  // 日数・週番号はホーム・セレモニーと同じ共有ロジックを使う(独自計算で1日ズレを作らない)。
+  // elapsedDays は progressSummary、週番号は weekFlagInfo.weekNo と同じ weekIndex+1(クランプなし)
+  const elapsedDays = progressSummary(startKey, targetKey, today).elapsedDays;
+  const weekNo = weekIndex(startKey, today) + 1;
+  // ストリークは全提出日(0件提出も含む)で計算し、「歩いた日」はチェック1件以上の提出日のみ数える。
+  // 観察手帳(computeInsightStats の walkedDays)と同じ定義に揃え、画面間で数字がズレないようにする
+  const streak = computeStreak(reports.map((r) => r.dateKey), today);
+  const walkedDays = reports.filter((r) => r.doneCount > 0).length;
+
+  const fmtTime = (t: { hour: number; minute: number }) => `${t.hour}:${String(t.minute).padStart(2, '0')}`;
+  const notificationValue = notificationsEnabled ? `朝 ${fmtTime(morningTime)} · 夜 ${fmtTime(eveningTime)}` : 'オフ';
+  const appearanceValue =
+    THEME_PREFERENCE_OPTIONS.find((o) => o.value === themePreference)?.label ?? 'システムに合わせる';
+
   return (
     <Screen scroll withTabInset>
       <ThemedText type="subtitle" style={{ marginTop: Spacing.two }}>
-        設定
+        プロフィール
       </ThemedText>
 
-      <Card>
-        <View style={styles.row}>
-          <ThemedText type="smallBold">通知</ThemedText>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={(v) => applyNotifications(v)}
-            trackColor={{ true: theme.tint }}
+      {/* アイデンティティカード: ホトリと歩いてきた道のりの現在地 */}
+      <View style={[styles.card, { backgroundColor: theme.tintSoft }]}>
+        <View style={styles.identityTop}>
+          <View style={[styles.avatarRing, { borderColor: theme.background }]}>
+            <Hotori variant="bust" size={60} />
+          </View>
+          <View style={styles.identityBody}>
+            <ThemedText style={styles.goalTitle} numberOfLines={2}>
+              {activeGoal.title}
+            </ThemedText>
+            <ThemedText style={styles.identitySub} themeColor="textSecondary">
+              歩きはじめて{elapsedDays}日目 · 第{weekNo}週
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.pills}>
+          <StatPill label={`連続 ${streak.current}日`} />
+          <StatPill label={`ベスト ${streak.best}日`} />
+          <StatPill label={`歩いた日 ${walkedDays}日`} />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={confirmArchiveGoal}
+          style={({ pressed }) => [styles.identityFooter, pressed && { opacity: 0.7 }]}>
+          <SymbolView name="flag.fill" size={13} tintColor={theme.tintDeep} />
+          <ThemedText style={[styles.footerLink, { color: theme.tintDeep }]}>目標を見直す</ThemedText>
+        </Pressable>
+      </View>
+
+      {/* プランカード: 契約状態の確認・管理の場所。他カードと同じ行リスト様式で統一する。
+          RevenueCat接続後は、更新日の表示と復元・管理の実処理をここに差し込む */}
+      <View style={[styles.card, styles.listCard, styles.outlined, { borderColor: theme.border, backgroundColor: theme.background }]}>
+        <SettingRow
+          icon="sparkles"
+          label="プラン"
+          value={premium ? 'プレミアム' : '無料'}
+          valueTone={premium ? 'accent' : undefined}
+          trailing={premium ? 'none' : 'chevron'}
+          onPress={premium ? openSubscriptionManagement : () => router.push('/paywall')}
+        />
+        <ThemedText style={styles.planCaption} themeColor="textSecondary">
+          {premium
+            ? // TODO(RevenueCat): 接続後は「年額プラン · 次回の更新は◯月◯日」を表示する
+              'プレミアムをご利用中です'
+            : 'プレミアムにすると、観察手帳とホトリの深掘りが開きます'}
+        </ThemedText>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        {premium ? (
+          <SettingRow
+            icon="gearshape"
+            label="サブスクリプションを管理"
+            trailing="external"
+            onPress={openSubscriptionManagement}
           />
-        </View>
-        {notificationsEnabled && (
-          <>
-            <View style={styles.sectionLabel}>
-              <SymbolView name="sun.horizon" size={14} tintColor={theme.warning} />
-              <ThemedText type="small" themeColor="textSecondary">
-                朝のリマインド
-              </ThemedText>
-            </View>
-            <View style={styles.chips}>
-              {MORNING_OPTIONS.map((h) => (
-                <Chip key={h} label={`${h}:00`} selected={morningTime.hour === h} onPress={() => setMorning(h)} />
-              ))}
-            </View>
-            <View style={styles.sectionLabel}>
-              <SymbolView name="moon.stars" size={14} tintColor={theme.tint} />
-              <ThemedText type="small" themeColor="textSecondary">
-                夜の振り返り
-              </ThemedText>
-            </View>
-            <View style={styles.chips}>
-              {EVENING_OPTIONS.map((h) => (
-                <Chip key={h} label={`${h}:30`} selected={eveningTime.hour === h} onPress={() => setEvening(h)} />
-              ))}
-            </View>
-          </>
+        ) : (
+          <SettingRow icon="arrow.clockwise" label="購入を復元" trailing="none" onPress={restorePurchases} />
         )}
-      </Card>
-
-      <Card>
-        <View style={styles.sectionLabel}>
-          <SymbolView name="circle.lefthalf.filled" size={14} tintColor={theme.textSecondary} />
-          <ThemedText type="smallBold">外観</ThemedText>
-        </View>
-        <View style={styles.chips}>
-          {THEME_OPTIONS.map((option) => (
-            <Chip
-              key={option.value}
-              label={option.label}
-              selected={themePreference === option.value}
-              onPress={() => setThemePreference(option.value)}
-            />
-          ))}
-        </View>
-      </Card>
-
-      <Card>
-        <View style={styles.row}>
-          <ThemedText type="smallBold">プラン</ThemedText>
-          <ThemedText type="small" style={{ color: premium ? theme.tint : theme.textSecondary }}>
-            {premium ? 'プレミアム' : '無料プラン'}
-          </ThemedText>
-        </View>
-        {!premium && <Button title="プレミアムを見る" variant="secondary" onPress={() => router.push('/paywall')} />}
         {__DEV__ && (
           <Button
             title={`[DEV] プレミアム切替 (現在: ${premium ? 'ON' : 'OFF'})`}
@@ -255,27 +295,52 @@ export default function SettingsScreen() {
             onPress={() => togglePremium(!premium)}
           />
         )}
-      </Card>
+      </View>
 
-      <Card>
-        <ThemedText type="smallBold">データ</ThemedText>
-        <PrivacyBadge text="あなたの記録の置き場所: この iPhone の中だけ" />
-        <ThemedText type="small" themeColor="textSecondary">
-          目標・行動記録・対話履歴は、すべてこの端末の中だけに保存されます。AI応答の生成時にのみ必要なメッセージが中継されますが、サーバーには保存されません(匿名の診断データについては下記「品質改善へのご協力」をご覧ください)。
+      {/* 設定リスト: サブ画面へプッシュ遷移 */}
+      <View style={[styles.card, styles.listCard, styles.outlined, { borderColor: theme.border, backgroundColor: theme.background }]}>
+        <SettingRow
+          icon="bell.fill"
+          label="通知"
+          value={notificationValue}
+          onPress={() => router.push('/settings/notifications')}
+        />
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        <SettingRow
+          icon="circle.lefthalf.filled"
+          label="外観"
+          value={appearanceValue}
+          onPress={() => router.push('/settings/appearance')}
+        />
+      </View>
+
+      {/* データとプライバシー */}
+      <View style={[styles.card, styles.outlined, { borderColor: theme.border, backgroundColor: theme.background }]}>
+        <View style={styles.privacyHead}>
+          <SymbolView name="lock.fill" size={13} tintColor={theme.textSecondary} />
+          <ThemedText style={styles.privacyTitle} themeColor="textSecondary">
+            あなたの記録は、この iPhone の中だけ
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.privacyDesc} themeColor="textSecondary">
+          目標・記録・対話はすべて端末内に保存。AI応答の生成時にのみ必要なメッセージが中継されますが、サーバーには保存されません。品質改善のための匿名の診断データに、会話の内容は含まれません。
         </ThemedText>
-        <Button title="データをエクスポート (JSON)" variant="secondary" onPress={exportData} />
-        <Button title="目標をリセット" variant="secondary" onPress={confirmArchiveGoal} />
-        <Button title="すべてのデータを削除" variant="danger" onPress={confirmDeleteAll} />
-      </Card>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        <SettingRow icon="square.and.arrow.up" label="データをエクスポート" onPress={exportData} />
+      </View>
 
-      <Card>
-        <ThemedText type="smallBold">品質改善へのご協力</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          匿名の診断データ(クラッシュ情報・利用状況)を送信して品質改善に役立てています。個人を特定する情報や会話内容は送信されません。
-        </ThemedText>
-      </Card>
+      {/* 危険操作(独立カード) */}
+      <View style={[styles.card, styles.listCard, styles.outlined, { borderColor: theme.danger, backgroundColor: theme.background }]}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={confirmDeleteAll}
+          style={({ pressed }) => [styles.settingRow, pressed && { opacity: 0.7 }]}>
+          <SymbolView name="trash" size={16} tintColor={theme.danger} />
+          <ThemedText style={[styles.settingLabel, { color: theme.danger }]}>すべてのデータを削除</ThemedText>
+        </Pressable>
+      </View>
 
-      <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+      <ThemedText style={styles.version} themeColor="textSecondary">
         バージョン {Constants.expoConfig?.version ?? '1.0.0'}
       </ThemedText>
     </Screen>
@@ -283,7 +348,35 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  card: { borderRadius: 18, padding: Spacing.three, gap: Spacing.two + 2 },
+  outlined: { borderWidth: 1 },
+  listCard: { paddingVertical: Spacing.one, gap: 0 },
+  identityTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - 4 },
+  avatarRing: {
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    borderWidth: 2.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityBody: { flex: 1, gap: 2 },
+  goalTitle: { fontSize: 17, fontWeight: '700', lineHeight: 23 },
+  identitySub: { fontSize: 13, lineHeight: 18 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  pill: { borderRadius: 999, paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one + 1 },
+  pillText: { fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  identityFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, alignSelf: 'flex-start' },
+  footerLink: { fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  // プラン行の補足(アイコンチップ幅28+gap10=38でラベルに揃える)
+  planCaption: { fontSize: 12, lineHeight: 17, paddingLeft: 38, paddingBottom: Spacing.two + 2, marginTop: -Spacing.one },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two + 2, paddingVertical: Spacing.two + 2 },
+  iconChip: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  settingLabel: { fontSize: 15, fontWeight: '700' },
+  settingValue: { flex: 1, textAlign: 'right', fontSize: 13 },
+  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  privacyHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2 },
+  privacyTitle: { fontSize: 13, fontWeight: '700', flexShrink: 1, lineHeight: 18 },
+  privacyDesc: { fontSize: 12, lineHeight: 18 },
+  version: { fontSize: 12, textAlign: 'center' },
 });
