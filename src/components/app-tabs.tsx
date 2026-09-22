@@ -10,7 +10,9 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
+      // ダークはタブバー自体を黒の70%にして、リキッドグラスの質感を3割だけ残しつつ
+      // 黒っぽく沈ませる。ライトは従来どおり不透過の背景色
+      backgroundColor={isDark ? 'rgba(0, 0, 0, 0.7)' : colors.background}
       // ダークは黒背景+白文字ではっきりさせる(選択中は一段明るいピルで区別)。
       // ライトは従来どおりOS既定+backgroundElementのまま
       indicatorColor={isDark ? colors.backgroundSelected : colors.backgroundElement}
