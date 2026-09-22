@@ -10,9 +10,9 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
-      // ダークはタブバー自体を黒の70%にして、リキッドグラスの質感を3割だけ残しつつ
-      // 黒っぽく沈ませる。ライトは従来どおり不透過の背景色
-      backgroundColor={isDark ? 'rgba(0, 0, 0, 0.7)' : colors.background}
+      // タブバーの地色は70%の半透過にして、リキッドグラスの質感を3割残す
+      // (ダーク=黒の70%、ライト=白の70%)
+      backgroundColor={isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)'}
       // ガラスの明暗をアプリの外観設定に強制追従させる。OS外観任せ(systemDefault)だと
       // 「アプリはライトなのにOSがダークでタブだけ暗い」という食い違いが起きる
       blurEffect={isDark ? 'systemMaterialDark' : 'systemMaterialLight'}

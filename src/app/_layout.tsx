@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Appearance } from 'react-native';
 
 import { LaunchOverlay } from '@/components/launch-overlay';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -18,10 +19,20 @@ function RootLayout() {
   const colorScheme = useColorScheme();
   const goalLoaded = useAppStore((s) => s.goalLoaded);
   const loadGoal = useAppStore((s) => s.loadGoal);
+  const themePreference = useAppStore((s) => s.themePreference);
 
   useEffect(() => {
     loadGoal();
   }, [loadGoal]);
+
+  // アプリの外観設定をOSレベルのトレイトにも反映する(Issue #58)。
+  // これが無いと、リキッドグラスのタブバーやネイティブAlertはOSの外観に従い、
+  // 「アプリはライトなのにタブだけ暗い」という食い違いが起きる
+  // (iOS 26のリキッドグラスは blurEffect 指定を無視してトレイトに従うため、
+  //  JS側の色指定だけでは揃えられない)
+  useEffect(() => {
+    Appearance.setColorScheme(themePreference === 'system' ? null : themePreference);
+  }, [themePreference]);
 
   // ネイティブスプラッシュはローディングオーバーレイの初回描画後に隠し、
   // 「ネイティブスプラッシュ → オーバーレイ → アプリ」を白画面を挟まずにつなぐ
