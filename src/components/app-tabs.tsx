@@ -13,14 +13,17 @@ export default function AppTabs() {
       // ダークはタブバー自体を黒の70%にして、リキッドグラスの質感を3割だけ残しつつ
       // 黒っぽく沈ませる。ライトは従来どおり不透過の背景色
       backgroundColor={isDark ? 'rgba(0, 0, 0, 0.7)' : colors.background}
-      // ダークは黒背景+白文字ではっきりさせる(選択中は一段明るいピルで区別)。
-      // ライトは従来どおりOS既定+backgroundElementのまま
+      // ガラスの明暗をアプリの外観設定に強制追従させる。OS外観任せ(systemDefault)だと
+      // 「アプリはライトなのにOSがダークでタブだけ暗い」という食い違いが起きる
+      blurEffect={isDark ? 'systemMaterialDark' : 'systemMaterialLight'}
+      // ダークは黒背景+白文字(選択中は一段明るいピルで区別)。
+      // ライトはOSがダークでも白ガラス+黒文字で固定する
       indicatorColor={isDark ? colors.backgroundSelected : colors.backgroundElement}
-      iconColor={isDark ? '#FFFFFF' : undefined}
+      iconColor={isDark ? '#FFFFFF' : colors.text}
       labelStyle={
         isDark
           ? { default: { color: '#FFFFFF' }, selected: { color: '#FFFFFF' } }
-          : { selected: { color: colors.text } }
+          : { default: { color: colors.text }, selected: { color: colors.text } }
       }>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>今日</NativeTabs.Trigger.Label>
