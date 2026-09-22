@@ -27,8 +27,12 @@ const INSIGHT_MODEL = 'claude-haiku-4-5';
 /** 期間おすすめの週数の許容範囲(クライアントのステッパーと同じ 2週〜2年) */
 const MIN_SUGGEST_WEEKS = 2;
 const MAX_SUGGEST_WEEKS = 104;
-/** 不正利用対策のサーバー側ハードリミット(デバイス毎/日)。クライアント側の無料枠とは別 */
-const HARD_DAILY_LIMIT = 200;
+/**
+ * 不正利用対策のサーバー側ハードリミット(デバイス毎/日)。
+ * クライアント側の上限(無料10回/日・プレミアム100回/日のソフトリミット)とは別で、
+ * プレミアム上限100回+コーチ以外のエンドポイント分の余裕をみた値にしている
+ */
+const HARD_DAILY_LIMIT = 120;
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
