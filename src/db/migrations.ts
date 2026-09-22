@@ -103,6 +103,23 @@ const MIGRATIONS: string[] = [
   CREATE INDEX IF NOT EXISTS idx_weekly_plans_goal_week ON weekly_plans (goal_id, week_no);
   CREATE INDEX IF NOT EXISTS idx_checkins_goal_date ON checkins (goal_id, date);
   `,
+  // v7: 観察手帳の週次アーカイブ(たまる手帳)。1週=1冊で goal_id×week_no は一意。
+  // 手紙・タイプ名などのテキストは端末内DBにのみ保存する(サーバー・Sentry・PostHogへは送らない)
+  `
+  CREATE TABLE IF NOT EXISTS insight_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    goal_id TEXT NOT NULL,
+    week_no INTEGER NOT NULL,
+    from_key TEXT NOT NULL,
+    to_key TEXT NOT NULL,
+    letter TEXT NOT NULL,
+    type_name TEXT NOT NULL,
+    weekday_note TEXT NOT NULL DEFAULT '',
+    plan TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_insight_entries_goal_week ON insight_entries (goal_id, week_no);
+  `,
 ];
 
 export function runMigrations(db: SQLiteDatabase): void {

@@ -1,16 +1,19 @@
 import {
   buildInsightFallback,
   buildTeaser,
+  canReadNotebook,
   coldStartJourneyDays,
   comebackText,
   computeInsightStats,
   firstReportDateKey,
   insightGenerationPlan,
+  isFirstNotebookWeek,
   isJourneyColdStart,
   journeySummaryLabel,
   maxTimeBand,
   MIN_INSIGHT_DAYS,
   notebookSchedule,
+  notebookWeekRange,
   weekAlignedJourneyDays,
   type InsightCacheRef,
   type InsightStats,
@@ -126,7 +129,7 @@ describe('computeInsightStats', () => {
 });
 
 describe('buildTeaser', () => {
-  it('データ2週未満は「観察中」文を返す', () => {
+  it('最初の手帳(第1週の旗の日)前は「観察中」文を返す', () => {
     expect(buildTeaser(stats({ observedDays: MIN_INSIGHT_DAYS - 1 }))).toContain('観察中');
   });
 
@@ -214,15 +217,21 @@ describe('maxTimeBand', () => {
 });
 
 describe('notebookSchedule', () => {
-  it('データ2週未満は未提供で、最初の手帳までの日数を返す', () => {
-    // 初提出から11日目(days=10): あと3日でデータ2週
-    const result = notebookSchedule('2026-07-01', '2026-07-11');
-    expect(result.availableWeekNo).toBe(0);
-    expect(result.daysToFirst).toBe(3);
-    expect(result.latestFlagDateKey).toBeNull();
+  it('第1週の旗の日(初提出から7日目)に最初の手帳が書ける', () => {
+    // 旗の日の前日(days=5)はまだ観察中
+    const before = notebookSchedule('2026-07-01', '2026-07-06');
+    expect(before.availableWeekNo).toBe(0);
+    expect(before.daysToFirst).toBe(1);
+    expect(before.latestFlagDateKey).toBeNull();
+    // 旗の日(days=6)に第1週の手帳が開放される
+    const flagDay = notebookSchedule('2026-07-01', '2026-07-07');
+    expect(flagDay.availableWeekNo).toBe(1);
+    expect(flagDay.daysToFirst).toBe(0);
+    expect(flagDay.latestFlagDateKey).toBe('2026-07-07');
+    expect(flagDay.daysToNext).toBe(7);
   });
 
-  it('提出が1件も無ければ観察は始まっておらず、最初の手帳まで丸2週間', () => {
+  it('提出が1件も無ければ観察は始まっておらず、最初の手帳まで丸1週間', () => {
     const result = notebookSchedule(null, '2026-07-25');
     expect(result.availableWeekNo).toBe(0);
     expect(result.daysToFirst).toBe(MIN_INSIGHT_DAYS);
@@ -230,7 +239,7 @@ describe('notebookSchedule', () => {
     expect(result.latestFlagDateKey).toBeNull();
   });
 
-  it('初提出から14日目(観察第2週の旗の日)に最初の手帳が書ける', () => {
+  it('初提出から14日目(観察第2週の旗の日)に第2週の手帳へ進む', () => {
     const result = notebookSchedule('2026-07-01', '2026-07-14');
     expect(result.availableWeekNo).toBe(2);
     expect(result.daysToFirst).toBe(0);
@@ -253,18 +262,74 @@ describe('notebookSchedule', () => {
     expect(result.latestFlagDateKey).toBe('2026-07-14');
   });
 
-  it('「データ2週」の判定は stats.observedDays(初提出日基準)と一致する', () => {
-    // Issue #30: 目標開始が古くても、初提出から2週未満なら観察中(あと0日にならない)
+  it('開放の判定は stats.observedDays(初提出日基準)と一致する', () => {
+    // Issue #30: 目標開始が古くても、初提出から1週未満なら観察中(あと0日にならない)
     const reports = [report('2026-07-20'), report('2026-07-24')];
     const stats = computeInsightStats(reports, '2026-07-25', NO_STREAK);
     const schedule = notebookSchedule(firstReportDateKey(reports), '2026-07-25');
     expect(stats.observedDays).toBe(6);
     expect(schedule.availableWeekNo).toBe(0);
     expect(schedule.daysToFirst).toBe(MIN_INSIGHT_DAYS - stats.observedDays);
-    // 観察日数がちょうど2週に達した日に手帳が書ける
+    // 観察日数がちょうど2週に達した日には第2週の手帳が書ける
     const ready = notebookSchedule('2026-07-12', '2026-07-25');
     expect(computeInsightStats([report('2026-07-12')], '2026-07-25', NO_STREAK).observedDays).toBe(14);
     expect(ready.availableWeekNo).toBe(2);
+  });
+});
+
+describe('notebookWeekRange', () => {
+  it('週の範囲は初提出日起点の7日区切りで、toKey は旗の日と一致する', () => {
+    expect(notebookWeekRange('2026-07-01', 1)).toEqual({
+      fromKey: '2026-07-01',
+      toKey: '2026-07-07',
+    });
+    expect(notebookWeekRange('2026-07-01', 3)).toEqual({
+      fromKey: '2026-07-15',
+      toKey: '2026-07-21',
+    });
+    // toKey は notebookSchedule.latestFlagDateKey と同じ計算(独自計算しない)
+    expect(notebookWeekRange('2026-07-01', 2).toKey).toBe(
+      notebookSchedule('2026-07-01', '2026-07-14').latestFlagDateKey,
+    );
+  });
+
+  it('月跨ぎでも日付キーが正しく進む', () => {
+    expect(notebookWeekRange('2026-07-28', 1)).toEqual({
+      fromKey: '2026-07-28',
+      toKey: '2026-08-03',
+    });
+  });
+});
+
+describe('isFirstNotebookWeek(はじめの見立て版の統計選択)', () => {
+  it('第1週のみ「はじめの見立て」版(時間帯+復帰力のみ)になる', () => {
+    expect(isFirstNotebookWeek(1)).toBe(true);
+    expect(isFirstNotebookWeek(2)).toBe(false);
+    expect(isFirstNotebookWeek(0)).toBe(false);
+  });
+
+  it('開放週の判定と組み合わせた境界: 第1週の旗の日=はじめの見立て、第2週の旗の日=フル版', () => {
+    const first = notebookSchedule('2026-07-01', '2026-07-07').availableWeekNo;
+    expect(isFirstNotebookWeek(first)).toBe(true);
+    const second = notebookSchedule('2026-07-01', '2026-07-14').availableWeekNo;
+    expect(isFirstNotebookWeek(second)).toBe(false);
+  });
+});
+
+describe('canReadNotebook(1冊目無料の判定)', () => {
+  it('無料でも1冊目(第1週)は読める', () => {
+    expect(canReadNotebook(false, 1)).toBe(true);
+  });
+
+  it('無料の2冊目以降は読めない(境界は第2週)', () => {
+    expect(canReadNotebook(false, 2)).toBe(false);
+    expect(canReadNotebook(false, 10)).toBe(false);
+  });
+
+  it('プレミアムは全冊読める', () => {
+    expect(canReadNotebook(true, 1)).toBe(true);
+    expect(canReadNotebook(true, 2)).toBe(true);
+    expect(canReadNotebook(true, 52)).toBe(true);
   });
 });
 

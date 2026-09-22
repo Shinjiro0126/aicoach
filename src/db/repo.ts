@@ -12,6 +12,7 @@ import {
   dailyTasks,
   goalMilestones,
   goals,
+  insightEntries,
   weeklyPlans,
   type Checkin,
   type CoachMessage,
@@ -20,6 +21,7 @@ import {
   type DailyTask,
   type Goal,
   type GoalMilestone,
+  type InsightEntry,
   type WeeklyPlan,
 } from './schema';
 
@@ -428,6 +430,85 @@ export function listReports(
     .all();
 }
 
+// ---- Insight entries(観察手帳の週次アーカイブ)----
+
+/**
+ * 観察手帳1冊(goalId×weekNo)のupsert。生成成功時(フォールバック時も)と、
+ * 旧ストアキャッシュからの初回移行で呼ぶ。同じ週の再生成は本文を差し替える。
+ * 手紙などのテキストは端末内DBにのみ保存される
+ */
+export function upsertInsightEntry(input: {
+  goalId: string;
+  weekNo: number;
+  fromKey: string;
+  toKey: string;
+  letter: string;
+  typeName: string;
+  weekdayNote: string;
+  plan: string;
+  /** 生成時刻。旧キャッシュ移行時は元の generatedAt を引き継ぐ */
+  createdAt?: number;
+}): InsightEntry {
+  const existing = getInsightEntry(input.goalId, input.weekNo);
+  if (existing) {
+    const updated: InsightEntry = {
+      ...existing,
+      fromKey: input.fromKey,
+      toKey: input.toKey,
+      letter: input.letter,
+      typeName: input.typeName,
+      weekdayNote: input.weekdayNote,
+      plan: input.plan,
+    };
+    db.update(insightEntries)
+      .set({
+        fromKey: input.fromKey,
+        toKey: input.toKey,
+        letter: input.letter,
+        typeName: input.typeName,
+        weekdayNote: input.weekdayNote,
+        plan: input.plan,
+      })
+      .where(eq(insightEntries.id, existing.id))
+      .run();
+    return updated;
+  }
+  const row: InsightEntry = {
+    id: makeId(),
+    goalId: input.goalId,
+    weekNo: input.weekNo,
+    fromKey: input.fromKey,
+    toKey: input.toKey,
+    letter: input.letter,
+    typeName: input.typeName,
+    weekdayNote: input.weekdayNote,
+    plan: input.plan,
+    createdAt: input.createdAt ?? Date.now(),
+  };
+  db.insert(insightEntries).values(row).run();
+  return row;
+}
+
+/** これまでの手帳の一覧(新しい週順)。棚ビュー用 */
+export function listInsightEntries(goalId: string): InsightEntry[] {
+  return db
+    .select()
+    .from(insightEntries)
+    .where(eq(insightEntries.goalId, goalId))
+    .orderBy(desc(insightEntries.weekNo))
+    .all();
+}
+
+/** 指定週の手帳1冊。無ければ undefined */
+export function getInsightEntry(goalId: string, weekNo: number): InsightEntry | undefined {
+  return db
+    .select()
+    .from(insightEntries)
+    .where(and(eq(insightEntries.goalId, goalId), eq(insightEntries.weekNo, weekNo)))
+    .limit(1)
+    .all()[0];
+}
+
 // ---- Checkins ----
 
 export function addCheckin(goalId: string, date: string, mood: number | null, note: string | null): Checkin {
@@ -479,6 +560,7 @@ export function exportAllData(includeConversations: boolean): string {
     dailyActions: db.select().from(dailyActions).all(),
     dailyTasks: db.select().from(dailyTasks).all(),
     dailyReports: db.select().from(dailyReports).all(),
+    insightEntries: db.select().from(insightEntries).all(),
     checkins: db.select().from(checkins).all(),
     coachMessages: db.select().from(coachMessages).all(),
   };
@@ -492,7 +574,7 @@ export function exportAllData(includeConversations: boolean): string {
 export function deleteAllData(): void {
   sqlite.withTransactionSync(() => {
     sqlite.execSync(
-      'DELETE FROM coach_messages; DELETE FROM checkins; DELETE FROM daily_reports; DELETE FROM daily_tasks; DELETE FROM daily_actions; DELETE FROM weekly_plans; DELETE FROM goal_milestones; DELETE FROM goals;',
+      'DELETE FROM coach_messages; DELETE FROM checkins; DELETE FROM insight_entries; DELETE FROM daily_reports; DELETE FROM daily_tasks; DELETE FROM daily_actions; DELETE FROM weekly_plans; DELETE FROM goal_milestones; DELETE FROM goals;',
     );
   });
   // 削除済みデータの断片をDBファイル上からも消し、領域を実際に解放する。
