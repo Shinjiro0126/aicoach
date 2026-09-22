@@ -10,6 +10,7 @@ import { initPostHog } from '@/lib/analytics/posthog';
 import { toDateKey } from '@/lib/dates';
 import { scheduleDailyNotifications } from '@/lib/notifications';
 import { initSentry, wrapWithSentry } from '@/lib/observability/sentry';
+import { initPurchases } from '@/lib/purchases';
 import { useAppStore } from '@/stores/app';
 
 SplashScreen.preventAutoHideAsync();
@@ -63,6 +64,17 @@ function RootLayout() {
       return;
     }
     return useAppStore.persist.onFinishHydration(reschedule);
+  }, []);
+
+  // 課金(RevenueCat)の初期化。customerInfoリスナーがストアの premium を上書きするため、
+  // 永続ストアの復元完了後に行う(復元がリスナーの同期結果を巻き戻さないように)。
+  // APIキー未設定・Expo Go(ネイティブ不在)では no-op(未接続モード)
+  useEffect(() => {
+    if (useAppStore.persist.hasHydrated()) {
+      initPurchases();
+      return;
+    }
+    return useAppStore.persist.onFinishHydration(() => initPurchases());
   }, []);
 
   // 匿名の deviceId が確定(永続化ストアの復元完了)次第、行動分析を初期化する
