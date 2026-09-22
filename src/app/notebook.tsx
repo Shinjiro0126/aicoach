@@ -487,10 +487,12 @@ export default function NotebookScreen() {
     if (inFlightInsightKeys.has(key)) return;
     inFlightInsightKeys.add(key);
     const range = notebookWeekRange(firstKey, targetWeek);
-    // 過去週の後追い生成(無料の1冊目)は、その週の旗の日までの記録だけで統計を組む
-    const isLatest = targetWeek === freshSchedule.availableWeekNo;
-    const asOf = isLatest ? todayNow : range.toKey;
-    const scopedRows = isLatest ? rows : rows.filter((r) => r.dateKey <= range.toKey);
+    // 統計は常にその週の旗の日(toKey)までの記録で固定する。最新週でも旗の日の翌日以降に
+    // 初めて開くと「今日まで」で集計してしまい、第1週の手帳が観察8日以上で生成されて
+    // 「はじめの見立て」規定から外れたり、NotebookDetail(entry.toKey までで固定表示)の
+    // 統計カードと手紙本文の数字が食い違うため。旗の日当日は today===toKey で同一挙動
+    const asOf = todayNow < range.toKey ? todayNow : range.toKey;
+    const scopedRows = rows.filter((r) => r.dateKey <= range.toKey);
     const freshStreak = computeStreak(scopedRows.map((r) => r.dateKey), asOf);
     const request: InsightRequest = {
       ...computeInsightStats(scopedRows, asOf, freshStreak),
