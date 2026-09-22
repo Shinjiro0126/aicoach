@@ -19,6 +19,7 @@ export type ExportTables = {
   dailyActions: readonly Row[];
   dailyTasks: readonly Row[];
   dailyReports: readonly Row[];
+  insightEntries: readonly Row[];
   checkins: readonly Row[];
   coachMessages: readonly Row[];
 };
@@ -53,6 +54,7 @@ export function buildExportPayload(
       dailyActions: [...tables.dailyActions],
       dailyTasks: [...tables.dailyTasks],
       dailyReports: [...tables.dailyReports],
+      insightEntries: [...tables.insightEntries],
       checkins: [...tables.checkins],
       coachMessages: [...tables.coachMessages],
     };
@@ -65,6 +67,8 @@ export function buildExportPayload(
     dailyActions: [...tables.dailyActions],
     dailyTasks: [...tables.dailyTasks],
     dailyReports: [...tables.dailyReports],
+    // 観察手帳はホトリが統計値から書いた文章で、ユーザーの自由テキストではないため「記録のみ」にも含める
+    insightEntries: [...tables.insightEntries],
     checkins: tables.checkins.map((row) => omitKeys(row, ['note'])),
     // coachMessages(対話履歴)は「記録のみ」には含めない
   };

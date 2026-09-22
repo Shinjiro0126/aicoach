@@ -35,6 +35,20 @@ function makeTables(): ExportTables {
     dailyReports: [
       { id: 'r1', goalId: 'g1', dateKey: '2026-09-01', submittedAt: 300, doneCount: 1, totalCount: 3 },
     ],
+    insightEntries: [
+      {
+        id: 'i1',
+        goalId: 'g1',
+        weekNo: 1,
+        fromKey: '2026-09-01',
+        toKey: '2026-09-07',
+        letter: '最初の7日間、あなたは5回歩きました。',
+        typeName: '小さく積む、慎重な歩き手',
+        weekdayNote: '',
+        plan: '来週も、最初の一歩を小さく保ちます。',
+        createdAt: 350,
+      },
+    ],
     checkins: [
       { id: 'c1', goalId: 'g1', date: '2026-09-01', mood: 4, note: 'NOTE_SECRET', createdAt: 400 },
     ],

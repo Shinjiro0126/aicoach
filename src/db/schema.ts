@@ -80,6 +80,24 @@ export const dailyReports = sqliteTable('daily_reports', {
   totalCount: integer('total_count').notNull().default(0),
 });
 
+/**
+ * 観察手帳の週次アーカイブ(たまる手帳)。1週=1冊で、goalId×weekNo は一意。
+ * fromKey / toKey は初提出日起点の観察週の両端(YYYY-MM-DD)。
+ * 手紙・タイプ名などのテキストは端末内DBにのみ保存する(サーバーへ送らない)
+ */
+export const insightEntries = sqliteTable('insight_entries', {
+  id: text('id').primaryKey(),
+  goalId: text('goal_id').notNull(),
+  weekNo: integer('week_no').notNull(),
+  fromKey: text('from_key').notNull(),
+  toKey: text('to_key').notNull(),
+  letter: text('letter').notNull(),
+  typeName: text('type_name').notNull(),
+  weekdayNote: text('weekday_note').notNull().default(''),
+  plan: text('plan').notNull().default(''),
+  createdAt: integer('created_at').notNull(),
+});
+
 /** 夜の振り返り記録 */
 export const checkins = sqliteTable('checkins', {
   id: text('id').primaryKey(),
@@ -101,6 +119,7 @@ export const coachMessages = sqliteTable('coach_messages', {
 });
 
 export type Goal = typeof goals.$inferSelect;
+export type InsightEntry = typeof insightEntries.$inferSelect;
 export type GoalMilestone = typeof goalMilestones.$inferSelect;
 export type WeeklyPlan = typeof weeklyPlans.$inferSelect;
 export type DailyAction = typeof dailyActions.$inferSelect;
