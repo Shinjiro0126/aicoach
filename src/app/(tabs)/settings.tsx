@@ -15,7 +15,7 @@ import { archiveGoal, deleteAllData, exportAllData, listReports } from '@/db/rep
 import { toDateKey, todayKey } from '@/lib/dates';
 import { cancelDailyNotifications } from '@/lib/notifications';
 import { progressSummary } from '@/lib/progress';
-import { getPremiumExpirationDate, restorePremium } from '@/lib/purchases';
+import { getPremiumRenewalInfo, restorePremium, type PremiumRenewalInfo } from '@/lib/purchases';
 import { addWeeksKey, weekIndex } from '@/lib/roadmap';
 import { computeStreak } from '@/lib/streak';
 import { THEME_PREFERENCE_OPTIONS } from '@/lib/theme-preference';
@@ -104,14 +104,18 @@ export default function ProfileScreen() {
   }, [activeGoal]);
   useFocusEffect(refresh);
 
-  // 次回更新日(RevenueCat接続時のみ取得できる)。未接続・無料プランでは null のまま
-  // 「プレミアムをご利用中です」の表記にフォールバックする
-  const [renewalLabel, setRenewalLabel] = useState<string | null>(null);
+  // 更新情報(RevenueCat接続時のみ取得できる)。未接続・無料プランでは null のまま
+  // 「プレミアムをご利用中です」の表記にフォールバックする。
+  // 復元成功直後にも呼び直せるよう、取得処理を useFocusEffect の外に持つ
+  const [renewal, setRenewal] = useState<PremiumRenewalInfo | null>(null);
+  const refreshRenewal = useCallback(async () => {
+    setRenewal(await getPremiumRenewalInfo());
+  }, []);
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      getPremiumExpirationDate().then((date) => {
-        if (!cancelled) setRenewalLabel(date ? `${date.getMonth() + 1}月${date.getDate()}日` : null);
+      getPremiumRenewalInfo().then((info) => {
+        if (!cancelled) setRenewal(info);
       });
       return () => {
         cancelled = true;
@@ -199,6 +203,8 @@ export default function ProfileScreen() {
     }
     if (result === 'restored') {
       if (notificationsEnabled) await applyNotifications(true, undefined, undefined, true);
+      // タブを離れなくてもプランカードの更新日が出るよう、その場で取り直す
+      await refreshRenewal();
       Alert.alert('復元しました', 'おかえりなさい。プレミアムをご利用いただけます。');
     } else if (result === 'none') {
       Alert.alert('復元できる購入が見つかりません', 'このApple Accountでの購入履歴が見つかりませんでした。');
@@ -304,8 +310,11 @@ export default function ProfileScreen() {
         />
         <ThemedText style={styles.planCaption} themeColor="textSecondary">
           {premium
-            ? renewalLabel
-              ? `月額プラン · 次回の更新は${renewalLabel}`
+            ? renewal
+              ? // 解約済み(自動更新オフ)のときは expirationDate は更新日ではなく利用終了日
+                renewal.willRenew
+                ? `月額プラン · 次回の更新は${renewal.date.getMonth() + 1}月${renewal.date.getDate()}日`
+                : `月額プラン · ${renewal.date.getMonth() + 1}月${renewal.date.getDate()}日まで利用できます`
               : 'プレミアムをご利用中です'
             : 'プレミアムにすると、観察手帳とホトリの深掘りが開きます'}
         </ThemedText>

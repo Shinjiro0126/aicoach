@@ -144,17 +144,28 @@ export async function restorePremium(): Promise<RestoreResult | null> {
   }
 }
 
+/** 設定画面のプランカードが表示する更新情報 */
+export type PremiumRenewalInfo = {
+  /** 今の支払い済み期間が終わる日(expirationDate) */
+  date: Date;
+  /** 自動更新が生きているか。falseは解約済みで、dateは更新日ではなく利用終了日になる */
+  willRenew: boolean;
+};
+
 /**
- * プレミアムの次回更新日(エンタイトルメントの expirationDate)を返す。
+ * プレミアムの更新情報を返す。expirationDate は「支払い済み期間の終わり」であって
+ * 次回課金日そのものではないため、解約済み(willRenew=false)のときに
+ * 「次回の更新は◯日」と表示しないよう willRenew とセットで返す。
  * 未接続・未購入・取得失敗のときは null(設定画面は日付なしの表記にフォールバックする)
  */
-export async function getPremiumExpirationDate(): Promise<Date | null> {
+export async function getPremiumRenewalInfo(): Promise<PremiumRenewalInfo | null> {
   const Purchases = loadModule();
   if (!configured || !Purchases) return null;
   try {
     const info = await Purchases.getCustomerInfo();
-    const iso = info.entitlements.active[ENTITLEMENT_ID]?.expirationDate;
-    return iso ? new Date(iso) : null;
+    const entitlement = info.entitlements.active[ENTITLEMENT_ID];
+    if (!entitlement?.expirationDate) return null;
+    return { date: new Date(entitlement.expirationDate), willRenew: entitlement.willRenew };
   } catch {
     return null;
   }
