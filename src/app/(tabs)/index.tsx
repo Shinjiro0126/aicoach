@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,6 +30,7 @@ import type { DailyReport, DailyTask } from '@/db/schema';
 import { replanWeek } from '@/lib/ai/client';
 import type { ReplanRequest } from '@/lib/ai/types';
 import { AnalyticsEvent, trackEvent } from '@/lib/analytics/posthog';
+import { buildComebackLetter, comebackGapDays, isComebackDay } from '@/lib/comeback';
 import { addDaysKey, diffDays, formatJP, toDateKey, todayKey } from '@/lib/dates';
 import { buildFlagWeekSummary, buildNextWeekPreview } from '@/lib/flag-day';
 import { buildTeaser, coldStartJourneyDays, computeInsightStats } from '@/lib/insight-stats';
@@ -57,7 +58,18 @@ const KIND_LABELS: Record<DailyTask['kind'], string> = {
 };
 
 /** チェック可能なタスク1行(今日の一歩はtint枠線で強調)。custom タスクは長押しで削除できる */
-function TaskRow({ task, onToggle, onDelete }: { task: DailyTask; onToggle: () => void; onDelete?: () => void }) {
+function TaskRow({
+  task,
+  onToggle,
+  onDelete,
+  labelSuffix,
+}: {
+  task: DailyTask;
+  onToggle: () => void;
+  onDelete?: () => void;
+  /** 種別ラベルへの添え書き(復帰の日の「今日はいつもより軽い版」等) */
+  labelSuffix?: string;
+}) {
   const theme = useTheme();
   const isMain = task.kind === 'main';
   return (
@@ -88,6 +100,7 @@ function TaskRow({ task, onToggle, onDelete }: { task: DailyTask; onToggle: () =
           type="small"
           style={{ fontSize: 11, fontWeight: '700', color: isMain ? theme.tintDeep : theme.textSecondary }}>
           {KIND_LABELS[task.kind]}
+          {labelSuffix ?? ''}
         </ThemedText>
         <ThemedText
           style={
@@ -152,6 +165,12 @@ type FlagCeremonyData = {
 const firedReplanKeys = new Set<string>();
 
 /**
+ * 復帰の日カードの表示計測ガード(goalId:日付)。フォーカスのたびの再発火を防ぐため、
+ * firedReplanKeys と同じ方針でモジュールスコープに置く
+ */
+const shownComebackKeys = new Set<string>();
+
+/**
  * 週次リプランの実行(fire-and-forget)。セレモニーを閉じる裏で走らせる。
  * - 成功: 次週フォーカス+7日分の行動を保存し、flagMessage をストアへ(週1回・無料。対話クォータは消費しない)
  * - 失敗・オフライン・応答不備: 何もしない=既存の前日コピーにフォールバックし、UIにエラーを出さない
@@ -193,6 +212,8 @@ export default function HomeScreen() {
   const setNextWeekPace = useAppStore((s) => s.setNextWeekPace);
   const premium = useAppStore((s) => s.premium);
   const deviceId = useAppStore((s) => s.deviceId);
+  const comebackLetter = useAppStore((s) => s.comebackLetter);
+  const setComebackLetter = useAppStore((s) => s.setComebackLetter);
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [report, setReport] = useState<DailyReport | null>(null);
@@ -217,21 +238,46 @@ export default function HomeScreen() {
     // 歩幅宣言(旗の日の3択)は宣言時の goalId・forWeekNo が現在の目標・実週番号(クランプなし)と
     // 一致する週だけ効く(目標リセット後の新目標に旧宣言を漏らさない)
     const rawWeekNo = weekIndex(startKey, today) + 1;
+    const dates = listReportDates(goal.id);
+    // 復帰の日(旗の日と重なる場合は旗の日を優先)は、タスク題に週単位の歩幅接尾を付けない
+    // (デザイン Comeback.dc.html 準拠。軽い版はその日限りで、「今週は…」の接尾は実態と矛盾するため
+    // 'keep' で歩幅宣言の接尾ごと抑止し、「軽い版」はカード下のラベルだけで示す)。
+    // ensureTasksForDate は既にタスク生成済みの日は既存行をそのまま返すため、既存データは書き換えない
+    const comebackToday = !isFlagDay(startKey, today) && isComebackDay(dates, today);
     setTasks(
       ensureTasksForDate(goal.id, today, {
         goalTitle: goal.title,
         weekFocus: planList[weekNo - 1]?.focus,
-        pace: effectivePace(nextWeekPace, goal.id, rawWeekNo),
+        pace: comebackToday ? 'keep' : effectivePace(nextWeekPace, goal.id, rawWeekNo),
       }),
     );
     setReport(getReportForDate(goal.id, today) ?? null);
-    const dates = listReportDates(goal.id);
     setReportDates(dates);
     const result = computeStreak(dates, today);
     setStreak({ current: result.current, best: result.best });
   }, [goal, today, nextWeekPace]);
 
   useFocusEffect(refresh);
+
+  /**
+   * 復帰の日: 過去に提出があり、直近の提出から2日以上空いて(=救済を超えてストリークが
+   * 途切れて)今日を迎え、まだ未提出の日。旗の日と重なる場合は旗の日を優先して出さない。
+   * フックの後の early return より前で計算する(表示計測の useEffect が使うため)
+   */
+  const comebackDay =
+    goal !== null &&
+    report === null &&
+    !isFlagDay(toDateKey(new Date(goal.createdAt)), today) &&
+    isComebackDay(reportDates, today);
+
+  // 復帰の日カードの表示計測(goalId×日付で1回のみ。プロパティは送らない)
+  useEffect(() => {
+    if (!comebackDay || !goal) return;
+    const key = `${goal.id}:${today}`;
+    if (shownComebackKeys.has(key)) return;
+    shownComebackKeys.add(key);
+    trackEvent(AnalyticsEvent.ComebackCardShown);
+  }, [comebackDay, goal, today]);
 
   if (!goal) return null;
 
@@ -269,6 +315,24 @@ export default function HomeScreen() {
         },
       },
     ]);
+  };
+
+  /**
+   * 復帰カードの手紙行 → 手帳(棚)へ。プレミアムは遷移前に復帰の手紙を組み立てて
+   * ストアへキャッシュする(goalId+dateKeyで一意)。手紙はAI呼び出しなしの決定的
+   * テンプレートで端末内完結し、同じ日の再タップでは作り直さない
+   */
+  const openComebackLetter = () => {
+    if (premium && !(comebackLetter?.goalId === goal.id && comebackLetter.dateKey === today)) {
+      const walkedDays = listReports(goal.id).filter((r) => r.doneCount > 0).length;
+      setComebackLetter({
+        goalId: goal.id,
+        dateKey: today,
+        message: buildComebackLetter(comebackGapDays(reportDates, today), walkedDays),
+        generatedAt: Date.now(),
+      });
+    }
+    router.push('/notebook');
   };
 
   const confirmAddTask = () => {
@@ -510,18 +574,55 @@ export default function HomeScreen() {
           </ThemedText>
           <ThemedText type="subtitle">{goal.title}</ThemedText>
           <View style={styles.streakRow}>
-            <View style={styles.streakBadge}>
-              <SymbolView name="flame.fill" size={16} tintColor={theme.tintDeep} />
-              <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
-                {streak.current}日連続
-              </ThemedText>
-            </View>
+            {comebackDay ? (
+              // 復帰の日は「0日連続」を見せず、おかえりデーのチップ(sand)+ベストのみ
+              <View style={[styles.comebackChip, { backgroundColor: theme.sand }]}>
+                <ThemedText type="smallBold" style={{ fontSize: 11, color: theme.sandText }}>
+                  おかえりデー
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.streakBadge}>
+                <SymbolView name="flame.fill" size={16} tintColor={theme.tintDeep} />
+                <ThemedText type="smallBold" style={{ color: theme.tintDeep }}>
+                  {streak.current}日連続
+                </ThemedText>
+              </View>
+            )}
             <ThemedText type="small" themeColor="textSecondary">
               ベスト {streak.best}日
             </ThemedText>
           </View>
         </View>
 
+        {comebackDay ? (
+          // ---- 復帰の日カード(デザイン Comeback.dc.html。ホトリのひとことの復帰版・sand) ----
+          <View style={[styles.comebackCard, { backgroundColor: theme.sand }]}>
+            <View style={styles.comebackHead}>
+              <Hotori variant="bust" size={44} />
+              <ThemedText type="small" style={{ flex: 1, lineHeight: 24, color: theme.sandText }}>
+                おかえりなさい。できなかった日も、道のうちです。今日の一歩から、また一緒に歩きましょう。
+              </ThemedText>
+            </View>
+            {/* 手紙行: プレミアムは復帰の手紙、無料は手帳への案内1行(どちらも手帳の棚へ) */}
+            <Pressable
+              accessibilityRole="button"
+              onPress={openComebackLetter}
+              style={({ pressed }) => [
+                styles.comebackLetterRow,
+                { backgroundColor: theme.background },
+                pressed && { opacity: 0.85 },
+              ]}>
+              <SymbolView name="book.closed" size={15} tintColor={theme.tintDeep} />
+              <ThemedText type="smallBold" style={{ flex: 1, fontSize: 13, color: theme.tintDeep }}>
+                {premium
+                  ? 'ホトリから、復帰の手紙が届いています'
+                  : '手帳で、あなたの歩き方を見てみましょう'}
+              </ThemedText>
+              <SymbolView name="chevron.right" size={12} tintColor={theme.tintDeep} weight="semibold" />
+            </Pressable>
+          </View>
+        ) : (
         <View style={[styles.kickoff, { backgroundColor: theme.tintSoft }]}>
           {/* デザイン01の朝ひとことは円形・水辺グラデのアバター(bust) */}
           <Hotori variant="bust" size={40} />
@@ -558,6 +659,7 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+        )}
 
         <View style={styles.secHead}>
           <ThemedText type="smallBold">今日の一歩</ThemedText>
@@ -565,7 +667,14 @@ export default function HomeScreen() {
             これだけで今日は合格
           </ThemedText>
         </View>
-        {mainTask && <TaskRow task={mainTask} onToggle={() => toggleTask(mainTask)} />}
+        {mainTask && (
+          <TaskRow
+            task={mainTask}
+            onToggle={() => toggleTask(mainTask)}
+            // 復帰の日は軽い版であることをこのラベルだけで示す(タスク題には接尾を付けない。refresh 側参照)
+            labelSuffix={comebackDay ? ' · 今日はいつもより軽い版' : undefined}
+          />
+        )}
 
         <View style={styles.secHead}>
           <ThemedText type="smallBold">プラスワン</ThemedText>
@@ -664,6 +773,21 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   kickoffBody: { flex: 1, gap: Spacing.two },
+  comebackChip: {
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one,
+  },
+  comebackCard: { borderRadius: 18, padding: Spacing.three, gap: Spacing.two + 2 },
+  comebackHead: { flexDirection: 'row', gap: Spacing.three - 4, alignItems: 'flex-start' },
+  comebackLetterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.three - 2,
+    paddingVertical: Spacing.three - 1,
+  },
   flagCount: {
     flexDirection: 'row',
     alignItems: 'center',

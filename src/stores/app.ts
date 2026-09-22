@@ -44,6 +44,21 @@ export type ReplanLetterEntry = {
   generatedAt: number;
 };
 
+/**
+ * 復帰の手紙(復帰の日にホトリが書く決定的テンプレートの手紙)の永続キャッシュ。
+ * goalId+dateKey で一意の最新1件のみ持つ(ReplanLetterEntry と同じ思想)。
+ * AI呼び出しなしで端末内だけで組み立てられ、端末の中だけに保存される。
+ * DBマイグレーション(末尾追加のみ)を増やさないため AsyncStorage 永続で持つ
+ */
+export type ComebackLetterEntry = {
+  goalId: string;
+  /** 復帰の日の日付キー(YYYY-MM-DD) */
+  dateKey: string;
+  /** 手紙本文(3文以内) */
+  message: string;
+  generatedAt: number;
+};
+
 type AppState = {
   // ---- 永続化される設定 ----
   deviceId: string;
@@ -58,6 +73,8 @@ type AppState = {
   insight: InsightCacheEntry | null;
   /** 週次リプランの手紙の最新キャッシュ(端末内のみに保存) */
   replanLetter: ReplanLetterEntry | null;
+  /** 復帰の手紙の最新キャッシュ(端末内のみに保存) */
+  comebackLetter: ComebackLetterEntry | null;
   /**
    * 来週の歩幅宣言(旗の日セレモニーの3択)。goalId・forWeekNo で対象目標・対象週をスコープし、
    * 効くのは宣言した目標の翌週のみ(判定は lib/pace.ts の effectivePace。
@@ -78,6 +95,7 @@ type AppState = {
   setThemePreference: (preference: ThemePreference) => void;
   setInsight: (entry: InsightCacheEntry | null) => void;
   setReplanLetter: (entry: ReplanLetterEntry | null) => void;
+  setComebackLetter: (entry: ComebackLetterEntry | null) => void;
   setNextWeekPace: (declaration: PaceDeclaration | null) => void;
   /** 「すべてのデータを削除」用: premium 以外のストア状態を初期化する(deviceId は新規生成) */
   resetForDataDeletion: () => void;
@@ -98,6 +116,7 @@ export const useAppStore = create<AppState>()(
       themePreference: 'system',
       insight: null,
       replanLetter: null,
+      comebackLetter: null,
       nextWeekPace: null,
 
       activeGoal: null,
@@ -114,6 +133,7 @@ export const useAppStore = create<AppState>()(
       setThemePreference: (preference) => set({ themePreference: preference }),
       setInsight: (entry) => set({ insight: entry }),
       setReplanLetter: (entry) => set({ replanLetter: entry }),
+      setComebackLetter: (entry) => set({ comebackLetter: entry }),
       setNextWeekPace: (declaration) => set({ nextWeekPace: declaration }),
 
       /**
@@ -133,6 +153,7 @@ export const useAppStore = create<AppState>()(
           quota: { date: '', used: 0 },
           insight: null,
           replanLetter: null,
+          comebackLetter: null,
           nextWeekPace: null,
           activeGoal: null,
           goalLoaded: true,
@@ -161,6 +182,7 @@ export const useAppStore = create<AppState>()(
         themePreference: s.themePreference,
         insight: s.insight,
         replanLetter: s.replanLetter,
+        comebackLetter: s.comebackLetter,
         nextWeekPace: s.nextWeekPace,
       }),
     },

@@ -273,6 +273,31 @@ function ComebackCard({ stats }: { stats: InsightStats }) {
 }
 
 /**
+ * 復帰の手紙(復帰の日のみ・プレミアム)。ホームの復帰の日カードから遷移した棚の最上部に出す。
+ * 本文はAI呼び出しなしの決定的テンプレート(lib/comeback.ts)で、
+ * 端末内の永続キャッシュ(stores/app.ts の comebackLetter)から読む
+ */
+function ComebackLetterCard({ message }: { message: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: Spacing.two }}>
+      <SectionLabel label="復帰の手紙(今日)" />
+      <View style={[styles.planIntent, { backgroundColor: theme.sand }]}>
+        <ThemedText type="small" style={{ color: theme.sandText, lineHeight: 22 }}>
+          {message}
+        </ThemedText>
+        <View style={styles.letterSig}>
+          <Hotori variant="bust" size={18} />
+          <ThemedText type="small" style={{ color: theme.sandText, fontWeight: '700', fontSize: 12 }}>
+            ホトリ
+          </ThemedText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
  * 今週の計画の意図(週次リプランの flagMessage)。プレミアムのみ棚に表示する。
  * 内容は端末内の永続キャッシュ(stores/app.ts の replanLetter)から読む
  */
@@ -420,6 +445,7 @@ export default function NotebookScreen() {
   const setInsight = useAppStore((s) => s.setInsight);
   const deviceId = useAppStore((s) => s.deviceId);
   const replanLetter = useAppStore((s) => s.replanLetter);
+  const comebackLetter = useAppStore((s) => s.comebackLetter);
 
   const [reports, setReports] = useState<ReportEntry[]>([]);
   const [entries, setEntries] = useState<InsightEntry[]>([]);
@@ -552,6 +578,11 @@ export default function NotebookScreen() {
   // ---- 棚ビュー(Shelf.dc.html) ----
   const planIntent =
     premium && replanLetter !== null && replanLetter.goalId === goal.id ? replanLetter : null;
+  // 復帰の手紙は復帰の日(dateKey=今日)の間だけ棚の最上部に出す
+  const comebackMessage =
+    premium && comebackLetter !== null && comebackLetter.goalId === goal.id && comebackLetter.dateKey === today
+      ? comebackLetter.message
+      : null;
   const firstKey = firstReportDateKey(reports);
   const latestEntry = entries.find((e) => e.weekNo === availableWeekNo);
   // 最新の開放週がまだ綴じられていない: 読める立場なら「まとめ中」、無料の2冊目以降はロック行
@@ -578,6 +609,9 @@ export default function NotebookScreen() {
       <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 12, marginTop: -Spacing.two }}>
         あなたの歩き方の記録。すべてこの端末の中に。
       </ThemedText>
+
+      {/* 復帰の手紙(復帰の日のみ・プレミアム)。棚の最上部に置く */}
+      {comebackMessage !== null && <ComebackLetterCard message={comebackMessage} />}
 
       {/* 執筆中カード(点線枠): いま観察している週 */}
       <View style={[styles.writingCard, { borderColor: theme.tint }]}>
