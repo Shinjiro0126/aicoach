@@ -50,8 +50,11 @@ export type InsightStats = {
 
 export const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
-/** 手帳が書けるようになる観察日数(2週間) */
-export const MIN_INSIGHT_DAYS = 14;
+/**
+ * 最初の手帳が書けるようになる観察日数(第1週=7日)。
+ * 第1週の手帳は観察1週分の「はじめの見立て」版として書く(isFirstNotebookWeek)
+ */
+export const MIN_INSIGHT_DAYS = 7;
 
 /** 観察手帳AIの待ち時間上限(超えたらフォールバック文へ。期間おすすめと同じ思想) */
 export const INSIGHT_TIMEOUT_MS = 12_000;
@@ -153,7 +156,7 @@ export function maxTimeBand(bands: TimeBands): keyof TimeBands | null {
 
 /**
  * 無料ティザー1行のローカル生成(AI不使用・決定的)。
- * 断定は確定事実(提出数・復帰回数)のみ。データ2週未満は「観察中」文を返す。
+ * 断定は確定事実(提出数・復帰回数)のみ。最初の手帳(第1週の旗の日)前は「観察中」文を返す。
  */
 export function buildTeaser(stats: InsightStats): string {
   if (stats.observedDays < MIN_INSIGHT_DAYS) {
@@ -284,7 +287,7 @@ export function firstReportDateKey(reports: readonly ReportEntry[]): string | nu
 // ===== 手帳の更新スケジュール(週の旗の日=週次更新日) =====
 
 export type NotebookSchedule = {
-  /** 生成可能な最新の手帳の週番号(データ2週未満なら 0) */
+  /** 生成可能な最新の手帳の週番号(第1週の旗の日前なら 0) */
   availableWeekNo: number;
   /** 最初の手帳まであとN日(生成可能になったら 0) */
   daysToFirst: number;
@@ -296,14 +299,14 @@ export type NotebookSchedule = {
 
 /**
  * 「次の手帳まであとN日」の計算。
- * 「データ2週」の基準は初提出日(=stats.observedDays と同じ起点)に統一する。
+ * 開放の基準は初提出日(=stats.observedDays と同じ起点)に統一する。
  * 目標開始日基準にすると、開始から日が経ってから記録を始めたユーザーで
- * 「観察日数は2週未満なのに手帳が書ける/あと0日表示」の矛盾が生じるため(Issue #30)。
+ * 「観察日数が足りないのに手帳が書ける/あと0日表示」の矛盾が生じるため(Issue #30)。
  * 観察の週は初提出日起点の7日区切りで、旗の日=各週の最終日。
- * 最初の手帳はデータ2週(MIN_INSIGHT_DAYS)がそろった日=観察第2週の旗の日に書ける。
+ * 最初の手帳は観察1週(MIN_INSIGHT_DAYS)がそろった日=第1週の旗の日に書ける。
  */
 export function notebookSchedule(firstReportKey: string | null, today: string): NotebookSchedule {
-  // まだ一度も提出していない=観察は始まっていない。最初の手帳まで丸2週間
+  // まだ一度も提出していない=観察は始まっていない。最初の手帳まで丸1週間
   if (firstReportKey === null) {
     return {
       availableWeekNo: 0,
@@ -322,6 +325,40 @@ export function notebookSchedule(firstReportKey: string | null, today: string): 
     daysToNext: available > 0 ? (available + 1) * 7 - 1 - days : daysToFirst,
     latestFlagDateKey: available > 0 ? addDaysKey(firstReportKey, available * 7 - 1) : null,
   };
+}
+
+// ===== 手帳の週・無料開放の判定 =====
+
+/**
+ * 手帳の対象週の日付範囲(両端含む)。
+ * 週境界は notebookSchedule と同じ「初提出日起点の7日区切り」を共有する
+ * (toKey = その週の旗の日 = latestFlagDateKey と同じ計算)
+ */
+export function notebookWeekRange(
+  firstReportKey: string,
+  weekNo: number,
+): { fromKey: string; toKey: string } {
+  return {
+    fromKey: addDaysKey(firstReportKey, (weekNo - 1) * 7),
+    toKey: addDaysKey(firstReportKey, weekNo * 7 - 1),
+  };
+}
+
+/**
+ * 第1週の手帳(はじめの見立て)か。
+ * 観察が約7日分しかないため、統計カードは時間帯+復帰力のみ・曜日リズムは予告カードにする。
+ * ヘッダーの日付行にも「· はじめの見立て」を添える
+ */
+export function isFirstNotebookWeek(weekNo: number): boolean {
+  return weekNo === 1;
+}
+
+/**
+ * その週の手帳を生成・全文閲覧できるか。
+ * 1冊目(第1週)はどなたにも無料、2冊目以降はプレミアムのみ
+ */
+export function canReadNotebook(premium: boolean, weekNo: number): boolean {
+  return premium || isFirstNotebookWeek(weekNo);
 }
 
 // ===== 手帳の生成要否判定 =====
@@ -345,7 +382,7 @@ export type InsightGenerationPlan = {
  * 観察手帳の生成要否判定(notebook.tsx の生成effectとテストで共有する純関数)。
  * 画面を開いたまま週の旗の日を跨いで availableWeekNo が進んだ場合も、
  * キャッシュ週との不一致として「生成が必要」と判定される(Issue #31)。
- * - データ2週未満(availableWeekNo=0)は観察中で、生成しない
+ * - 第1週の旗の日前(availableWeekNo=0)は観察中で、生成しない
  * - キャッシュが現行週と不一致(週が進んだ・目標が変わった・キャッシュ無し)なら新規生成
  * - フォールバック文で保存された週は、次に開いたとき静かに再生成を試みる
  */
