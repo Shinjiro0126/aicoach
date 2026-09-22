@@ -11,14 +11,13 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={colors.background}
-      // ダークは黒背景に対してコントラストを確保する: 選択中ピルは一段明るい
-      // backgroundSelected、非選択のアイコン・ラベルはOS既定の薄いグレーだと
-      // 沈むため textSecondary を明示する(ライトは従来どおりOS既定に任せる)
+      // ダークは黒背景+白文字ではっきりさせる(選択中は一段明るいピルで区別)。
+      // ライトは従来どおりOS既定+backgroundElementのまま
       indicatorColor={isDark ? colors.backgroundSelected : colors.backgroundElement}
-      iconColor={isDark ? { default: colors.textSecondary, selected: colors.text } : undefined}
+      iconColor={isDark ? '#FFFFFF' : undefined}
       labelStyle={
         isDark
-          ? { default: { color: colors.textSecondary }, selected: { color: colors.text } }
+          ? { default: { color: '#FFFFFF' }, selected: { color: '#FFFFFF' } }
           : { selected: { color: colors.text } }
       }>
       <NativeTabs.Trigger name="index">
