@@ -1,0 +1,109 @@
+/* ホトリ 規約・ポリシーページ共通スタイル。ブランドカラーは src/constants/theme.ts と揃える */
+:root {
+  --bg: #ffffff;
+  --text: #16232c;
+  --text-secondary: #5c6e7a;
+  --tint: #2e9fd6;
+  --tint-deep: #17638f;
+  --border: #dfe8ed;
+  --card: #eff4f7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --text: #f4f8fa;
+    --text-secondary: #9fb1bc;
+    --tint: #5fc2ee;
+    --tint-deep: #8fd4f4;
+    --border: #263440;
+    --card: #1b2329;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  line-height: 1.9;
+  font-size: 16px;
+}
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 20px 80px;
+}
+header.site {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+header.site .brand {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--tint-deep);
+  text-decoration: none;
+}
+header.site .doc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+h1 {
+  font-size: 26px;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+.meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 36px;
+}
+h2 {
+  font-size: 19px;
+  line-height: 1.5;
+  margin: 44px 0 12px;
+  padding-top: 8px;
+}
+p,
+li {
+  margin: 0 0 14px;
+}
+ul {
+  padding-left: 22px;
+}
+li {
+  margin-bottom: 8px;
+}
+a {
+  color: var(--tint-deep);
+}
+a:hover {
+  color: var(--tint);
+}
+.note {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px 18px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+footer.site {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+footer.site nav {
+  display: flex;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}

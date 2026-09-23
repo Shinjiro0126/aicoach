@@ -29,10 +29,10 @@ export const Config = {
   defaultMorningTime: { hour: 8, minute: 0 },
   defaultEveningTime: { hour: 21, minute: 30 },
   /**
-   * 利用規約・プライバシーポリシーのURL。
-   * TODO: RevenueCat接続(課金提供開始)時に公開URLを設定する。
-   * 空文字の間、ペイウォールのリンク行は非表示になる
+   * 利用規約・プライバシーポリシーのURL(原本は legal/ ディレクトリ。
+   * Cloudflare Pages プロジェクト hotori-legal にデプロイして公開する)。
+   * リリースビルドの前に必ずデプロイ済みであること
    */
-  termsOfUseUrl: '',
-  privacyPolicyUrl: '',
+  termsOfUseUrl: 'https://hotori-legal.pages.dev/terms',
+  privacyPolicyUrl: 'https://hotori-legal.pages.dev/privacy',
 } as const;
